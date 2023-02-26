@@ -2,10 +2,10 @@ import torch
 from torch import nn
 from torch.functional import F
 from models.layersNAT import DecoderLayerNAT, DecoderNAT
-from models.transformer import Transformer, positional_encoding
+from models.transformer import TransformerCore, positional_encoding
 
 
-class RefineNAT(Transformer):
+class RefineNAT(TransformerCore):
 
     def __init__(self,
                  src_vocab_size: int,
@@ -45,14 +45,16 @@ class RefineNAT(Transformer):
         """
         # Embeddings and positional encoding
         src_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
-        src_input = self.positional_dropout(positional_encoding(src_input))  # (batch_size, seq_len, d_model)
+        src_input = positional_encoding(src_input, self.d_model)
+        src_input = self.positional_dropout(src_input)  # (batch_size, seq_len, d_model)
         tgt_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        tgt_input = positional_encoding(tgt_input, self.d_model)
         tgt_input = self.positional_dropout(positional_encoding(tgt_input))  # (batch_size, seq_len, d_model)
 
         # Encoder and decoder
         e_output = self.encoder(src_input, e_mask, e_pad_mask)
-        d_output = self.decoder(tgt_input, e_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
-        d_output = self.decoder1(d_output, e_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
+        d_output = self.decoder(src_input, e_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
+        d_output = self.decoder1(tgt_input, d_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)

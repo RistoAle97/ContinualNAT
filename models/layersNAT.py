@@ -65,7 +65,7 @@ class DecoderLayerNAT(nn.Module):
 
         # Positional attention sublayer
         pos_output = positional_encoding(sa_output, self.d_model)
-        pos_output = self.pos_attention(pos_output, pos_output, sa_output, d_pad_mask, attn_mask=d_mask)
+        pos_output = self.pos_attention.forward(pos_output, pos_output, sa_output, d_pad_mask, attn_mask=d_mask)
         if self.use_highway_layer:
             out_highway = F.sigmoid(self.highway2(pos_output))
             pos_output = pos_output * out_highway + (1 - out_highway) * self.dropout2(pos_output)
