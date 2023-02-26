@@ -1,0 +1,36 @@
+# Some general-purpose parameters
+tokenizer: "facebook/mbart-large-cc25"
+train_dataset: "yhavinga/ccmatrix"
+languages: ["en", "de", "es", "fr"]
+batch_size: 16
+max_token_length: 128
+
+# Transformer large parameters
+transformer_large:
+  d_model: 1024
+  n_heads: 16
+  num_encoder_layers: 6
+  num_decoder_layers: 6
+  dim_ff: 4096
+  dropout: 0.3
+  layer_norm_eps: float = 1e-5
+  shared_embeddings_src_trg: True
+  shared_embeddings_trg_out: True
+  max_training_steps: 300000
+
+# Transformer base parameters
+transformer_base:
+  d_model: 512
+  n_heads: 8
+  num_encoder_layers: 6
+  num_decoder_layers: 6
+  dim_ff: 2048
+  dropout: 0.1
+  layer_norm_eps: float = 1e-5
+  shared_embeddings_src_trg: True
+  shared_embeddings_trg_out: True
+  max_training_steps: 100000
+
+# Refine-NAT parameters
+
+# CMLM parameters

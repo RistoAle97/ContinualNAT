@@ -1,0 +1,3 @@
+,teacher_model,lang_pair,bleu,chrf
+0,Helsinki-NLP/opus-mt-en-de,en-de,44.1069154661552,66.62890942497727
+1,Helsinki-NLP/opus-mt-en-fr,en-fr,49.061993320598575,70.29176801575187
