@@ -1,3 +1,2 @@
-,teacher_model,lang_pair,bleu,chrf
-0,Helsinki-NLP/opus-mt-en-de,en-de,44.1069154661552,66.62890942497727
-1,Helsinki-NLP/opus-mt-en-fr,en-fr,49.061993320598575,70.29176801575187
+,teacher_model,lang_pair,dataset_size,bleu,chrf
+0,Helsinki-NLP/opus-mt-en-de,en-de,100,51.14187582978676,71.47384242561829

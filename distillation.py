@@ -87,6 +87,6 @@ if __name__ == '__main__':
             df_scores.to_csv("distillation_teacher_scores.csv")
 
     # Save translations
-    with open("distilled_dataset_{0}_{1}.txt".format(src_lang, tgt_lang), "w", encoding="utf_8") as datafile:
+    with open("data/distilled_dataset_{0}_{1}.txt".format(src_lang, tgt_lang), "w", encoding="utf_8") as datafile:
         for translation in translations:
             datafile.write(translation + "\n")
