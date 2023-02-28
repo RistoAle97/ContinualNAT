@@ -4,6 +4,29 @@ from torch.functional import F
 from models.transformer import positional_encoding
 
 
+class ResidualConnection(nn.Module):
+
+    def __init__(self, dropout: float = 0.1) -> None:
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, residual: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        return residual + self.dropout(x)
+
+
+class HighwayConnection(nn.Module):
+
+    def __init__(self, d_model: int = 512, dropout: float = 0.1) -> None:
+        super().__init__()
+        self.highway = nn.Linear(d_model, 1)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, residual: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
+        out_highway = F.sigmoid(self.highway(residual))
+        x = self.dropout(x)
+        return residual * (1 - out_highway) + x * out_highway
+
+
 class DecoderLayerNAT(nn.Module):
 
     def __init__(self,
@@ -19,31 +42,26 @@ class DecoderLayerNAT(nn.Module):
 
         # Highway linear layers
         if use_highway_layer:
-            self.highway1 = nn.Linear(d_model, 1)
-            self.highway2 = nn.Linear(d_model, 1)
-            self.highway3 = nn.Linear(d_model, 1)
-            self.highway4 = nn.Linear(d_model, 1)
+            self.block_connections = nn.ModuleList([HighwayConnection(d_model, dropout) for _ in range(4)])
+        else:
+            self.block_connections = nn.ModuleList([ResidualConnection(dropout) for _ in range(4)])
 
         # Self-attention sublayer
         self.self_attention = nn.MultiheadAttention(d_model, n_heads, dropout, batch_first=True)
-        self.dropout1 = nn.Dropout(dropout)
         self.norm1 = nn.LayerNorm(d_model, layer_norm_eps)
 
         # Positional attention sublayer
         self.pos_attention = nn.MultiheadAttention(d_model, n_heads, dropout, batch_first=True)
-        self.dropout2 = nn.Dropout(dropout)
         self.norm2 = nn.LayerNorm(d_model, layer_norm_eps)
 
         # Encoder-decoder attention sublayer
-        self.enc_dec_attention = nn.MultiheadAttention(d_model, n_heads, dropout, batch_first=True)
-        self.dropout3 = nn.Dropout(dropout)
+        self.encdec_attention = nn.MultiheadAttention(d_model, n_heads, dropout, batch_first=True)
         self.norm3 = nn.LayerNorm(d_model, layer_norm_eps)
 
         # Feed-forward sublayer
         self.ff_linear1 = nn.Linear(d_model, dim_ff)
         self.dropout4 = nn.Dropout(dropout)
         self.ff_linear2 = nn.Linear(dim_ff, d_model)
-        self.dropout5 = nn.Dropout(dropout)
         self.norm4 = nn.LayerNorm(d_model, layer_norm_eps)
 
     def forward(self,
@@ -54,46 +72,26 @@ class DecoderLayerNAT(nn.Module):
                 e_pad_mask: torch.Tensor = None,
                 d_pad_mask: torch.Tensor = None) -> torch.Tensor:
         # Self-attention sublayer
-        self_output = self.self_attention(tgt_input, tgt_input, tgt_input, d_pad_mask, attn_mask=d_mask)
-        if self.use_highway_layer:
-            out_highway = F.sigmoid(self.highway1(self_output))
-            sa_output = self_output * out_highway + (1 - out_highway) * self.dropout1(self_output)
-        else:
-            sa_output = self_output + self.dropout1(self_output)
-
+        sa_output = self.self_attention(tgt_input, tgt_input, tgt_input, d_pad_mask, attn_mask=d_mask)[0]
+        sa_output = self.block_connections[0](tgt_input, sa_output)
         sa_output = self.norm1(sa_output)
 
         # Positional attention sublayer
         pos_output = positional_encoding(sa_output, self.d_model)
-        pos_output = self.pos_attention.forward(pos_output, pos_output, sa_output, d_pad_mask, attn_mask=d_mask)
-        if self.use_highway_layer:
-            out_highway = F.sigmoid(self.highway2(pos_output))
-            pos_output = pos_output * out_highway + (1 - out_highway) * self.dropout2(pos_output)
-        else:
-            pos_output = pos_output + self.dropout2(pos_output)
-
+        pos_output = self.pos_attention(pos_output, pos_output, sa_output, d_pad_mask, attn_mask=d_mask)[0]
+        pos_output = self.block_connections[1](sa_output, pos_output)
         pos_output = self.norm2(pos_output)
 
         # Encoder-decoder attention sublayer
-        enc_dec_output = self.enc_dec_attention(pos_output, src_input, src_input, e_pad_mask, attn_mask=e_mask)
-        if self.use_highway_layer:
-            out_highway = F.sigmoid(self.highway3(enc_dec_output))
-            enc_dec_output = enc_dec_output * out_highway + (1 - out_highway) * self.dropout3(enc_dec_output)
-        else:
-            enc_dec_output = enc_dec_output + self.dropout3(enc_dec_output)
-
-        enc_dec_output = self.norm3(enc_dec_output)
+        encdec_output = self.encdec_attention.forward(pos_output, src_input, src_input, e_pad_mask, attn_mask=e_mask)[0]
+        encdec_output = self.block_connections[2](pos_output, encdec_output)
+        encdec_output = self.norm3(encdec_output)
 
         # Feed-forward sublayer
-        output = F.relu(self.ff_linear1(enc_dec_output))
+        output = F.relu(self.ff_linear1(encdec_output))
         output = self.dropout4(output)
         output = self.ff_linear2(output)
-        if self.use_highway_layer:
-            out_highway = F.sigmoid(self.highway4(output))
-            output = output * out_highway + (1 - out_highway) * self.dropout5(output)
-        else:
-            output = output + self.dropout5(output)
-
+        output = self.block_connections[3](encdec_output, output)
         output = self.norm4(output)
         return output
 
