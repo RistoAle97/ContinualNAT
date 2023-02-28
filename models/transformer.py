@@ -1,6 +1,5 @@
 import torch
 import math
-import warnings
 from torch import nn
 from torch.functional import F
 
@@ -44,9 +43,9 @@ class TransformerCore(nn.Module):
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
         :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
-            (default=``True``).
+            (default=True).
         :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
-            output (default=``True``).
+            output (default=True).
         """
         super().__init__()
         # Parameters
@@ -70,8 +69,8 @@ class TransformerCore(nn.Module):
         self.src_embedding = nn.Embedding(self.src_vocab_size, d_model)
         self.tgt_embedding = nn.Embedding(self.tgt_vocab_size, d_model)
         if share_embeddings_src_tgt and tgt_vocab_size is not None:
-            warnings.warn("Vocab size for the decoder was passed while the parameter for sharing the embeddings"
-                          "beetween encoder and decoder was set to true, the latter's vocab size will be ignored.")
+            raise ValueError("Vocab size for the decoder was passed while the parameter for sharing the embeddings "
+                             "between encoder and decoder was set to True.")
 
         if share_embeddings_src_tgt or tgt_vocab_size is None:
             self.tgt_embedding.weight = self.src_embedding.weight
@@ -122,9 +121,9 @@ class Transformer(TransformerCore):
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
         :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
-            (default=``True``).
+            (default=True).
         :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
-            output (default=``True``).
+            output (default=True).
         """
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)

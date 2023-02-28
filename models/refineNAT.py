@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.functional import F
-from models.layersNAT import DecoderLayerNAT, DecoderNAT
+from modules.layersNAT import DecoderLayerNAT, DecoderNAT
 from models.transformer import TransformerCore, positional_encoding
 
 

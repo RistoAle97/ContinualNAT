@@ -2,29 +2,7 @@ import torch
 from torch import nn
 from torch.functional import F
 from models.transformer import positional_encoding
-
-
-class ResidualConnection(nn.Module):
-
-    def __init__(self, dropout: float = 0.1) -> None:
-        super().__init__()
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, residual: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        return residual + self.dropout(x)
-
-
-class HighwayConnection(nn.Module):
-
-    def __init__(self, d_model: int = 512, dropout: float = 0.1) -> None:
-        super().__init__()
-        self.highway = nn.Linear(d_model, 1)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, residual: torch.Tensor, x: torch.Tensor) -> torch.Tensor:
-        out_highway = F.sigmoid(self.highway(residual))
-        x = self.dropout(x)
-        return residual * (1 - out_highway) + x * out_highway
+from modules.connections import ResidualConnection, HighwayConnection
 
 
 class DecoderLayerNAT(nn.Module):
@@ -36,11 +14,26 @@ class DecoderLayerNAT(nn.Module):
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-5,
                  use_highway_layer: bool = True) -> None:
+        """
+        The non-autoregressive transformer decoder layer as first introduced by Gu et al.
+        https://arxiv.org/pdf/1711.02281.pdf. Its structure is the same as the transformer base from Vaswani et al.
+        https://arxiv.org/pdf/1706.03762.pdf with an additional layer (called positional attention) placed between the
+        self-attention and the encoder-decoder attention layers. The positional attention layer expects the positional
+        encoding of the self-attention output as its query and key, while expecting the output of the
+        self-attention layer as its value.
+        :param d_model: the model's embedding dimension (default=512).
+        :param n_heads: the number of heads in the multi-attention mechanism (default=8).
+        :param dim_ff: dimension of the feedforward sublayer (default=2048).
+        :param dropout: the dropout value (default=0.1).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
+        :param use_highway_layer: whether to use a highway connection around each sublayer, if set to False then
+            residual connections will be used (default=True)
+        """
         super().__init__()
         # Parameters
         self.use_highway_layer = use_highway_layer
 
-        # Highway linear layers
+        # Connections around each layer
         if use_highway_layer:
             self.block_connections = nn.ModuleList([HighwayConnection(d_model, dropout) for _ in range(4)])
         else:
@@ -60,7 +53,7 @@ class DecoderLayerNAT(nn.Module):
 
         # Feed-forward sublayer
         self.ff_linear1 = nn.Linear(d_model, dim_ff)
-        self.dropout4 = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(dropout)
         self.ff_linear2 = nn.Linear(dim_ff, d_model)
         self.norm4 = nn.LayerNorm(d_model, layer_norm_eps)
 
@@ -71,6 +64,9 @@ class DecoderLayerNAT(nn.Module):
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
                 d_pad_mask: torch.Tensor = None) -> torch.Tensor:
+        """
+        Process masked source and target sequences.
+        """
         # Self-attention sublayer
         sa_output = self.self_attention(tgt_input, tgt_input, tgt_input, d_pad_mask, attn_mask=d_mask)[0]
         sa_output = self.block_connections[0](tgt_input, sa_output)
@@ -101,6 +97,11 @@ class DecoderNAT(nn.Module):
     def __init__(self,
                  decoder_layer: DecoderLayerNAT,
                  num_decoder_layers: int = 6) -> None:
+        """
+        The non-autoregressive transformer decoder by Gu et al. https://arxiv.org/pdf/1711.02281.pdf.
+        :param decoder_layer: the non-autoregressive decoder layer.
+        :param num_decoder_layers: the number of decoder layers (default=6).
+        """
         super().__init__()
         # Parameters
         self.num_layers = num_decoder_layers
@@ -113,6 +114,9 @@ class DecoderNAT(nn.Module):
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
                 d_pad_mask: torch.Tensor = None) -> torch.Tensor:
+        """
+        Process masked source and target sequences.
+        """
         output = tgt_input
         for decoder_layer in self.layers:
             output = decoder_layer(src_input, output, e_mask, d_mask, e_pad_mask, d_pad_mask)
