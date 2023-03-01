@@ -32,8 +32,8 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start
     if len(input_ids.shape) == 1:
         input_ids = input_ids.unsqueeze(0)
 
-    shifted_input_ids = torch.zeros_like(input_ids)
-    shifted_input_ids[:, 1:] = input_ids[:, :-1]
+    shifted_input_ids: torch.Tensor = input_ids.new_zeros(input_ids.shape)
+    shifted_input_ids[:, 1:] = input_ids[:, :-1].clone()
     shifted_input_ids = torch.where(shifted_input_ids == decoder_start_token_id, pad_token_id, shifted_input_ids)
     shifted_input_ids[:, 0] = decoder_start_token_id
     return shifted_input_ids

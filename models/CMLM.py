@@ -17,10 +17,12 @@ class CMLM(TransformerCore):
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-5,
                  share_embeddings_src_tgt: bool = True,
-                 share_embeddings_tgt_out: bool = True) -> None:
+                 share_embeddings_tgt_out: bool = True,
+                 mask_token_id: int = 250026) -> None:
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
         self.apply(self._init_bert_weigths)  # use BERT weight initialization
+        self.mask_token_id = mask_token_id
 
     @staticmethod
     def _init_bert_weigths(module: nn.Module):
@@ -33,6 +35,10 @@ class CMLM(TransformerCore):
         if isinstance(module, nn.Linear) and module.bias is not None:
             module.bias.data.zero_()
 
+    def _mask_target(self, tgt):
+        min_masks = 1
+        pass
+
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
@@ -42,6 +48,12 @@ class CMLM(TransformerCore):
         """
         Process masked source and target sequences.
         """
+        if self.train:
+            self._mask_target(tgt_input)
+        else:
+            # At inference time the decoder input is entirely masked
+            tgt_input = torch.fill(tgt_input, self.mask_token_id)
+
         # Embeddings and positional encoding
         src_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
         tgt_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)

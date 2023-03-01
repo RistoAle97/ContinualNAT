@@ -127,6 +127,12 @@ class Transformer(TransformerCore):
         """
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
+        self._init_weights()
+
+    def _init_weights(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
 
     def encode(self,
                src_input: torch.Tensor,
@@ -189,7 +195,7 @@ class Transformer(TransformerCore):
 
         # Encoder and decoder
         e_output = self.encoder(src_input, e_mask, e_pad_mask)
-        d_output = self.decoder(tgt_input, e_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
+        d_output = self.decoder.forward(tgt_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
