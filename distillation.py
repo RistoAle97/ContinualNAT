@@ -4,7 +4,7 @@ import evaluate
 import pandas as pd
 import os
 from transformers import MarianMTModel, MarianTokenizer
-from datasets import load_dataset
+from translation_datasets import load_dataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -15,7 +15,7 @@ def parse_arguments():
     parser.add_argument("--tgt", type=str, default="de", help="target language")
     parser.add_argument("--dataset", type=str, default="yhavinga/ccmatrix", help="huggingface dataset to distill")
     parser.add_argument("--size", type=int, default=100000, help="number of sentences to consider from the dataset")
-    parser.add_argument("--cachedir", type=str, default="D:/MasterDegreeThesis/datasets/ccmatrix",
+    parser.add_argument("--cachedir", type=str, default="D:/MasterDegreeThesis/translation_datasets/ccmatrix",
                         help="dataset's cache directory")
     parser.add_argument("--batch", type=int, default=128, help="batch size")
     parser.add_argument("--evaluate", action="store_true", help="whether to evaluate the teacher's translations")
