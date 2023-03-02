@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.functional import F
 from modules.layersNAT import DecoderLayerNAT, DecoderNAT
-from models.transformer import TransformerCore, positional_encoding
+from models.TransformerCore import TransformerCore, positional_encoding
 
 
 class RefineNAT(TransformerCore):
@@ -60,3 +60,6 @@ class RefineNAT(TransformerCore):
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
         output = F.log_softmax(output, -1)
         return output
+
+    def generate(self):
+        pass
