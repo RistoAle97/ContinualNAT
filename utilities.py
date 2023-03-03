@@ -3,7 +3,7 @@ from torch import nn
 from typing import Tuple
 
 
-def generate_square_subsequent_mask(seq_len: int) -> torch.Tensor:
+def generate_causal_mask(seq_len: int) -> torch.Tensor:
     """
     Generates an upper-triangular matrix of -inf, with zeros on diag.
     :param seq_len: length of the sequence to mask.
@@ -12,7 +12,7 @@ def generate_square_subsequent_mask(seq_len: int) -> torch.Tensor:
     return torch.triu(torch.ones(seq_len, seq_len) * float("-inf"), diagonal=1)
 
 
-def generate_causal_nar_mask(seq_len: int) -> torch.Tensor:
+def generate_causal_nat_mask(seq_len: int) -> torch.Tensor:
     """
     Generates a diagonal matrix of -inf, in order to avoid a position from attending to itself.
     :param seq_len: length of the sequence to mask.

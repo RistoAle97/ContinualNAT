@@ -1,6 +1,6 @@
 import torch
 from models.TransformerCore import TransformerCore
-from utilities import generate_square_subsequent_mask
+from utilities import generate_causal_mask
 
 
 def greedy_decoding(model: TransformerCore,
@@ -24,14 +24,14 @@ def greedy_decoding(model: TransformerCore,
 
         device = next(model.parameters()).device
         x = x.to(device)
-        output = torch.ones(x.shape[0], 1, dtype=torch.int).fill_(sos_token_id).to(device)
+        output = torch.ones(1, 1, dtype=torch.int).fill_(sos_token_id).to(device)
         e_output = model.encode(x)
         for i in range(1, max_length):
-            tgt_mask = generate_square_subsequent_mask(output.shape[-1]).to(device)
+            tgt_mask = generate_causal_mask(output.shape[-1]).to(device)
             next_p = model.decode(e_output, output, d_mask=tgt_mask)
             new_token = next_p[:, -1, :].argmax(-1)
-            output = torch.cat([output, new_token.unsqueeze(-1)], dim=-1)
-            if x.shape[0] == 1 and new_token == eos_token_id:
+            output = torch.cat([output, new_token.item()], dim=-1)
+            if new_token == eos_token_id:
                 break
 
         return output
@@ -43,4 +43,12 @@ def beam_decoding(model: TransformerCore,
                   eos_token_id: int,
                   max_length: int = None,
                   beam_size: int = 2) -> torch.Tensor:
+    with torch.no_grad():
+        if max_length is None:
+            max_length = x.shape[-1]
+
+        device = next(model.parameters()).device
+        x = x.to(device)
+        output = torch.ones(1, 1, dtype=torch.int).fill_(sos_token_id).to(device)
+        e_output = model.encode(x)
     pass

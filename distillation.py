@@ -4,7 +4,7 @@ import evaluate
 import pandas as pd
 import os
 from transformers import MarianMTModel, MarianTokenizer
-from translation_datasets import load_dataset
+from datasets import load_dataset
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 

@@ -1,7 +1,7 @@
 import datasets
 import torch
 import numpy as np
-from translation_datasets.TranslationDataset import TranslationDataset
+from .TranslationDataset import TranslationDataset
 from transformers import MBartTokenizer
 from utilities import shift_tokens_right
 from typing import Dict
