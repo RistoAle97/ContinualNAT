@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.functional import F
-from models.TransformerCore import TransformerCore, positional_encoding
+from .TransformerCore import TransformerCore, positional_encoding
 from strategies.strategies import greedy_decoding, beam_decoding
 
 
@@ -51,7 +51,6 @@ class Transformer(TransformerCore):
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
                 d_pad_mask: torch.Tensor = None) -> torch.Tensor:
@@ -67,7 +66,7 @@ class Transformer(TransformerCore):
         tgt_input = self.positional_dropout(tgt_input)  # (batch_size, seq_len, d_model)
 
         # Encoder and decoder
-        e_output = self.encoder(src_input, e_mask, e_pad_mask)
+        e_output = self.encoder.forward(src_input, None, e_pad_mask)
         d_output = self.decoder(tgt_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
 
         # Linear output and softmax

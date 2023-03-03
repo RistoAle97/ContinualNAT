@@ -1,7 +1,8 @@
 import torch
 from torch import nn
 from torch.functional import F
-from models.TransformerCore import TransformerCore, positional_encoding
+from .TransformerCore import TransformerCore, positional_encoding
+from modules.layersNAT import DecoderLayerNAT, DecoderNAT
 
 
 class Fertility(nn.Module):
@@ -19,7 +20,9 @@ class Fertility(nn.Module):
 
 
 class FTNAT(TransformerCore):
-
+    """
+    Fertility-NAT
+    """
     def __init__(self,
                  src_vocab_size: int,
                  tgt_vocab_size: int = None,
@@ -41,6 +44,10 @@ class FTNAT(TransformerCore):
         # Fertility
         self.fertility = Fertility(d_model, max_fertilities)
 
+        # Decoder
+        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps)
+        self.decoder = DecoderNAT(decoder_layer, num_decoder_layers)
+
     @staticmethod
     def copy_fertilities(src_input: torch.Tensor, fertilities: torch.Tensor) -> torch.Tensor:
         batch_size, seq_len, d_model = src_input.shape
@@ -58,7 +65,6 @@ class FTNAT(TransformerCore):
 
     def forward(self,
                 src_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
                 d_mask: torch.Tensor = None,
                 padding_mask: torch.Tensor = None) -> torch.Tensor:
         # Embeddings and positional encoding
@@ -67,14 +73,14 @@ class FTNAT(TransformerCore):
         e_input = self.positional_dropout(e_input)
 
         # Encoder and fertilities
-        e_output = self.encoder(e_input, e_mask, padding_mask)
+        e_output = self.encoder(e_input, None, padding_mask)
         fertilities = self.fertility(e_output)
         copied_embeddings = self.copy_fertilities(e_embeddings, fertilities)
 
         # Decoder
         d_input = positional_encoding(copied_embeddings, self.d_model)
         d_input = self.positional_dropout(d_input)
-        d_output = self.decoder.forward(d_input, e_output, d_mask, e_mask, padding_mask)
+        d_output = self.decoder.forward(d_input, e_output, d_mask, None, padding_mask)
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)

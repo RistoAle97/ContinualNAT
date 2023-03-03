@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.functional import F
 from models.Transformer import positional_encoding
-from modules.connections import ResidualConnection, HighwayConnection
+from .connections import ResidualConnection, HighwayConnection
 
 
 class DecoderLayerNAT(nn.Module):
@@ -13,7 +13,7 @@ class DecoderLayerNAT(nn.Module):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-5,
-                 use_highway_layer: bool = True) -> None:
+                 use_highway_layer: bool = False) -> None:
         """
         The non-autoregressive transformer decoder layer as first introduced by Gu et al.
         https://arxiv.org/pdf/1711.02281.pdf. Its structure is the same as the transformer base from Vaswani et al.
@@ -60,7 +60,6 @@ class DecoderLayerNAT(nn.Module):
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
                 d_pad_mask: torch.Tensor = None) -> torch.Tensor:
@@ -79,7 +78,7 @@ class DecoderLayerNAT(nn.Module):
         pos_output = self.norm2(pos_output)
 
         # Encoder-decoder attention sublayer
-        encdec_output = self.encdec_attention.forward(pos_output, src_input, src_input, e_pad_mask, attn_mask=e_mask)[0]
+        encdec_output = self.encdec_attention.forward(pos_output, src_input, src_input, e_pad_mask, attn_mask=None)[0]
         encdec_output = self.block_connections[2](pos_output, encdec_output)
         encdec_output = self.norm3(encdec_output)
 
@@ -110,7 +109,6 @@ class DecoderNAT(nn.Module):
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
                 d_pad_mask: torch.Tensor = None) -> torch.Tensor:
@@ -119,6 +117,6 @@ class DecoderNAT(nn.Module):
         """
         output = tgt_input
         for decoder_layer in self.layers:
-            output = decoder_layer(src_input, output, e_mask, d_mask, e_pad_mask, d_pad_mask)
+            output = decoder_layer(src_input, output, d_mask, e_pad_mask, d_pad_mask)
 
         return output

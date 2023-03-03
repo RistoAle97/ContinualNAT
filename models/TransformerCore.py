@@ -110,7 +110,6 @@ class TransformerCore(nn.Module):
     def decode(self,
                e_output: torch.Tensor,
                tgt_input: torch.Tensor,
-               e_mask: torch.Tensor = None,
                d_mask: torch.Tensor = None,
                e_pad_mask: torch.Tensor = None,
                d_pad_mask: torch.Tensor = None,
@@ -119,7 +118,6 @@ class TransformerCore(nn.Module):
         Decodes the masked target sentence given the encodings of the source sentence.
         :param e_output: encodings coming from the encoder of shape (batch_size, seq_len, d_model).
         :param tgt_input: torch tensor of shape (batch_size, seq_len)
-        :param e_mask: causal mask for the encoder of shape (seq_len, seq_len).
         :param d_mask: causal mask for the decoder of shape (seq_len, seq_len).
         :param e_pad_mask: key padding mask for the encoder of shape (batch_size, seq_len) used for the multi-head
             encoder-decoder attention.
@@ -131,7 +129,7 @@ class TransformerCore(nn.Module):
         tgt_input = self.tgt_embedding(tgt_input)
         tgt_input = positional_encoding(tgt_input)
         tgt_input = self.positional_dropout(tgt_input)
-        d_output = self.decoder.forward(tgt_input, e_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
+        d_output = self.decoder(tgt_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
         if generate_logits:
             d_output = self.linear_output(d_output)
             d_output = F.log_softmax(d_output, dim=-1)

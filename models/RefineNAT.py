@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.functional import F
 from modules.layersNAT import DecoderLayerNAT, DecoderNAT
-from models.TransformerCore import TransformerCore, positional_encoding
+from .Transformer import TransformerCore, positional_encoding
 
 
 class RefineNAT(TransformerCore):
@@ -36,7 +36,6 @@ class RefineNAT(TransformerCore):
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
                 d_pad_mask: torch.Tensor = None) -> (torch.Tensor, torch.Tensor, torch.Tensor):
@@ -52,9 +51,9 @@ class RefineNAT(TransformerCore):
         tgt_input = self.positional_dropout(positional_encoding(tgt_input))  # (batch_size, seq_len, d_model)
 
         # Encoder and decoder
-        e_output = self.encoder(src_input, e_mask, e_pad_mask)
-        d_output = self.decoder(src_input, e_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
-        d_output = self.decoder1(tgt_input, d_output, d_mask, e_mask, d_pad_mask, e_pad_mask)
+        e_output = self.encoder(src_input, None, e_pad_mask)
+        d_output = self.decoder(src_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
+        d_output = self.decoder1(tgt_input, d_output, d_mask, None, d_pad_mask, e_pad_mask)
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
