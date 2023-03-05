@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 from torch.functional import F
-from .TransformerCore import TransformerCore, positional_encoding
-from modules.layersNAT import DecoderLayerNAT, DecoderNAT
+from . import TransformerCore, positional_encoding
+from modules import DecoderLayerNAT, DecoderNAT
 
 
 class Fertility(nn.Module):
@@ -20,9 +20,7 @@ class Fertility(nn.Module):
 
 
 class FTNAT(TransformerCore):
-    """
-    Fertility-NAT
-    """
+
     def __init__(self,
                  src_vocab_size: int,
                  tgt_vocab_size: int = None,
@@ -36,6 +34,25 @@ class FTNAT(TransformerCore):
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True,
                  max_fertilities: int = 50) -> None:
+        """
+        The fertility NAT model (FT-NAT) by Gu et al. (https://arxiv.org/pdf/1711.02281.pdf), the first
+        non-autoregressive model for neural machine translation.
+        :param src_vocab_size: input language vocabulary size.
+        :param tgt_vocab_size: target language vocabulary size, if no value is passed, then it will have the same size
+            of the source one.
+        :param d_model: embedding dimension (default=512).
+        :param n_heads: the number of heads in the multi-attention mechanism (default=8).
+        :param num_encoder_layers: the number of encoder layers (default=6).
+        :param num_decoder_layers: the number of decoder layers (default=6).
+        :param dim_ff: dimension of the feedforward sublayer (default=2048).
+        :param dropout: the dropout value (default=0.1).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
+        :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
+            (default=True).
+        :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
+            output (default=True).
+        :param max_fertilities: the maximum number of fertilities (default=50).
+        """
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
         # Parameters
@@ -66,7 +83,11 @@ class FTNAT(TransformerCore):
     def forward(self,
                 src_input: torch.Tensor,
                 d_mask: torch.Tensor = None,
-                padding_mask: torch.Tensor = None) -> torch.Tensor:
+                padding_mask: torch.Tensor = None,
+                soft_copy: bool = True) -> torch.Tensor:
+        """
+        Process source sequence.
+        """
         # Embeddings and positional encoding
         e_embeddings = self.src_embedding(src_input)
         e_input = positional_encoding(e_embeddings, self.d_model)
@@ -75,7 +96,10 @@ class FTNAT(TransformerCore):
         # Encoder and fertilities
         e_output = self.encoder(e_input, None, padding_mask)
         fertilities = self.fertility(e_output)
-        copied_embeddings = self.copy_fertilities(e_embeddings, fertilities)
+        if soft_copy:
+            copied_embeddings = self.copy_fertilities(e_embeddings, fertilities)
+        else:
+            copied_embeddings = e_embeddings
 
         # Decoder
         d_input = positional_encoding(copied_embeddings, self.d_model)

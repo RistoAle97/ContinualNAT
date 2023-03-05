@@ -58,16 +58,16 @@ class Transformer(TransformerCore):
         Process masked source and target sequences.
         """
         # Embeddings and positional encoding
-        src_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
-        tgt_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        src_input = positional_encoding(src_input, self.d_model)
-        tgt_input = positional_encoding(tgt_input, self.d_model)
-        src_input = self.positional_dropout(src_input)  # (batch_size, seq_len, d_model)
-        tgt_input = self.positional_dropout(tgt_input)  # (batch_size, seq_len, d_model)
+        e_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
+        d_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        e_input = positional_encoding(e_input, self.d_model)
+        d_input = positional_encoding(d_input, self.d_model)
+        e_input = self.positional_dropout(e_input)
+        d_input = self.positional_dropout(d_input)
 
         # Encoder and decoder
-        e_output = self.encoder.forward(src_input, None, e_pad_mask)
-        d_output = self.decoder(tgt_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
+        e_output = self.encoder(e_input, None, e_pad_mask)
+        d_output = self.decoder(d_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)

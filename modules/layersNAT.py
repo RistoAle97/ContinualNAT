@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 from torch.functional import F
-from models.Transformer import positional_encoding
-from .connections import ResidualConnection, HighwayConnection
+from models import positional_encoding
+from . import ResidualConnection, HighwayConnection
 
 
 class DecoderLayerNAT(nn.Module):
@@ -107,7 +107,7 @@ class DecoderNAT(nn.Module):
         self.layers = nn.ModuleList([decoder_layer for _ in range(num_decoder_layers)])
 
     def forward(self,
-                src_input: torch.Tensor,
+                e_output: torch.Tensor,
                 tgt_input: torch.Tensor,
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
@@ -117,6 +117,6 @@ class DecoderNAT(nn.Module):
         """
         output = tgt_input
         for decoder_layer in self.layers:
-            output = decoder_layer(src_input, output, d_mask, e_pad_mask, d_pad_mask)
+            output = decoder_layer(e_output, output, d_mask, e_pad_mask, d_pad_mask)
 
         return output

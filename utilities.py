@@ -26,7 +26,8 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start
     Shift input ids one token to the right.
     :param input_ids: a tensor of shape (batch_size, seq_len) or (seq_len).
     :param pad_token_id: id of the pad token.
-    :param decoder_start_token_id: start token id, which, in the case of the mBart tokenizer, is the token language.
+    :param decoder_start_token_id: start token id, which, in the case of the mBart tokenizer, is the target
+        token language.
     :return: torch.Tensor shifted to the right.
     """
     if len(input_ids.shape) == 1:

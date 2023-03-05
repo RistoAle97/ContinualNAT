@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from .TransformerCore import TransformerCore, positional_encoding
+from . import TransformerCore, positional_encoding
 from torch.functional import F
 
 
@@ -60,9 +60,9 @@ class CMLM(TransformerCore):
         output = F.log_softmax(output, -1)
         return output
 
-    def _mask_predict(self):
+    def _mask_predict(self, x):
         pass
 
-    def generate(self, x: torch.Tensor, sos_token_id: int) -> torch.Tensor:
+    def generate(self, x: torch.Tensor, sos_token_id: int, iterations: int = 10) -> torch.Tensor:
         self._mask_predict()
         pass

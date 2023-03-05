@@ -101,10 +101,10 @@ class TransformerCore(nn.Module):
         :param e_pad_mask: key padding mask for the encoder of shape (batch_size, seq_len).
         :return: torch tensor representing the encodings with shape (batch_size, seq_len, d_model).
         """
-        src_input = self.src_embedding(e_input)
-        src_input = positional_encoding(src_input)
-        src_input = self.positional_dropout(src_input)
-        e_output = self.encoder(src_input, e_mask, e_pad_mask)
+        src_embeddings = self.src_embedding(e_input)  # (batch_size, seq_len, d_model)
+        src_embeddings = positional_encoding(src_embeddings)
+        src_embeddings = self.positional_dropout(src_embeddings)
+        e_output = self.encoder(src_embeddings, e_mask, e_pad_mask)
         return e_output
 
     def decode(self,
@@ -124,17 +124,18 @@ class TransformerCore(nn.Module):
         :param d_pad_mask: key padding mask for the decoder of shape (batcg_size, seq_len).
         :param generate_logits: whether to generate logits by linear transforming and applying log softmax on
             the decoder output.
-        :return: torch tensor representing the decodings with shape (batch_size, seq_len, d_model).
+        :return: torch tensor representing the decodings with shape (batch_size, seq_len, d_model) or
+            (batch_size, seq_len, tgt_vocab_size) if generate_logits is True.
         """
-        tgt_input = self.tgt_embedding(tgt_input)
-        tgt_input = positional_encoding(tgt_input)
-        tgt_input = self.positional_dropout(tgt_input)
-        d_output = self.decoder(tgt_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
+        tgt_embeddings = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        tgt_embeddings = positional_encoding(tgt_embeddings)
+        tgt_embeddings = self.positional_dropout(tgt_embeddings)
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
         if generate_logits:
-            d_output = self.linear_output(d_output)
+            d_output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
             d_output = F.log_softmax(d_output, dim=-1)
 
         return d_output
 
     def generate(self, *kwargs):
-        raise NotImplementedError("Method not implemented for the TransformerCore class.")
+        raise NotImplementedError

@@ -1,5 +1,5 @@
 import torch
-from models.TransformerCore import TransformerCore
+from models import TransformerCore
 from utilities import generate_causal_mask
 
 

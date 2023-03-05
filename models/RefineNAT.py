@@ -1,8 +1,8 @@
 import torch
 from torch import nn
 from torch.functional import F
-from modules.layersNAT import DecoderLayerNAT, DecoderNAT
-from .Transformer import TransformerCore, positional_encoding
+from modules import DecoderLayerNAT, DecoderNAT
+from . import TransformerCore, positional_encoding
 
 
 class RefineNAT(TransformerCore):
