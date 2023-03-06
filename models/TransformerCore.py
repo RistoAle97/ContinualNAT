@@ -4,7 +4,25 @@ from torch import nn
 from torch.functional import F
 
 
-def positional_encoding(x: torch.Tensor, d_model: int = 512, max_len: int = 5000) -> torch.Tensor:
+class PositionalEncoding(nn.Module):
+
+    def __init__(self, d_model: int = 512, max_len: int = 5000, dropout: float = 0.1) -> None:
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        position = torch.arange(max_len).unsqueeze(1)
+        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        pe = torch.zeros(max_len, d_model)
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        pe = pe.unsqueeze(0)
+        self.register_buffer("positional_encoding", pe)
+
+    def forward(self, x) -> torch.Tensor:
+        x = x + self.pe[:, x.size(1)]
+        return self.dropout(x)
+
+
+'''def positional_encoding(x: torch.Tensor, d_model: int = 512, max_len: int = 5000) -> torch.Tensor:
     position = torch.arange(max_len).unsqueeze(1)
     div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
     pe = torch.zeros(max_len, d_model)
@@ -12,7 +30,7 @@ def positional_encoding(x: torch.Tensor, d_model: int = 512, max_len: int = 5000
     pe[:, 1::2] = torch.cos(position * div_term)
     pe = pe.unsqueeze(0)
     x = x + pe[:, x.size(1)]  # (batch_size, seq_len, d_model)
-    return x
+    return x'''
 
 
 class TransformerCore(nn.Module):
@@ -65,7 +83,7 @@ class TransformerCore(nn.Module):
         self.share_embeddings_src_trg = share_embeddings_src_tgt
         self.share_embeddings_trg_out = share_embeddings_tgt_out
 
-        # Embeddings
+        # Embeddings and positional encoder
         self.src_embedding = nn.Embedding(self.src_vocab_size, d_model)
         self.tgt_embedding = nn.Embedding(self.tgt_vocab_size, d_model)
         if share_embeddings_src_tgt and tgt_vocab_size is not None:
@@ -75,7 +93,7 @@ class TransformerCore(nn.Module):
         if share_embeddings_src_tgt or tgt_vocab_size is None:
             self.tgt_embedding.weight = self.src_embedding.weight
 
-        self.positional_dropout = nn.Dropout(dropout)
+        self.positional_encoder = PositionalEncoding(d_model, dropout=dropout)
 
         # Encoder and decoder
         encoder_layer = nn.TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout, layer_norm_eps=layer_norm_eps,
@@ -102,8 +120,7 @@ class TransformerCore(nn.Module):
         :return: torch tensor representing the encodings with shape (batch_size, seq_len, d_model).
         """
         src_embeddings = self.src_embedding(e_input)  # (batch_size, seq_len, d_model)
-        src_embeddings = positional_encoding(src_embeddings)
-        src_embeddings = self.positional_dropout(src_embeddings)
+        src_embeddings = self.positional_encoder(src_embeddings)
         e_output = self.encoder(src_embeddings, e_mask, e_pad_mask)
         return e_output
 
@@ -128,8 +145,7 @@ class TransformerCore(nn.Module):
             (batch_size, seq_len, tgt_vocab_size) if generate_logits is True.
         """
         tgt_embeddings = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        tgt_embeddings = positional_encoding(tgt_embeddings)
-        tgt_embeddings = self.positional_dropout(tgt_embeddings)
+        tgt_embeddings = self.positional_encoder(tgt_embeddings)
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
         if generate_logits:
             d_output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)

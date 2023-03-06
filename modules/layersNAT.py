@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.functional import F
-from models import positional_encoding
+from models import PositionalEncoding
 from . import ResidualConnection, HighwayConnection
 
 
@@ -32,6 +32,7 @@ class DecoderLayerNAT(nn.Module):
         super().__init__()
         # Parameters
         self.use_highway_layer = use_highway_layer
+        self.positional_encoder_attention = PositionalEncoding(d_model, dropout=0)
 
         # Connections around each layer
         if use_highway_layer:
@@ -72,7 +73,7 @@ class DecoderLayerNAT(nn.Module):
         sa_output = self.norm1(sa_output)
 
         # Positional attention sublayer
-        pos_output = positional_encoding(sa_output, self.d_model)
+        pos_output = self.positional_encoder_attention(sa_output)
         pos_output = self.pos_attention(pos_output, pos_output, sa_output, d_pad_mask, attn_mask=d_mask)[0]
         pos_output = self.block_connections[1](sa_output, pos_output)
         pos_output = self.norm2(pos_output)

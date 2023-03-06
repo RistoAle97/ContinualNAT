@@ -2,7 +2,7 @@ import torch
 from torch import nn
 from torch.functional import F
 from modules import DecoderLayerNAT, DecoderNAT
-from . import TransformerCore, positional_encoding
+from . import TransformerCore
 
 
 class RefineNAT(TransformerCore):
@@ -44,11 +44,9 @@ class RefineNAT(TransformerCore):
         """
         # Embeddings and positional encoding
         src_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
-        src_input = positional_encoding(src_input, self.d_model)
-        src_input = self.positional_dropout(src_input)  # (batch_size, seq_len, d_model)
+        src_input = self.positional_encoder(src_input)
         tgt_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        tgt_input = positional_encoding(tgt_input, self.d_model)
-        tgt_input = self.positional_dropout(positional_encoding(tgt_input))  # (batch_size, seq_len, d_model)
+        tgt_input = self.positional_encoder(tgt_input)
 
         # Encoder and decoder
         e_output = self.encoder(src_input, None, e_pad_mask)

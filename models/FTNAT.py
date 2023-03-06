@@ -1,6 +1,6 @@
 import torch
 from torch.functional import F
-from . import TransformerCore, positional_encoding
+from . import TransformerCore
 from modules import DecoderLayerNAT, DecoderNAT, Fertility
 
 
@@ -75,8 +75,7 @@ class FTNAT(TransformerCore):
         """
         # Embeddings and positional encoding
         e_embeddings = self.src_embedding(src_input)
-        e_input = positional_encoding(e_embeddings, self.d_model)
-        e_input = self.positional_dropout(e_input)
+        e_input = self.positional_encoder(e_embeddings)
 
         # Encoder and fertilities
         e_output = self.encoder(e_input, None, padding_mask)
@@ -87,7 +86,7 @@ class FTNAT(TransformerCore):
             copied_embeddings = e_embeddings
 
         # Decoder
-        d_input = positional_encoding(copied_embeddings, self.d_model)
+        d_input = self.positional_encoder(copied_embeddings)
         d_input = self.positional_dropout(d_input)
         d_output = self.decoder.forward(d_input, e_output, d_mask, None, padding_mask)
 

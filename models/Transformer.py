@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.functional import F
-from .TransformerCore import TransformerCore, positional_encoding
+from .TransformerCore import TransformerCore
 from strategies.strategies import greedy_decoding, beam_decoding
 
 
@@ -60,10 +60,8 @@ class Transformer(TransformerCore):
         # Embeddings and positional encoding
         e_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
         d_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        e_input = positional_encoding(e_input, self.d_model)
-        d_input = positional_encoding(d_input, self.d_model)
-        e_input = self.positional_dropout(e_input)
-        d_input = self.positional_dropout(d_input)
+        e_input = self.positional_encoder(e_input)
+        d_input = self.positional_encoder(d_input)
 
         # Encoder and decoder
         e_output = self.encoder(e_input, None, e_pad_mask)
