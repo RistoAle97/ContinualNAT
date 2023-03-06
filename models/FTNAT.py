@@ -1,22 +1,7 @@
 import torch
-from torch import nn
 from torch.functional import F
 from . import TransformerCore, positional_encoding
-from modules import DecoderLayerNAT, DecoderNAT
-
-
-class Fertility(nn.Module):
-
-    def __init__(self, d_model: int = 512, max_fertilities: int = 50):
-        super().__init__()
-        self.linear_output = nn.Linear(d_model, max_fertilities)
-
-    def forward(self, e_output: torch.Tensor) -> torch.Tensor:
-        fertilities = self.linear_output(e_output)  # (batch_size, seq_len, max_fertilities)
-        fertilities = F.relu(fertilities)
-        fertilities = F.log_softmax(fertilities, dim=-1)
-        fertilities = torch.argmax(fertilities, dim=-1)  # (batch_size, seq_len)
-        return fertilities
+from modules import DecoderLayerNAT, DecoderNAT, Fertility
 
 
 class FTNAT(TransformerCore):

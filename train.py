@@ -23,7 +23,7 @@ if __name__ == "__main__":
 
     # Dataset
     dataset = load_dataset("yhavinga/ccmatrix", "en-de",
-                           cache_dir="D:/MasterDegreeThesis/translation_datasets/ccmatrix_en_de",
+                           cache_dir="D:/MasterDegreeThesis/datasets/ccmatrix_en_de",
                            split="train[:1000]", ignore_verifications=True)
 
     dataset_train = TranslationDataset("en", "de", dataset, tokenizer=tokenizer)
