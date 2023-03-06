@@ -4,7 +4,7 @@ import numpy as np
 from .TranslationDataset import TranslationDataset
 from transformers import MBartTokenizer
 from utilities import shift_tokens_right
-from typing import Dict
+from typing import Dict, Union
 
 
 class TranslationDatasetCMLM(TranslationDataset):
@@ -22,7 +22,7 @@ class TranslationDatasetCMLM(TranslationDataset):
         self.train = train
         self.shift_right = shift_right_decoder_input
 
-    def _mask_target(self, tgt: torch.Tensor) -> Dict[str, torch.Tensor | np.ndarray | int]:
+    def _mask_target(self, tgt: torch.Tensor) -> Dict[str, Union[torch.Tensor, np.ndarray, int]]:
         mbart_special_tokens = set(self.tokenizer.all_special_ids)
         mask_id = self.tokenizer.mask_token_id
 

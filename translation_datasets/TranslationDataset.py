@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer, MBartTokenizer
 from tqdm import tqdm
-from typing import Dict
+from typing import Dict, Union
 
 
 SUPPORTED_LANGUAGES = {"en": "en_XX", "de": "de_DE", "es": "es_XX", "fr": "fr_XX"}
@@ -57,7 +57,7 @@ class TranslationDataset(Dataset):
                                                             src_lang=self.src_supported_language,
                                                             tgt_lang=self.tgt_supported_language)
 
-    def compute_stats(self) -> Dict[str, int | float]:
+    def compute_stats(self) -> Dict[str, Union[int, float]]:
         for sample in tqdm(self.dataset, "Computing average and max length for source and target"):
             sentences = sample["translation"]
             src_sentence: str = sentences[self.src_lang]
