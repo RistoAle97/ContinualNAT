@@ -3,7 +3,10 @@ tokenizer: "facebook/mbart-large-cc25"
 train_dataset: "yhavinga/ccmatrix"
 languages: ["en", "de", "es", "fr"]
 batch_size: 16
-max_token_length: 128
+max_length: 128
+warmup_steps: 4000
+verbose_training: True
+log_steps: 128
 
 # Transformer large parameters
 transformer_large:

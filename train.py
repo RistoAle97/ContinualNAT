@@ -1,14 +1,14 @@
 import torch
+import yaml
 from transformers import MBartTokenizer
 from datasets import load_dataset
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
-from tqdm import tqdm
+from torch.optim.lr_scheduler import LambdaLR
 from translation_datasets import TranslationDataset, translation_collate_fn
 from models import Transformer
-from schedulers import TransformerScheduler
-from utilities import model_size, model_n_parameters, generate_causal_mask, shift_tokens_right
+from utilities import model_size, model_n_parameters, generate_causal_mask, shift_tokens_right, compute_lr
 
 
 if __name__ == "__main__":
@@ -16,25 +16,35 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(f"Training on: {device}")
 
+    # Retrieve configurations
+    with open("config.yaml") as config_file:
+        config = yaml.load(config_file, Loader=yaml.FullLoader)
+
+    huggingface_dataset = config["train_dataset"]
+    batch_size = config["batch_size"]
+    max_length = config["max_length"]
+    warmup_steps = config["warmup_steps"]
+    verbose = config["verbose_training"]
+    log_steps = config["log_steps"]
+
     # Tokenizer
     tokenizer: MBartTokenizer = MBartTokenizer.from_pretrained("tokenizers/mbart_tokenizer_cmlm", src_lang="en_XX",
                                                                tgt_lang="de_DE")
-    print(f"Retrieved {tokenizer.__class__} with vocab size: {len(tokenizer)}")
+    print(f"Retrieved {tokenizer.__class__.__name__} with vocab size: {len(tokenizer)}")
 
     # Dataset
     dataset = load_dataset("yhavinga/ccmatrix", "en-de",
                            cache_dir="D:/MasterDegreeThesis/datasets/ccmatrix_en_de",
-                           split="train[:1000]", ignore_verifications=True)
+                           split="train[:4096]", ignore_verifications=True)
 
-    dataset_train = TranslationDataset("en", "de", dataset, tokenizer=tokenizer)
-    dataloader_train = DataLoader(dataset_train, 8, collate_fn=translation_collate_fn, drop_last=True)
-    print(f"Built en-de dataset")
+    dataset_train = TranslationDataset("en", "de", dataset, max_length, tokenizer=tokenizer, use_special_tokens=False)
+    dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=translation_collate_fn, drop_last=True)
 
     # Model
     transformer = Transformer(len(tokenizer)).to(device)
     n_parameters, n_trainable_parameters = model_n_parameters(transformer)
     transformer_size = model_size(transformer)
-    print("Using transformer base model")
+    print(f"Using {transformer.__class__.__name__} model")
     print(f"\tParameters: {n_parameters}\n\tTrainable parameters: {n_trainable_parameters}\n\tSize: {transformer_size}")
 
     # Useful token ids
@@ -43,21 +53,25 @@ if __name__ == "__main__":
     tgt_lang_token = tokenizer.lang_code_to_id[tokenizer.tgt_lang]
     eos_token = tokenizer.eos_token_id
 
-    # Define loss function and optimizer
+    # Define loss function, optimizer and scheduler
     loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token, label_smoothing=0.1)
-    optimizer = AdamW(transformer.parameters(), betas=(0.9, 0.98), eps=1e-9)
-    scheduler = TransformerScheduler(optimizer, transformer.d_model, 4000)
+    optimizer = AdamW(transformer.parameters(), lr=1, betas=(0.9, 0.98), eps=1e-9)
+    scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, warmup_steps))
 
-    # Set the model in training mode
-    transformer.train()
+    # Train parameters
+    current_step = 0
+    epochs = 10
     total_loss = 0
 
     # Train loop
-    for epoch in range(10):
-        for step, batch in enumerate(tqdm(dataloader_train)):
+    transformer.train()
+    for epoch in range(epochs):
+        for step, batch in enumerate(dataloader_train):
             # Retrieve encoder inputs and labels, then create decoder inputs
-            input_ids, labels = batch.to(device)
-            decoder_input_ids = shift_tokens_right(labels, pad_token, tgt_lang_token)
+            input_ids, labels = batch
+            input_ids = input_ids.to(device)
+            labels = labels.to(device)
+            decoder_input_ids = shift_tokens_right(labels, pad_token, tgt_lang_token).to(device)
 
             # Create masks
             e_pad_mask = (input_ids == pad_token).to(device)
@@ -66,13 +80,17 @@ if __name__ == "__main__":
 
             # Compute predictions and loss
             logits = transformer(input_ids, decoder_input_ids, d_mask, e_pad_mask, d_pad_mask)
-            loss = loss_fn(logits.reshape(-1, logits.shape[-1]), labels.reshape(-1))
-            total_loss += loss
+            loss = loss_fn(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1))
 
-            # Update weights and optimizer
+            # Update weights
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             scheduler.step()
 
-    total_loss /= len(dataloader_train)
+            total_loss += loss.item()
+            current_step += 1
+            if current_step % log_steps == 0:
+                print(f"Epoch: {epoch}, Epoch step: {step}, Step: {current_step}, Loss: {loss.item()}")
+
+        print(f"Epoch {epoch} ended at step {current_step}, Loss: {total_loss / len(dataset)}\n")

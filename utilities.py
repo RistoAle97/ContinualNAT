@@ -71,3 +71,17 @@ def model_size(model: nn.Module, size: str = "mb") -> float:
 
     size_all = (param_size + buffer_size) / 1024 ** allowed_sizes[size]
     return size_all
+
+
+def compute_lr(step: int, d_model: int, warmup_steps: int) -> float:
+    """
+    Computes the current learning rate following the scheduling by Vaswani et al. https://arxiv.org/pdf/1706.03762.pdf.
+    :param step: the current step.
+    :param d_model: the model's embedding dimension.
+    :param warmup_steps: the number of warmup steps
+    :return: learning current for the current step.
+    """
+    if step == 0:
+        step = 1
+
+    return d_model ** (-0.5) * min(step ** (-0.5), step * warmup_steps ** (-1.5))
