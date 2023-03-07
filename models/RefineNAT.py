@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.functional import F
 from modules import DecoderLayerNAT, DecoderNAT
 from . import TransformerCore
 
@@ -55,7 +54,6 @@ class RefineNAT(TransformerCore):
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
-        output = F.log_softmax(output, -1)
         return output
 
     def generate(self):

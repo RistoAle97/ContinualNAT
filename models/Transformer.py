@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.functional import F
 from .TransformerCore import TransformerCore
 from strategies.strategies import greedy_decoding, beam_decoding
 
@@ -69,7 +68,6 @@ class Transformer(TransformerCore):
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
-        output = F.log_softmax(output, -1)
         return output
 
     def generate(self, x: torch.Tensor, sos_token_id, eos_token_id, beam_size: int = 4) -> torch.Tensor:

@@ -1,5 +1,4 @@
 import torch
-from torch.functional import F
 from . import TransformerCore
 from modules import DecoderLayerNAT, DecoderNAT, Fertility
 
@@ -92,7 +91,6 @@ class FTNAT(TransformerCore):
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
-        output = F.log_softmax(output, -1)
         return output
 
     def generate(self):

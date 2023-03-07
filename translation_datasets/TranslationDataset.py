@@ -82,5 +82,6 @@ class TranslationDataset(Dataset):
         src_sentence = sentence_pair[self.src_lang]
         tgt_sentence = sentence_pair[self.tgt_lang]
         tokenized_sentences = self.tokenizer(src_sentence, text_target=tgt_sentence, truncation=True,
-                                             max_length=self.max_length, padding="max_length", return_tensors="pt")
+                                             max_length=self.max_length, padding="max_length",
+                                             add_special_tokens=self.special_tokens, return_tensors="pt")
         return {"input_ids": tokenized_sentences["input_ids"], "labels": tokenized_sentences["labels"]}

@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.functional import F
 from . import TransformerCore
 from modules import Pooler
 from typing import Tuple
@@ -64,7 +63,6 @@ class CMLM(TransformerCore):
 
         # Linear output and softmax
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
-        output = F.log_softmax(output, -1)
         return output, predicted_length
 
     def _mask_predict(self, x):
