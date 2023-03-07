@@ -16,11 +16,10 @@ class TranslationDatasetCMLM(TranslationDataset):
                  max_length: int = 128,
                  tokenizer: MBartTokenizer = None,
                  use_special_tokens: bool = True,
-                 train: bool = False,
-                 shift_right_decoder_input: bool = False) -> None:
-        super().__init__(src_lang, tgt_lang, dataset, max_length, tokenizer, use_special_tokens)
+                 shift_labels_right: bool = False,
+                 train: bool = False,) -> None:
+        super().__init__(src_lang, tgt_lang, dataset, max_length, tokenizer, use_special_tokens, shift_labels_right)
         self.train = train
-        self.shift_right = shift_right_decoder_input
 
     def _mask_target(self, tgt: torch.Tensor) -> Dict[str, Union[torch.Tensor, np.ndarray, int]]:
         mbart_special_tokens = set(self.tokenizer.all_special_ids)
@@ -73,7 +72,7 @@ class TranslationDatasetCMLM(TranslationDataset):
         labels = tokenized_sentences["labels"]
         masked_target = self._mask_target(labels)
         decoder_input_ids = masked_target["decoder_input_ids"]
-        if self.shift_right and self.special_tokens:
+        if self.shift_labels_right and self.special_tokens:
             lang_code_id = self.tokenizer.lang_code_to_id[self.tgt_supported_language]
             decoder_input_ids = shift_tokens_right(decoder_input_ids, self.tokenizer.pad_token_id, lang_code_id)
 

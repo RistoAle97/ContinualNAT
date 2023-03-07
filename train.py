@@ -6,9 +6,19 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
-from translation_datasets import TranslationDataset, translation_collate_fn
+from translation_datasets import TranslationDataset
 from models import Transformer
 from utilities import model_size, model_n_parameters, generate_causal_mask, shift_tokens_right, compute_lr
+
+
+def translation_batch_collate(collate_batch) -> (torch.Tensor, torch.Tensor):
+    input_ids_batch = [sentence_pair["src_sentence"] for sentence_pair in collate_batch]
+    labels_batch = [sentence_pair["tgt_sentence"] for sentence_pair in collate_batch]
+    input_ids_batch = tokenizer(input_ids_batch, truncation=True, max_length=max_length, padding="longest",
+                                return_tensors="pt")["input_ids"]
+    labels_batch = tokenizer(text_target=labels_batch, truncation=True, max_length=max_length, padding="longest",
+                             return_tensors="pt")["input_ids"]
+    return {"input_ids": input_ids_batch, "labels": labels_batch}
 
 
 if __name__ == "__main__":
@@ -37,8 +47,8 @@ if __name__ == "__main__":
                            cache_dir="D:/MasterDegreeThesis/datasets/ccmatrix_en_de",
                            split="train[:4096]", ignore_verifications=True)
 
-    dataset_train = TranslationDataset("en", "de", dataset, max_length, tokenizer=tokenizer, use_special_tokens=False)
-    dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=translation_collate_fn, drop_last=True)
+    dataset_train = TranslationDataset("en", "de", dataset, max_length, tokenizer=tokenizer, shift_labels_right=True)
+    dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=translation_batch_collate, drop_last=True)
 
     # Model
     transformer = Transformer(len(tokenizer)).to(device)
@@ -68,9 +78,8 @@ if __name__ == "__main__":
     for epoch in range(epochs):
         for step, batch in enumerate(dataloader_train):
             # Retrieve encoder inputs and labels, then create decoder inputs
-            input_ids, labels = batch
-            input_ids = input_ids.to(device)
-            labels = labels.to(device)
+            input_ids = batch["input_ids"].to(device)
+            labels = batch["labels"].to(device)
             decoder_input_ids = shift_tokens_right(labels, pad_token, tgt_lang_token).to(device)
 
             # Create masks
@@ -89,8 +98,9 @@ if __name__ == "__main__":
             scheduler.step()
 
             total_loss += loss.item()
-            current_step += 1
             if current_step % log_steps == 0:
                 print(f"Epoch: {epoch}, Epoch step: {step}, Step: {current_step}, Loss: {loss.item()}")
+
+            current_step += 1
 
         print(f"Epoch {epoch} ended at step {current_step}, Loss: {total_loss / len(dataset)}\n")
