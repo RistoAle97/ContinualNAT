@@ -1,4 +1,5 @@
 import torch
+import math
 from . import TransformerCore
 from modules import DecoderLayerNAT, DecoderNAT, Fertility
 
@@ -74,7 +75,7 @@ class FTNAT(TransformerCore):
         """
         # Embeddings and positional encoding
         e_embeddings = self.src_embedding(src_input)
-        e_input = self.positional_encoder(e_embeddings)
+        e_input = self.positional_encoder(e_embeddings * math.sqrt(self.d_model))
 
         # Encoder and fertilities
         e_output = self.encoder(e_input, None, padding_mask)
@@ -85,11 +86,11 @@ class FTNAT(TransformerCore):
             copied_embeddings = e_embeddings
 
         # Decoder
-        d_input = self.positional_encoder(copied_embeddings)
+        d_input = self.positional_encoder(copied_embeddings * math.sqrt(self.d_model))
         d_input = self.positional_dropout(d_input)
-        d_output = self.decoder.forward(d_input, e_output, d_mask, None, padding_mask)
+        d_output = self.decoder(d_input, e_output, d_mask, padding_mask, padding_mask)
 
-        # Linear output and softmax
+        # Linear output
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
         return output
 

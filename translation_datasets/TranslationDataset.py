@@ -4,7 +4,6 @@ from torch.utils.data import Dataset
 from transformers import PreTrainedTokenizer, MBartTokenizer
 from tqdm import tqdm
 from typing import Dict, Union
-from utilities import shift_tokens_right
 
 
 SUPPORTED_LANGUAGES = {"en": "en_XX", "de": "de_DE", "es": "es_XX", "fr": "fr_XX"}

@@ -109,7 +109,7 @@ class TransformerCore(nn.Module):
         :return: torch tensor representing the encodings with shape (batch_size, seq_len, d_model).
         """
         src_embeddings = self.src_embedding(e_input)  # (batch_size, seq_len, d_model)
-        src_embeddings = self.positional_encoder(src_embeddings)
+        src_embeddings = self.positional_encoder(src_embeddings * math.sqrt(self.d_model))
         e_output = self.encoder(src_embeddings, e_mask, e_pad_mask)
         return e_output
 
@@ -134,7 +134,7 @@ class TransformerCore(nn.Module):
             (batch_size, seq_len, tgt_vocab_size) if generate_logits is True.
         """
         tgt_embeddings = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        tgt_embeddings = self.positional_encoder(tgt_embeddings)
+        tgt_embeddings = self.positional_encoder(tgt_embeddings * math.sqrt(self.d_model))
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
         if generate_logits:
             d_output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)

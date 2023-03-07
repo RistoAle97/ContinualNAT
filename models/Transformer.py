@@ -1,4 +1,5 @@
 import torch
+import math
 from torch import nn
 from .TransformerCore import TransformerCore
 from strategies.strategies import greedy_decoding, beam_decoding
@@ -58,15 +59,15 @@ class Transformer(TransformerCore):
         """
         # Embeddings and positional encoding
         e_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
+        e_input = self.positional_encoder(e_input * math.sqrt(self.d_model))
         d_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        e_input = self.positional_encoder(e_input)
-        d_input = self.positional_encoder(d_input)
+        d_input = self.positional_encoder(d_input * math.sqrt(self.d_model))
 
         # Encoder and decoder
         e_output = self.encoder(e_input, None, e_pad_mask)
         d_output = self.decoder(d_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
 
-        # Linear output and softmax
+        # Linear output
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
         return output
 

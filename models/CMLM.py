@@ -1,4 +1,5 @@
 import torch
+import math
 from torch import nn
 from . import TransformerCore
 from modules import Pooler
@@ -51,17 +52,17 @@ class CMLM(TransformerCore):
         Process source and target sequences.
         """
         # Embeddings and positional encoding
-        src_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
-        tgt_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        src_input = self.positional_encoder(src_input)
-        tgt_input = self.positional_encoder(tgt_input)
+        e_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
+        d_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        e_input = self.positional_encoder(e_input * math.sqrt(self.d_model))
+        d_input = self.positional_encoder(d_input * math.sqrt(self.d_model))
 
         # Encoder and decoder
-        e_output = self.encoder(src_input, None, e_pad_mask)
+        e_output = self.encoder(e_input, None, e_pad_mask)
         predicted_length = self.pooler(e_output, True).unsqueeze(1)  # (batch_size, 1)
-        d_output = self.decoder(tgt_input, e_output, None, None, d_pad_mask, e_pad_mask)
+        d_output = self.decoder(d_input, e_output, None, None, d_pad_mask, e_pad_mask)
 
-        # Linear output and softmax
+        # Linear output
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
         return output, predicted_length
 
