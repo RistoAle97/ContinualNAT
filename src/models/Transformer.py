@@ -2,7 +2,7 @@ import torch
 import math
 from torch import nn
 from .TransformerCore import TransformerCore
-from strategies.strategies import greedy_decoding, beam_decoding
+from ..inference import greedy_decoding, beam_decoding
 
 
 class Transformer(TransformerCore):
@@ -16,7 +16,7 @@ class Transformer(TransformerCore):
                  num_decoder_layers: int = 6,
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-5,
+                 layer_norm_eps: float = 1e-6,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True) -> None:
         """
@@ -42,10 +42,13 @@ class Transformer(TransformerCore):
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
         self._init_weights()
+        # self.src_embedding.weight.data.normal_(0, math.sqrt(self.d_model))
+        # if not self.share_embeddings_src_trg:
+            # self.tgt_embedding.weight.data.normal_(0, math.sqrt(self.d_model))
 
     def _init_weights(self):
         for p in self.parameters():
-            if p.dim() > 1:
+            if p.dim() > 1 and not isinstance(p, nn.Embedding):
                 nn.init.xavier_uniform_(p)
 
     def forward(self,

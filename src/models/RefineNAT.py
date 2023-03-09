@@ -16,7 +16,7 @@ class RefineNAT(TransformerCore):
                  num_decoder_layers: int = 6,
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-5,
+                 layer_norm_eps: float = 1e-6,
                  share_embeddings_src_trg: bool = True,
                  share_embeddings_trg_out: bool = True,
                  use_highway_layer: bool = True) -> None:

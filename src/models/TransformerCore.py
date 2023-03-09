@@ -18,7 +18,7 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x) -> torch.Tensor:
-        x = x + self.pe[:, x.size(1)].requires_grad_(False)
+        x = x + self.pe[:, x.size(1), :]
         return self.dropout(x)
 
 
@@ -33,7 +33,7 @@ class TransformerCore(nn.Module):
                  num_decoder_layers: int = 6,
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-5,
+                 layer_norm_eps: float = 1e-6,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True) -> None:
         """
@@ -86,11 +86,13 @@ class TransformerCore(nn.Module):
 
         # Encoder and decoder
         encoder_layer = nn.TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout, layer_norm_eps=layer_norm_eps,
-                                                   batch_first=True)
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers)
+                                                   batch_first=True, norm_first=True)
+        encoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers, norm=encoder_norm)
         decoder_layer = nn.TransformerDecoderLayer(d_model, n_heads, dim_ff, dropout, layer_norm_eps=layer_norm_eps,
-                                                   batch_first=True)
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers)
+                                                   batch_first=True, norm_first=True)
+        decoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
+        self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, norm=decoder_norm)
 
         # Linear output
         self.linear_output = nn.Linear(d_model, self.tgt_vocab_size, bias=False)

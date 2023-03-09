@@ -1,6 +1,6 @@
 import torch
 from src.models import TransformerCore
-from utils import generate_causal_mask
+from ..utils import generate_causal_mask
 
 
 def greedy_decoding(model: TransformerCore,

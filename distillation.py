@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
     # Load dataset
     dataset_to_distill = load_dataset(dataset, lang_pair, cache_dir="{0}_{1}_{2}".format(cache_dir, src_lang, tgt_lang),
-                                      split="train[:{0}]".format(dataset_size), ignore_verifications=True)
+                                      split="train[:{0}]".format(dataset_size), verification_mode="no_checks")
 
     # Extract target sentences
     tgt_sentences = [tgt_sentence[tgt_lang] for tgt_sentence in dataset_to_distill["translation"]]
