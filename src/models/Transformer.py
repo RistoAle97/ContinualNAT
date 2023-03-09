@@ -41,10 +41,11 @@ class Transformer(TransformerCore):
         """
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
+        # Initialize weights
         self._init_weights()
-        # self.src_embedding.weight.data.normal_(0, math.sqrt(self.d_model))
-        # if not self.share_embeddings_src_trg:
-            # self.tgt_embedding.weight.data.normal_(0, math.sqrt(self.d_model))
+        self.src_embedding.weight.data.normal_(0, self.d_model ** (-0.5))
+        if not self.share_embeddings_src_trg:
+            self.tgt_embedding.weight.data.normal_(0, self.d_model ** (-0.5))
 
     def _init_weights(self):
         for p in self.parameters():

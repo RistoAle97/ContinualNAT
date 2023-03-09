@@ -7,11 +7,11 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
-from src.data import TranslationDataset, BatchCollatorCMLM
+from tqdm import tqdm
+from src.data import TranslationDataset, BatchCollator
 from src.models import Transformer
 from src import model_size, model_n_parameters, generate_causal_mask, shift_tokens_right, compute_lr
 from typing import Dict
-from tqdm import tqdm
 
 
 if __name__ == "__main__":
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                            split="train[:4096]", verification_mode="no_checks")
 
     dataset_train = TranslationDataset(src_lang, tgt_lang, dataset)
-    batch_collator = BatchCollatorCMLM(tokenizer, max_length=max_length, padding=padding)
+    batch_collator = BatchCollator(tokenizer, max_length=max_length, padding=padding)
     dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=batch_collator, drop_last=True)
 
     # Model
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     eos_token = tokenizer.eos_token_id
 
     # Define loss function, optimizer and scheduler
-    loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token)
+    loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token, label_smoothing=0.1)
     optimizer = Adam(transformer.parameters(), lr=1, betas=(0.9, 0.997), eps=1e-9)
     scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, 4000))
 
