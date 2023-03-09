@@ -1,7 +1,7 @@
 import torch
 import math
 from . import TransformerCore
-from modules import DecoderLayerNAT, DecoderNAT, Fertility
+from ..modules import DecoderLayerNAT, DecoderNAT, Fertility
 
 
 class FTNAT(TransformerCore):

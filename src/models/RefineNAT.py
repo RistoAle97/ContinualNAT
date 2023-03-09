@@ -1,7 +1,7 @@
 import torch
 import math
 from torch import nn
-from modules import DecoderLayerNAT, DecoderNAT
+from ..modules import DecoderLayerNAT, DecoderNAT
 from . import TransformerCore
 
 

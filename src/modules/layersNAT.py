@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.functional import F
-from models import PositionalEncoding
+from src.models import PositionalEncoding
 from . import ResidualConnection, HighwayConnection
 
 

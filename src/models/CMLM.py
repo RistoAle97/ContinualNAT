@@ -2,7 +2,7 @@ import torch
 import math
 from torch import nn
 from . import TransformerCore
-from modules import Pooler
+from ..modules import Pooler
 from typing import Tuple
 
 
