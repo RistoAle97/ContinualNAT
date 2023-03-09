@@ -17,18 +17,24 @@ class RefineNAT(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
+                 norm_first: bool = False,
                  share_embeddings_src_trg: bool = True,
                  share_embeddings_trg_out: bool = True,
                  use_highway_layer: bool = True) -> None:
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps, share_embeddings_src_trg, share_embeddings_trg_out)
+                         dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_trg,
+                         share_embeddings_trg_out)
         # Parameters
+        self.norm_first = norm_first
         self.use_highway_layer = use_highway_layer
 
         # Decoders
-        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, use_highway_layer)
-        self.decoder = DecoderNAT(decoder_layer, num_decoder_layers)
-        self.decoder1 = DecoderNAT(decoder_layer, num_decoder_layers)
+        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, norm_first,
+                                        use_highway_layer)
+        norm = nn.LayerNorm(d_model, layer_norm_eps)
+        self.decoder = DecoderNAT(decoder_layer, num_decoder_layers, norm)
+        norm1 = nn.LayerNorm(d_model, layer_norm_eps)
+        self.decoder1 = DecoderNAT(decoder_layer, num_decoder_layers, norm1)
 
         # Linear output
         self.linear_output1 = nn.Linear(d_model, self.tgt_vocab_size, bias=False)

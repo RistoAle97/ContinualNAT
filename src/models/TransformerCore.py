@@ -1,7 +1,6 @@
 import torch
 import math
 from torch import nn
-from torch.functional import F
 
 
 class PositionalEncoding(nn.Module):
@@ -34,6 +33,7 @@ class TransformerCore(nn.Module):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
+                 norm_first: bool = False,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True) -> None:
         """
@@ -48,7 +48,9 @@ class TransformerCore(nn.Module):
         :param num_decoder_layers: the number of decoder layers (default=6).
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
-        :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
+            feedforward operations, otherwise after. Default: False (after).
         :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
             (default=True).
         :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
@@ -69,6 +71,7 @@ class TransformerCore(nn.Module):
         self.dim_ff = dim_ff
         self.dropout = dropout
         self.layer_norm_eps = layer_norm_eps
+        self.norm_first = norm_first
         self.share_embeddings_src_trg = share_embeddings_src_tgt
         self.share_embeddings_trg_out = share_embeddings_tgt_out
 
@@ -86,11 +89,11 @@ class TransformerCore(nn.Module):
 
         # Encoder and decoder
         encoder_layer = nn.TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout, layer_norm_eps=layer_norm_eps,
-                                                   batch_first=True, norm_first=True)
+                                                   batch_first=True, norm_first=norm_first)
         encoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers, norm=encoder_norm)
         decoder_layer = nn.TransformerDecoderLayer(d_model, n_heads, dim_ff, dropout, layer_norm_eps=layer_norm_eps,
-                                                   batch_first=True, norm_first=True)
+                                                   batch_first=True, norm_first=norm_first)
         decoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, norm=decoder_norm)
 
@@ -120,8 +123,7 @@ class TransformerCore(nn.Module):
                tgt_input: torch.Tensor,
                d_mask: torch.Tensor = None,
                e_pad_mask: torch.Tensor = None,
-               d_pad_mask: torch.Tensor = None,
-               generate_logits: bool = True) -> torch.Tensor:
+               d_pad_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Decodes the masked target sentence given the encodings of the source sentence.
         :param e_output: encodings coming from the encoder of shape (batch_size, seq_len, d_model).
@@ -130,18 +132,13 @@ class TransformerCore(nn.Module):
         :param e_pad_mask: key padding mask for the encoder of shape (batch_size, seq_len) used for the multi-head
             encoder-decoder attention.
         :param d_pad_mask: key padding mask for the decoder of shape (batcg_size, seq_len).
-        :param generate_logits: whether to generate logits by linear transforming and applying log softmax on
-            the decoder output.
         :return: torch tensor representing the decodings with shape (batch_size, seq_len, d_model) or
             (batch_size, seq_len, tgt_vocab_size) if generate_logits is True.
         """
         tgt_embeddings = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
         tgt_embeddings = self.positional_encoder(tgt_embeddings * math.sqrt(self.d_model))
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
-        if generate_logits:
-            d_output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
-            d_output = F.log_softmax(d_output, dim=-1)
-
+        d_output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
         return d_output
 
     def generate(self, *kwargs):

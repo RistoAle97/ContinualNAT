@@ -5,6 +5,7 @@ __pycache__/
 main.py
 runs/
 data/distilled_dataset*
+/*.ipynb
 
 # C extensions
 *.so

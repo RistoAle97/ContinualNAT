@@ -17,6 +17,7 @@ class Transformer(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
+                 norm_first: bool = False,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True) -> None:
         """
@@ -33,14 +34,17 @@ class Transformer(TransformerCore):
         :param num_decoder_layers: the number of decoder layers (default=6).
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
-        :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
+            feedforward operations, otherwise after. Default: False (after).
         :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
             (default=True).
         :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
             output (default=True).
         """
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
+                         dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_tgt,
+                         share_embeddings_tgt_out)
         # Initialize weights
         self._init_weights()
         self.src_embedding.weight.data.normal_(0, self.d_model ** (-0.5))

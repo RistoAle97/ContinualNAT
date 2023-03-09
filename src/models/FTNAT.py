@@ -1,5 +1,6 @@
 import torch
 import math
+from torch import nn
 from . import TransformerCore
 from ..modules import DecoderLayerNAT, DecoderNAT, Fertility
 
@@ -16,6 +17,7 @@ class FTNAT(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
+                 norm_first: bool = False,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True,
                  max_fertilities: int = 50) -> None:
@@ -31,7 +33,9 @@ class FTNAT(TransformerCore):
         :param num_decoder_layers: the number of decoder layers (default=6).
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
-        :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
+            feedforward operations, otherwise after. Default: False (after).
         :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
             (default=True).
         :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
@@ -39,16 +43,19 @@ class FTNAT(TransformerCore):
         :param max_fertilities: the maximum number of fertilities (default=50).
         """
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
+                         dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_tgt,
+                         share_embeddings_tgt_out)
         # Parameters
+        self.norm_first = norm_first
         self.max_fertilities = max_fertilities
 
         # Fertility
         self.fertility = Fertility(d_model, max_fertilities)
 
         # Decoder
-        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps)
-        self.decoder = DecoderNAT(decoder_layer, num_decoder_layers)
+        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, norm_first)
+        norm = nn.LayerNorm(d_model, layer_norm_eps) if norm_first else None
+        self.decoder = DecoderNAT(decoder_layer, num_decoder_layers, norm)
 
     @staticmethod
     def copy_fertilities(src_input: torch.Tensor, fertilities: torch.Tensor) -> torch.Tensor:

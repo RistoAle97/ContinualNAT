@@ -52,7 +52,7 @@ if __name__ == "__main__":
     dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=batch_collator, drop_last=True)
 
     # Model
-    transformer = Transformer(len(tokenizer)).to(device)
+    transformer = Transformer(len(tokenizer), norm_first=True).to(device)
     n_parameters, n_trainable_parameters = model_n_parameters(transformer)
     transformer_size = model_size(transformer)
     print(f"\nUsing {transformer.__class__.__name__} model:")
@@ -69,8 +69,8 @@ if __name__ == "__main__":
 
     # Define loss function, optimizer and scheduler
     loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token, label_smoothing=0.1)
-    optimizer = Adam(transformer.parameters(), lr=1, betas=(0.9, 0.997), eps=1e-9)
-    scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, 4000))
+    optimizer = Adam(transformer.parameters(), lr=5e-5, betas=(0.9, 0.997), eps=1e-9)
+    # scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, 4000))
 
     # Train loop
     current_step = 0
@@ -96,7 +96,6 @@ if __name__ == "__main__":
             d_mask = generate_causal_mask(decoder_input_ids.shape[-1]).to(device)
 
             # Compute predictions and loss
-            optimizer.zero_grad()
             logits = transformer(input_ids, decoder_input_ids, d_mask, e_pad_mask, d_pad_mask)
             loss = loss_fn(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1))
 
@@ -104,10 +103,10 @@ if __name__ == "__main__":
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            scheduler.step()
+            # scheduler.step()
 
             total_loss += loss.item()
-            if verbose and current_step % log_steps == 0:
+            if current_step % log_steps == 0:
                 # print(f"Epoch: {epoch}, Epoch step: {step}, Step: {current_step}, Loss: {loss.item()}")
                 dataloader_tqdm.set_postfix(loss=str(loss.item)[0:6])
 

@@ -18,11 +18,13 @@ class CMLM(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
+                 norm_first: bool = False,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True,
                  mask_token_id: int = 250026) -> None:
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps, share_embeddings_src_tgt, share_embeddings_tgt_out)
+                         dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_tgt,
+                         share_embeddings_tgt_out)
         # Parameters
         self.mask_token_id = mask_token_id
 

@@ -13,6 +13,7 @@ class DecoderLayerNAT(nn.Module):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-5,
+                 norm_first: bool = True,
                  use_highway_layer: bool = False) -> None:
         """
         The non-autoregressive transformer decoder layer as first introduced by Gu et al.
@@ -25,12 +26,13 @@ class DecoderLayerNAT(nn.Module):
         :param n_heads: the number of heads in the multi-attention mechanism (default=8).
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
-        :param layer_norm_eps: the eps value in the layer normalization (default=1e-5).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         :param use_highway_layer: whether to use a highway connection around each sublayer, if set to False then
             residual connections will be used (default=True)
         """
         super().__init__()
         # Parameters
+        self.norm_first = norm_first
         self.use_highway_layer = use_highway_layer
         self.positional_encoder_attention = PositionalEncoding(d_model, dropout=0)
 
@@ -58,8 +60,19 @@ class DecoderLayerNAT(nn.Module):
         self.ff_linear2 = nn.Linear(dim_ff, d_model)
         self.norm4 = nn.LayerNorm(d_model, layer_norm_eps)
 
+    def _maybe_layer_norm(self,
+                          x: torch.Tensor,
+                          norm: nn.Module,
+                          before: bool = False,
+                          after: bool = False) -> torch.Tensor:
+        assert before ^ after
+        if after ^ self.norm_first:
+            return norm(x)
+        else:
+            return x
+
     def forward(self,
-                src_input: torch.Tensor,
+                e_output: torch.Tensor,
                 tgt_input: torch.Tensor,
                 d_mask: torch.Tensor = None,
                 e_pad_mask: torch.Tensor = None,
@@ -68,27 +81,31 @@ class DecoderLayerNAT(nn.Module):
         Process masked source and target sequences.
         """
         # Self-attention sublayer
-        sa_output = self.self_attention(tgt_input, tgt_input, tgt_input, d_pad_mask, attn_mask=d_mask)[0]
+        sa_output = self._maybe_layer_norm(tgt_input, self.norm1, before=True)
+        sa_output = self.self_attention(sa_output, sa_output, sa_output, d_pad_mask, attn_mask=d_mask)[0]
         sa_output = self.block_connections[0](tgt_input, sa_output)
-        sa_output = self.norm1(sa_output)
+        sa_output = self._maybe_layer_norm(sa_output, self.norm1, after=True)
 
         # Positional attention sublayer
         pos_output = self.positional_encoder_attention(sa_output)
+        pos_output = self._maybe_layer_norm(pos_output, self.norm2, before=True)
         pos_output = self.pos_attention(pos_output, pos_output, sa_output, d_pad_mask, attn_mask=d_mask)[0]
         pos_output = self.block_connections[1](sa_output, pos_output)
-        pos_output = self.norm2(pos_output)
+        pos_output = self._maybe_layer_norm(pos_output, self.norm2, after=True)
 
         # Encoder-decoder attention sublayer
-        encdec_output = self.encdec_attention.forward(pos_output, src_input, src_input, e_pad_mask, attn_mask=None)[0]
+        encdec_output = self._maybe_layer_norm(pos_output, self.norm3, before=True)
+        encdec_output = self.encdec_attention(encdec_output, e_output, e_output, e_pad_mask, attn_mask=None)[0]
         encdec_output = self.block_connections[2](pos_output, encdec_output)
-        encdec_output = self.norm3(encdec_output)
+        encdec_output = self._maybe_layer_norm(encdec_output, self.norm3, after=True)
 
         # Feed-forward sublayer
-        output = F.relu(self.ff_linear1(encdec_output))
+        output = self._maybe_layer_norm(encdec_output, self.norm4, before=True)
+        output = F.relu(self.ff_linear1(output))
         output = self.dropout4(output)
         output = self.ff_linear2(output)
         output = self.block_connections[3](encdec_output, output)
-        output = self.norm4(output)
+        output = self._maybe_layer_norm(output, self.norm4, after=True)
         return output
 
 
@@ -96,7 +113,8 @@ class DecoderNAT(nn.Module):
 
     def __init__(self,
                  decoder_layer: DecoderLayerNAT,
-                 num_decoder_layers: int = 6) -> None:
+                 num_decoder_layers: int = 6,
+                 norm: nn.Module = None) -> None:
         """
         The non-autoregressive transformer decoder by Gu et al. https://arxiv.org/pdf/1711.02281.pdf.
         :param decoder_layer: the non-autoregressive decoder layer.
@@ -106,6 +124,7 @@ class DecoderNAT(nn.Module):
         # Parameters
         self.num_layers = num_decoder_layers
         self.layers = nn.ModuleList([decoder_layer for _ in range(num_decoder_layers)])
+        self.norm = norm
 
     def forward(self,
                 e_output: torch.Tensor,
@@ -119,5 +138,8 @@ class DecoderNAT(nn.Module):
         output = tgt_input
         for decoder_layer in self.layers:
             output = decoder_layer(e_output, output, d_mask, e_pad_mask, d_pad_mask)
+
+        if self.norm is not None:
+            output = self.norm(output)
 
         return output
