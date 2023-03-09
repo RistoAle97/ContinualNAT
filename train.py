@@ -9,8 +9,9 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
 from src.data import TranslationDataset, BatchCollatorCMLM
 from src.models import Transformer
-from utils import model_size, model_n_parameters, generate_causal_mask, shift_tokens_right, compute_lr
+from src import model_size, model_n_parameters, generate_causal_mask, shift_tokens_right, compute_lr
 from typing import Dict
+from tqdm import tqdm
 
 
 if __name__ == "__main__":
@@ -44,7 +45,7 @@ if __name__ == "__main__":
     # Dataset
     dataset = load_dataset("yhavinga/ccmatrix", f"{src_lang}-{tgt_lang}",
                            cache_dir=f"D:/MasterDegreeThesis/datasets/ccmatrix_{src_lang}_{tgt_lang}",
-                           split="train[:4096]", ignore_verifications=True)
+                           split="train[:4096]", verification_mode="no_checks")
 
     dataset_train = TranslationDataset(src_lang, tgt_lang, dataset)
     batch_collator = BatchCollatorCMLM(tokenizer, max_length=max_length, padding=padding)
@@ -68,17 +69,18 @@ if __name__ == "__main__":
 
     # Define loss function, optimizer and scheduler
     loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token)
-    optimizer = Adam(transformer.parameters(), lr=1, betas=(0.9, 0.98), eps=1e-9)
-    scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, warmup_steps))
+    optimizer = Adam(transformer.parameters(), lr=1, betas=(0.9, 0.997), eps=1e-9)
+    scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, 4000))
 
     # Train loop
     current_step = 0
     epochs = 10
+    dataloader_tqdm = tqdm(dataloader_train)
     transformer.train()
     board = SummaryWriter()
     for epoch in range(epochs):
         total_loss = 0
-        for step, batch in enumerate(dataloader_train):
+        for step, batch in enumerate(dataloader_tqdm):
             # Retrieve encoder inputs and labels, then create decoder inputs
             input_ids = batch["input_ids"].to(device)
             labels = batch["labels"].to(device)
@@ -99,13 +101,15 @@ if __name__ == "__main__":
             loss = loss_fn(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1))
 
             # Update weights and do one step for both optmizer and scheduler
+            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             scheduler.step()
 
             total_loss += loss.item()
             if verbose and current_step % log_steps == 0:
-                print(f"Epoch: {epoch}, Epoch step: {step}, Step: {current_step}, Loss: {loss.item()}")
+                # print(f"Epoch: {epoch}, Epoch step: {step}, Step: {current_step}, Loss: {loss.item()}")
+                dataloader_tqdm.set_postfix(loss=str(loss.item)[0:6])
 
             current_step += 1
             board.add_scalar("Loss/train", loss, current_step)
