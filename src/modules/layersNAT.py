@@ -13,7 +13,7 @@ class DecoderLayerNAT(nn.Module):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-5,
-                 norm_first: bool = True,
+                 norm_first: bool = False,
                  use_highway_layer: bool = False) -> None:
         """
         The non-autoregressive transformer decoder layer as first introduced by Gu et al.
