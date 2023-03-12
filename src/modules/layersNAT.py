@@ -34,7 +34,7 @@ class DecoderLayerNAT(nn.Module):
         # Parameters
         self.norm_first = norm_first
         self.use_highway_layer = use_highway_layer
-        self.positional_encoder_attention = PositionalEncoding(d_model, dropout=0)
+        self.positional_encoder = PositionalEncoding(d_model, dropout=0)
 
         # Connections around each layer
         if use_highway_layer:
@@ -87,7 +87,7 @@ class DecoderLayerNAT(nn.Module):
         sa_output = self._maybe_layer_norm(sa_output, self.norm1, after=True)
 
         # Positional attention sublayer
-        pos_output = self.positional_encoder_attention(sa_output)
+        pos_output = self.positional_encoder(sa_output)
         pos_output = self._maybe_layer_norm(pos_output, self.norm2, before=True)
         pos_output = self.pos_attention(pos_output, pos_output, sa_output, d_pad_mask, attn_mask=d_mask)[0]
         pos_output = self.block_connections[1](sa_output, pos_output)

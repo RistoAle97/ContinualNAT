@@ -79,9 +79,14 @@ class Transformer(TransformerCore):
         output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
         return output
 
-    def generate(self, x: torch.Tensor, sos_token_id, eos_token_id, beam_size: int = 4) -> torch.Tensor:
+    def generate(self,
+                 x: torch.Tensor,
+                 e_pad_mask: torch.Tensor,
+                 sos_token_id: int,
+                 eos_token_id: int,
+                 beam_size: int = 4) -> torch.Tensor:
         if beam_size == 1:
-            output = greedy_decoding(self, x, sos_token_id, eos_token_id)
+            output = greedy_decoding(self, x, e_pad_mask, sos_token_id, eos_token_id)
         else:
             output = beam_decoding(self, x, sos_token_id, eos_token_id, beam_size=beam_size)
 

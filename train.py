@@ -107,7 +107,6 @@ if __name__ == "__main__":
 
             total_loss += loss.item()
             if current_step % log_steps == 0:
-                # print(f"Epoch: {epoch}, Epoch step: {step}, Step: {current_step}, Loss: {loss.item()}")
                 dataloader_tqdm.set_postfix(loss=str(loss.item)[0:6])
 
             current_step += 1

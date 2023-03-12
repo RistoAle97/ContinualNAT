@@ -37,14 +37,12 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Load model and tokenizer
-    opus_mt_model: MarianMTModel = MarianMTModel.from_pretrained("Helsinki-NLP/opus-mt-{0}"
-                                                                 .format(lang_pair)).to(device)
-    opus_mt_tokenizer: MarianTokenizer = MarianTokenizer.from_pretrained("Helsinki-NLP/opus-mt-{0}"
-                                                                         .format(lang_pair))
+    opus_mt_model: MarianMTModel = MarianMTModel.from_pretrained(f"Helsinki-NLP/opus-mt-{lang_pair}").to(device)
+    opus_mt_tokenizer: MarianTokenizer = MarianTokenizer.from_pretrained(f"Helsinki-NLP/opus-mt-{lang_pair}")
 
     # Load dataset
-    dataset_to_distill = load_dataset(dataset, lang_pair, cache_dir="{0}_{1}_{2}".format(cache_dir, src_lang, tgt_lang),
-                                      split="train[:{0}]".format(dataset_size), verification_mode="no_checks")
+    dataset_to_distill = load_dataset(dataset, f"{lang_pair}", cache_dir=f"{cache_dir}_{src_lang}_{tgt_lang}",
+                                      split=f"train[:{dataset_size}]", verification_mode="no_checks")
 
     # Extract target sentences
     tgt_sentences = [tgt_sentence[tgt_lang] for tgt_sentence in dataset_to_distill["translation"]]
@@ -87,6 +85,6 @@ if __name__ == '__main__':
             df_scores.to_csv("distillation_teacher_scores.csv")
 
     # Save translations
-    with open("data/distilled_dataset_{0}_{1}.txt".format(src_lang, tgt_lang), "w", encoding="utf_8") as datafile:
+    with open(f"data/distilled_dataset_{src_lang}_{tgt_lang}.txt", "w", encoding="utf_8") as datafile:
         for translation in translations:
             datafile.write(translation + "\n")
