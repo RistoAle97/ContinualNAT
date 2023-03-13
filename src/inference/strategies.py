@@ -6,18 +6,18 @@ from ..utils import generate_causal_mask
 
 def greedy_decoding(model: TransformerCore,
                     input_ids: torch.Tensor,
-                    e_pad_mask: torch.Tensor,
                     sos_token_id: int,
                     eos_token_id: int,
+                    pad_token_id: int,
                     max_new_tokens: int = 10) -> torch.Tensor:
     """
     Performs greedy search for translating tokenized input sentence, this should be used only by autoregressive
     transformers.
     :param model: the autoregressive model.
     :param input_ids: the tokenized input sentence of shape (batch_size, seq_len).
-    :param e_pad_mask: the padding mask for the input tensor.
     :param sos_token_id: start of sentence token id.
     :param eos_token_id: end of sentence token id, for multilingual models this should be the target language code id.
+    :param pad_token_id: pad token id.
     :param max_new_tokens: maximum allowed new tokens.
     :return: the tokenized translated sentence.
     """
@@ -35,13 +35,15 @@ def greedy_decoding(model: TransformerCore,
         eos_token_id_tensor = torch.tensor([eos_token_id]).unsqueeze(1).to(device)
 
         # Encode the input tokens
-        e_output = model.encode(input_ids)
+        e_pad_mask = (input_ids == pad_token_id).to(device)
+        e_output = model.encode(input_ids, e_pad_mask=e_pad_mask)
 
         # Generate tokens in an autoregressive fashion
         for _ in range(1, max_length):
             # Obtain logits from the model's decoder
             tgt_mask = generate_causal_mask(output.shape[-1]).to(device)
-            logits = model.decode(e_output, output, d_mask=tgt_mask, e_pad_mask=e_pad_mask)
+            d_pad_mask = (output == pad_token_id).to(device)
+            logits = model.decode(e_output, output, tgt_mask, e_pad_mask, d_pad_mask)
 
             # Compute the new tokens and concatenate them to the previously generated ones
             logits = F.log_softmax(logits[:, -1], dim=1)
@@ -50,7 +52,7 @@ def greedy_decoding(model: TransformerCore,
             output = torch.cat([output, new_tokens[:, None]], dim=-1)
 
             # Update tensor that tracks unfinished sentences
-            unfinished_sentences = unfinished_sentences.mul(new_tokens.ne(eos_token_id_tensor.unsqueeze(1)).prod(dim=0))
+            unfinished_sentences = unfinished_sentences.mul(new_tokens.ne(eos_token_id_tensor).prod(dim=0))
 
             # Terminates if an eos token has been generated for all the sentences
             if unfinished_sentences.max() == 0:

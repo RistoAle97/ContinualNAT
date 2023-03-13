@@ -80,14 +80,16 @@ class Transformer(TransformerCore):
         return output
 
     def generate(self,
-                 x: torch.Tensor,
+                 input_ids: torch.Tensor,
                  e_pad_mask: torch.Tensor,
                  sos_token_id: int,
                  eos_token_id: int,
+                 pad_token_id: int,
+                 max_new_tokens: int = 10,
                  beam_size: int = 4) -> torch.Tensor:
         if beam_size == 1:
-            output = greedy_decoding(self, x, e_pad_mask, sos_token_id, eos_token_id)
+            output = greedy_decoding(self, input_ids, sos_token_id, eos_token_id, pad_token_id, max_new_tokens)
         else:
-            output = beam_decoding(self, x, sos_token_id, eos_token_id, beam_size=beam_size)
+            output = beam_decoding(self, input_ids, sos_token_id, eos_token_id, beam_size=beam_size)
 
         return output
