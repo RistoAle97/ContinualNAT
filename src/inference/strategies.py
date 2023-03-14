@@ -62,17 +62,39 @@ def greedy_decoding(model: TransformerCore,
 
 
 def beam_decoding(model: TransformerCore,
-                  x: torch.Tensor,
+                  input_ids: torch.Tensor,
                   sos_token_id: int,
                   eos_token_id: int,
-                  max_length: int = None,
-                  beam_size: int = 2) -> torch.Tensor:
+                  pad_token_id: int,
+                  max_new_tokens: int = 10,
+                  beam_size: int = 5) -> torch.Tensor:
+    """
+    Performs beams search for translating tokenized input sentence, this should be used only by autoregressive
+    transformers.
+    :param model: the autoregressive model.
+    :param input_ids: the tokenized input sentence of shape (batch_size, seq_len).
+    :param sos_token_id: start of sentence token id.
+    :param eos_token_id: end of sentence token id, for multilingual models this should be the target language code id.
+    :param pad_token_id: pad token id.
+    :param max_new_tokens: maximum allowed new tokens.
+    :param beam_size: number of beams.
+    :return: the tokenized translated sentence.
+    """
     with torch.no_grad():
-        if max_length is None:
-            max_length = x.shape[-1]
-
+        # Parameters
+        max_length = input_ids.shape[-1] + max_new_tokens
         device = next(model.parameters()).device
-        x = x.to(device)
-        output = torch.ones(1, 1, dtype=torch.int).fill_(sos_token_id).to(device)
-        e_output = model.encode(x)
-    pass
+        batch_size = input_ids.shape[0]
+
+        beam_scores = torch.zeros((batch_size, beam_size), dtype=torch.float, device=device)
+        beam_scores[:, 1:] = 1e-9
+        beam_scores = beam_scores.view((batch_size * beam_size, ))
+
+        output = torch.ones(batch_size, 1, dtype=torch.int).fill_(sos_token_id).to(device)
+        e_output = model.encode(input_ids)
+        return output
+
+
+def mask_predict(model: TransformerCore, input_ids: torch.Tensor, max_iteration: int = 10) -> torch.Tensor:
+    with torch.no_grad():
+        pass

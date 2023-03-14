@@ -77,10 +77,10 @@ if __name__ == '__main__':
             "chrf": [chrf_score]
         }
         df_scores = pd.DataFrame(df_scores)
-        if os.path.exists("data/distillation_teacher_scores.csv"):
-            df_teacher_scores: pd.DataFrame = pd.read_csv("data/distillation_teacher_scores.csv", index_col=0)
+        if os.path.exists("../data/distillation_teacher_scores.csv"):
+            df_teacher_scores: pd.DataFrame = pd.read_csv("../data/distillation_teacher_scores.csv", index_col=0)
             df_teacher_scores = pd.concat([df_teacher_scores, df_scores], ignore_index=True).drop_duplicates()
-            df_teacher_scores.to_csv("data/distillation_teacher_scores.csv")
+            df_teacher_scores.to_csv("../data/distillation_teacher_scores.csv")
         else:
             df_scores.to_csv("distillation_teacher_scores.csv")
 
