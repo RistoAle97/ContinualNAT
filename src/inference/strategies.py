@@ -94,7 +94,3 @@ def beam_decoding(model: TransformerCore,
         e_output = model.encode(input_ids)
         return output
 
-
-def mask_predict(model: TransformerCore, input_ids: torch.Tensor, max_iteration: int = 10) -> torch.Tensor:
-    with torch.no_grad():
-        pass

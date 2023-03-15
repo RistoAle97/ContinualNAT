@@ -74,9 +74,10 @@ class FTNAT(TransformerCore):
 
     def forward(self,
                 src_input: torch.Tensor,
+                tgt_input: torch.Tensor,
                 d_mask: torch.Tensor = None,
                 padding_mask: torch.Tensor = None,
-                soft_copy: bool = True) -> torch.Tensor:
+                soft_copy: bool = False) -> torch.Tensor:
         """
         Process source sequence.
         """
@@ -90,7 +91,7 @@ class FTNAT(TransformerCore):
         if soft_copy:
             copied_embeddings = self.copy_fertilities(e_embeddings, fertilities)
         else:
-            copied_embeddings = e_embeddings
+            copied_embeddings = tgt_input
 
         # Decoder
         d_input = self.positional_encoder(copied_embeddings * math.sqrt(self.d_model))
