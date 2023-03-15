@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim import Adam
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm import tqdm
-from src.data import TranslationDataset, BatchCollator
+from src.data import TranslationDatasetCMLM, BatchCollatorCMLM
 from src.models import Transformer
 from src import model_size, model_n_parameters, generate_causal_mask, shift_tokens_right, compute_lr
 from typing import Dict
@@ -47,8 +47,8 @@ if __name__ == "__main__":
                            cache_dir=f"D:/MasterDegreeThesis/datasets/ccmatrix_{src_lang}_{tgt_lang}",
                            split="train[:4096]", verification_mode="no_checks")
 
-    dataset_train = TranslationDataset(src_lang, tgt_lang, dataset)
-    batch_collator = BatchCollator(tokenizer, max_length=max_length, padding=padding)
+    dataset_train = TranslationDatasetCMLM(src_lang, tgt_lang, dataset)
+    batch_collator = BatchCollatorCMLM(tokenizer, max_length=max_length, padding=padding)
     dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=batch_collator, drop_last=True)
 
     # Model
@@ -84,11 +84,7 @@ if __name__ == "__main__":
             # Retrieve encoder inputs and labels, then create decoder inputs
             input_ids = batch["input_ids"].to(device)
             labels = batch["labels"].to(device)
-            if shift_labels_right:
-                decoder_input_ids = shift_tokens_right(labels, pad_token, tgt_lang_token).to(device)
-            else:
-                decoder_input_ids = labels[:, :-1].to(device)
-                labels = labels[:, 1:]
+            decoder_input_ids = batch["decoder_input_ids"].to(device)
 
             # Create masks
             e_pad_mask = (input_ids == pad_token).to(device)
