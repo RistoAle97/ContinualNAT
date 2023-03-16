@@ -52,7 +52,7 @@ class BatchCollator:
                 decoder_input_ids_batch = labels_batch[:, :-1]
                 labels_batch = labels_batch[:, 1:]
         else:
-            decoder_input_ids_batch = labels_batch
+            decoder_input_ids_batch = labels_batch.detach().clone()
 
         return {"input_ids": input_ids_batch, "labels": labels_batch, "decoder_input_ids": decoder_input_ids_batch}
 
@@ -69,7 +69,7 @@ class BatchCollatorCMLM(BatchCollator):
                  use_language_tokens: bool = True,
                  train: bool = False) -> None:
         super().__init__(tokenizer, truncation, max_length, padding, add_special_tokens, return_tensors,
-                         use_language_tokens)
+                         use_language_tokens, False)
         self.train = train
 
     def _mask_target(self, tgt: torch.Tensor) -> Dict[str, Union[torch.Tensor, List[int]]]:
@@ -80,10 +80,10 @@ class BatchCollatorCMLM(BatchCollator):
         mask_id = self.tokenizer.mask_token_id
 
         # Initialize decoder inputs and labels
-        decoder_input_ids = tgt.detach().clone()
-        labels = tgt.detach().clone()
+        decoder_input_ids = tgt.new(tgt.tolist())
+        labels = tgt.new(tgt.size()).fill_(self.tokenizer.pad_token_id)
 
-        # At least one token should be masked
+        # At least one token per each sentence should be masked
         min_masks = 1
 
         # Compute the length of the target sentences without taking special tokens into account
@@ -104,7 +104,6 @@ class BatchCollatorCMLM(BatchCollator):
                 n_masks.append(sample_size)
                 masks = random.sample(range(tgt_length), sample_size)
                 decoder_input_ids[i, masks] = mask_id
-                labels[i, :tgt_length] = mask_id
                 labels[i, masks] = tgt[i, masks]
                 mask_idxs.append(masks)
         else:

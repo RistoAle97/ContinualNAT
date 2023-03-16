@@ -91,6 +91,7 @@ class CMLM(TransformerCore):
             output = torch.ones(batch_size, max_predicted_length.item(), dtype=torch.int,
                                 device=device).fill_(pad_token_id)
             output[:, 0] = sos_token_id
+            return output
 
     def generate(self,
                  input_ids: torch.Tensor,

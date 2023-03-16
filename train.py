@@ -48,7 +48,7 @@ if __name__ == "__main__":
                            split="train[:4096]", verification_mode="no_checks")
 
     dataset_train = TranslationDatasetCMLM(src_lang, tgt_lang, dataset)
-    batch_collator = BatchCollatorCMLM(tokenizer, max_length=max_length, padding=padding)
+    batch_collator = BatchCollatorCMLM(tokenizer, max_length=max_length, padding=padding, train=True)
     dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=batch_collator, drop_last=True)
 
     # Model

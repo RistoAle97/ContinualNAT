@@ -1,6 +1,6 @@
 import datasets
 from torch.utils.data import Dataset
-from tqdm import tqdm
+from tqdm.auto import tqdm
 from typing import Dict, Union
 
 
@@ -57,8 +57,7 @@ class TranslationDatasetCMLM(TranslationDataset):
                  dataset: datasets.Dataset) -> None:
         super().__init__(src_lang, tgt_lang, dataset)
 
-    def __getitem__(self, idx):
-        sentence_pair = self.dataset[idx]["translation"]
-        src_sentence = "<length> " + sentence_pair[self.src_lang]
-        tgt_sentence = sentence_pair[self.tgt_lang]
-        return {"src_sentence": src_sentence, "tgt_sentence": tgt_sentence}
+    def __getitem__(self, idx) -> Dict[str, str]:
+        sentence_pair = super().__getitem__(idx)
+        return {"src_sentence": "<length> " + sentence_pair["src_sentence"],
+                "tgt_sentence": sentence_pair["tgt_sentence"]}

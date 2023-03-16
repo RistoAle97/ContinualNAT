@@ -30,7 +30,7 @@ class Pooler(nn.Module):
         self.linear = nn.Linear(d_model, d_model)
 
     def forward(self, e_output: torch.Tensor, length_prediction: bool = False) -> torch.Tensor:
-        out = self.linear(e_output[:, 0, :])
+        out = self.linear(e_output[:, 0])
         out = nn.functional.tanh(out)
         if length_prediction:
             out = F.log_softmax(out, -1)
