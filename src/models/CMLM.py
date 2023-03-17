@@ -24,7 +24,6 @@ class CMLM(TransformerCore):
         super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_tgt,
                          share_embeddings_tgt_out)
-
         # Pooler layer after the encoder to predict the target sentence length
         self.pooler = Pooler(d_model)
 

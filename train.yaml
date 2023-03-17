@@ -1,0 +1,33 @@
+# Model
+model:
+  name: "CMLM" # this should reflect the model's class that you want to train
+  parameters:
+    d_model: 512
+    n_heads: 8
+    num_encoder_layers: 6
+    num_decoder_layers: 6
+    dim_ff: 2048
+    dropout: 0.1
+    layer_norm_eps: float = 1e-6
+    norm_first: True
+    shared_embeddings_src_trg: True
+    shared_embeddings_trg_out: True
+
+# Tokenizer
+tokenizer: "tokenizers/mbart_tokenizer_cmlm"
+
+# Dataset
+dataset:
+  path: "yhavinga/ccmatrix"
+  cache_dir: "D:/MasterDegreeThesis/datasets/ccmatrix_"
+  split: "train[0:4096]"
+  verification_mode: "no_checks"
+
+# Batch Collator
+batch_collator:
+  max_length: 64
+  padding: "longest"
+  train: True
+
+# Training parameters
+

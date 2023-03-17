@@ -1,47 +1,50 @@
 # Some general-purpose parameters
+model: "CMLM"
 tokenizer: "facebook/mbart-large-cc25"
-train_dataset: "yhavinga/ccmatrix"
-languages:
-  en: "en_XX"
-  de: "de_DE"
-  es: "es_XX"
-  fr: "fr_XX"
-batch_size: 16
-max_length: 128
+dataset: "yhavinga/ccmatrix"
+src_lang: "en"
+tgt_lang: "de"
+batch_size: 32
+max_length: 64
+tokens_per_batch: 25000
 padding: "longest"
 warmup_steps: 4000
-verbose_training: True
-log_steps: 128
+accumulation_steps: None
+training_udpates: 100000 # in some papers this is called the number of steps
 shift_labels_right: True
 
 # Transformer large parameters
 transformer_large:
-  d_model: 1024
-  n_heads: 16
-  num_encoder_layers: 6
-  num_decoder_layers: 6
-  dim_ff: 4096
-  dropout: 0.3
-  layer_norm_eps: float = 1e-5
-  shared_embeddings_src_trg: True
-  shared_embeddings_trg_out: True
-  max_training_steps: 300000
+  model_parameters:
+    d_model: 1024
+    n_heads: 16
+    num_encoder_layers: 6
+    num_decoder_layers: 6
+    dim_ff: 4096
+    dropout: 0.3
+    layer_norm_eps: float = 1e-6
+    norm_first: True
+    shared_embeddings_src_trg: True
+    shared_embeddings_trg_out: True
+  training_steps: 300000
 
 # Transformer base parameters
 transformer_base:
-  d_model: 512
-  n_heads: 8
-  num_encoder_layers: 6
-  num_decoder_layers: 6
-  dim_ff: 2048
-  dropout: 0.1
-  layer_norm_eps: float = 1e-5
-  shared_embeddings_src_trg: True
-  shared_embeddings_trg_out: True
-  max_training_steps: 100000
+  model_parameters:
+    d_model: 512
+    n_heads: 8
+    num_encoder_layers: 6
+    num_decoder_layers: 6
+    dim_ff: 2048
+    dropout: 0.1
+    layer_norm_eps: float = 1e-6
+    norm_first: True
+    shared_embeddings_src_trg: True
+    shared_embeddings_trg_out: True
+  max_training_updates: 100000
 
 # Refine-NAT parameters
 refinement_iterations: 10
 
 # CMLM parameters
-mask_iterations: 10
+mask_predict_iterations: 10
