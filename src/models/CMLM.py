@@ -1,6 +1,7 @@
 import torch
 import math
 from torch import nn
+from torch.functional import F
 from . import TransformerCore
 from ..modules import Pooler
 from typing import Tuple
@@ -70,10 +71,10 @@ class CMLM(TransformerCore):
 
     def _mask_predict(self,
                       input_ids: torch.Tensor,
-                      sos_token_id: int,
+                      tgt_lang_token_id: int,
                       pad_token_id: int,
                       mask_token_id: int,
-                      max_iteration: int = 10) -> torch.Tensor:
+                      iterations: int = 10) -> torch.Tensor:
         with torch.no_grad():
             # Parameters
             batch_size, seq_len = input_ids.size()
@@ -84,12 +85,38 @@ class CMLM(TransformerCore):
             encodings = self.encode(input_ids, e_pad_mask=e_pad_mask)
 
             # Predict the target lengths and take the largest one
-            target_length = self.predict_target_length(encodings)
-            max_predicted_length = target_length.max()
+            target_lengths = self.predict_target_length(encodings)
+            max_predicted_length = target_lengths.max()
 
+            # Initialize outputs <mask0>...<maskT-1> <tgt_lang_code_id> <pad>...<pad> where T is the predicted length
             output = torch.ones(batch_size, max_predicted_length.item(), dtype=torch.int,
                                 device=device).fill_(pad_token_id)
-            output[:, 0] = sos_token_id
+            for i, length in enumerate(target_lengths):
+                output[i, :length] = mask_token_id
+                output[i, length] = tgt_lang_token_id
+
+            # Make first prediction
+            d_pad_mask = (output == pad_token_id)  # this mask will never change
+            output = self.decode(encodings, output, e_pad_mask=e_pad_mask, d_pad_mask=d_pad_mask)
+            logits = F.log_softmax(output)
+            p_tokens, tokens = logits.max(dim=-1)  # tokens probabilites and their ids
+            tokens.view(-1)[d_pad_mask.view(-1).nonzero()] = pad_token_id
+            p_tokens.view(-1)[d_pad_mask.view(-1).nonzero()] = 1.0
+
+            # Mask-predict iterations
+            for i in range(1, iterations):
+                # Mask
+                n_masks = (target_lengths * (1.0 - i / iterations)).int()
+                masks = [tokens[batch, :].topk(max(1, n_masks[batch]), largest=False, sorted=False)[1] for batch in
+                         range(batch_size)]
+                masks = [torch.cat([mask, mask.new(seq_len - mask.size(0)).fill_(mask[0])], dim=0) for mask in masks]
+                masks = torch.stack(masks, dim=0)
+
+                # Predict
+                output = self.decode(encodings, tokens, e_pad_mask=e_pad_mask, d_pad_mask=d_pad_mask)
+                logits = F.log_softmax(output)
+                p_tokens, tokens = logits.max(dim=-1)
+
             return output
 
     def generate(self,
