@@ -29,10 +29,14 @@ class CMLM(TransformerCore):
         self.pooler = Pooler(d_model)
 
         # Use BERT weight initialization
-        self.apply(self._init_bert_weigths)
+        self.apply(self._init_bert_weights)
 
     @staticmethod
-    def _init_bert_weigths(module: nn.Module):
+    def _init_bert_weights(module: nn.Module) -> None:
+        """
+        Initialize module's weights following BERT https://arxiv.org/pdf/1810.04805.pdf.
+        :param module: the module to initialize.
+        """
         if isinstance(module, (nn.Linear, nn.Embedding)):
             module.weight.data.normal_(mean=0.0, std=0.02)
         elif isinstance(module, nn.LayerNorm):
@@ -89,13 +93,13 @@ class CMLM(TransformerCore):
             max_predicted_length = target_lengths.max()
 
             # Initialize outputs <mask0>...<maskT-1> <tgt_lang_code_id> <pad>...<pad> where T is the predicted length
-            output = torch.ones(batch_size, max_predicted_length.item(), dtype=torch.int,
+            output = torch.ones(batch_size, max_predicted_length.item() + 1, dtype=torch.int,
                                 device=device).fill_(pad_token_id)
             for i, length in enumerate(target_lengths):
                 output[i, :length] = mask_token_id
                 output[i, length] = tgt_lang_token_id
 
-            # Make first prediction
+            # Make first prediction in a fully non-autoregressive way
             d_pad_mask = (output == pad_token_id)  # this mask will never change
             output = self.decode(encodings, output, e_pad_mask=e_pad_mask, d_pad_mask=d_pad_mask)
             logits = F.log_softmax(output)
@@ -105,19 +109,31 @@ class CMLM(TransformerCore):
 
             # Mask-predict iterations
             for i in range(1, iterations):
-                # Mask
+                # Compute the number of masks per sentence
                 n_masks = (target_lengths * (1.0 - i / iterations)).int()
-                masks = [tokens[batch, :].topk(max(1, n_masks[batch]), largest=False, sorted=False)[1] for batch in
+
+                # Compute the indexes of the worst tokens in terms of probability
+                masks = [p_tokens[batch, :].topk(max(1, n_masks[batch]), largest=False, sorted=False)[1] for batch in
                          range(batch_size)]
                 masks = [torch.cat([mask, mask.new(seq_len - mask.size(0)).fill_(mask[0])], dim=0) for mask in masks]
                 masks = torch.stack(masks, dim=0)
 
-                # Predict
-                output = self.decode(encodings, tokens, e_pad_mask=e_pad_mask, d_pad_mask=d_pad_mask)
-                logits = F.log_softmax(output)
-                p_tokens, tokens = logits.max(dim=-1)
+                # Apply the masks
+                masks = masks + torch.arange(0, batch_size * seq_len, seq_len, device=device).unsqueeze(1)
+                tokens.view(-1)[masks.view(-1)] = mask_token_id
 
-            return output
+                # Compute the new tokens and their probabilities
+                output = self.decode(encodings, tokens, e_pad_mask=e_pad_mask, d_pad_mask=d_pad_mask)
+                logits = F.log_softmax(output, dim=-1)
+                new_p_tokens, new_tokens = logits.max(dim=-1)
+
+                # Update the output tokens and probabilities
+                p_tokens.view(-1)[masks.view(-1)] = new_p_tokens.view(-1)[masks.view(-1)]
+                p_tokens.view(-1)[d_pad_mask.view(-1).nonzero()] = 1.0
+                tokens.view(-1)[masks.view(-1)] = new_tokens.view(-1)[masks.view(-1)]
+                tokens.view(-1)[d_pad_mask.view(-1).nonzero()] = pad_token_id
+
+            return tokens
 
     def generate(self,
                  input_ids: torch.Tensor,

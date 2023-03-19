@@ -31,7 +31,7 @@ class Pooler(nn.Module):
 
     def forward(self, e_output: torch.Tensor, length_prediction: bool = False) -> torch.Tensor:
         out = self.linear(e_output[:, 0])
-        out = nn.functional.tanh(out)
+        out = torch.tanh(out)
         if length_prediction:
             out = F.log_softmax(out, -1)
             out = out.argmax(-1)

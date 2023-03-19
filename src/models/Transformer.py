@@ -86,10 +86,10 @@ class Transformer(TransformerCore):
                  eos_token_id: int,
                  pad_token_id: int,
                  max_new_tokens: int = 10,
-                 beam_size: int = 4) -> torch.Tensor:
+                 beam_size: int = 5) -> torch.Tensor:
         if beam_size == 1:
             output = greedy_decoding(self, input_ids, sos_token_id, eos_token_id, pad_token_id, max_new_tokens)
         else:
-            output = beam_decoding(self, input_ids, sos_token_id, eos_token_id, beam_size=beam_size)
+            output = beam_decoding(self, input_ids, sos_token_id, eos_token_id, pad_token_id, max_new_tokens, beam_size)
 
         return output

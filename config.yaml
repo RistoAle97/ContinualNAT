@@ -4,7 +4,7 @@ tokenizer: "facebook/mbart-large-cc25"
 dataset: "yhavinga/ccmatrix"
 src_lang: "en"
 tgt_lang: "de"
-batch_size: 32
+batch_size: 16
 max_length: 64
 tokens_per_batch: 25000
 padding: "longest"
