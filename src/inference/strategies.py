@@ -15,8 +15,8 @@ def greedy_decoding(model: TransformerCore,
     transformers.
     :param model: the autoregressive model.
     :param input_ids: the tokenized input sentence of shape (batch_size, seq_len).
-    :param sos_token_id: start of sentence token id.
-    :param eos_token_id: end of sentence token id, for multilingual models this should be the target language code id.
+    :param sos_token_id: start of sentence token id, for multilingual models this should be the target language code id.
+    :param eos_token_id: end of sentence token id.
     :param pad_token_id: pad token id.
     :param max_new_tokens: maximum allowed new tokens.
     :return: the tokenized translated sentence.

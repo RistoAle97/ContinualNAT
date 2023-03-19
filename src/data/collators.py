@@ -3,7 +3,7 @@ import random
 import numpy as np
 from transformers import PreTrainedTokenizer
 from transformers.utils import PaddingStrategy, TensorType
-from src import shift_tokens_right
+from src.utils import shift_tokens_right
 from typing import Dict, List, Union
 
 

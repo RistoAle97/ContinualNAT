@@ -12,7 +12,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from tqdm.auto import tqdm
 from src.data import *
 from src.models import *
-from src import model_size, model_n_parameters, generate_causal_mask, compute_lr, SUPPORTED_LANGUAGES
+from src.utils import model_size, model_n_parameters, generate_causal_mask, compute_lr, SUPPORTED_LANGUAGES
 
 
 if __name__ == "__main__":

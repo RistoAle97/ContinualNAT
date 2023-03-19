@@ -10,24 +10,6 @@ SUPPORTED_LANGUAGES = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX
                        "zh": "zh_CN"}
 
 
-def generate_causal_mask(seq_len: int) -> torch.Tensor:
-    """
-    Generates an upper-triangular matrix of -inf, with zeros on diag.
-    :param seq_len: length of the sequence to mask.
-    :return: causal mask for the autoregressive decoder.
-    """
-    return torch.triu(torch.ones(seq_len, seq_len) * float("-inf"), diagonal=1)
-
-
-def generate_causal_nat_mask(seq_len: int) -> torch.Tensor:
-    """
-    Generates a diagonal matrix of -inf, in order to avoid a position from attending to itself.
-    :param seq_len: length of the sequence to mask.
-    :return: causal mask for the standard non-autoregressive decoder.
-    """
-    return torch.diag(torch.ones(seq_len) * float("-inf"))
-
-
 def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int) -> torch.Tensor:
     """
     Shift input ids one token to the right.
