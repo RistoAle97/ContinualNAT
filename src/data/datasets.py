@@ -10,6 +10,12 @@ class TranslationDataset(Dataset):
                  src_lang: str,
                  tgt_lang: str,
                  dataset: datasets.Dataset) -> None:
+        """
+        Translation dataset defined by the source and target languages.
+        :param src_lang: the source language.
+        :param tgt_lang: the target language.
+        :param dataset: the Huggingface dataset to wrap.
+        """
         super().__init__()
         # Source and target languages
         self.src_lang = src_lang
@@ -23,6 +29,10 @@ class TranslationDataset(Dataset):
         self.max_length_tgt = 0
 
     def compute_stats(self) -> Dict[str, Union[int, float]]:
+        """
+        Computes and updates the dataset's stats.
+        :return: a dict containing the average and max lenght for both source and target languages.
+        """
         for sample in tqdm(self.dataset, "Computing average and max length for source and target"):
             sentences = sample["translation"]
             src_sentence: str = sentences[self.src_lang]
@@ -55,6 +65,13 @@ class TranslationDatasetCMLM(TranslationDataset):
                  src_lang: str,
                  tgt_lang: str,
                  dataset: datasets.Dataset) -> None:
+        """
+        Simple variation of the standard translation dataset mainly used for masked language models like BERT or CMLM,
+        a <length> token is placed at the start of each source sentence.
+        :param src_lang: the source language.
+        :param tgt_lang: the target language.
+        :param dataset: the Huggingface dataset to wrap.
+        """
         super().__init__(src_lang, tgt_lang, dataset)
 
     def __getitem__(self, idx) -> Dict[str, str]:

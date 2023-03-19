@@ -18,6 +18,18 @@ class BatchCollator:
                  return_tensors: Union[str, TensorType, None] = "pt",
                  use_language_tokens: bool = True,
                  shift_labels_right: bool = True) -> None:
+        """
+        Standard collator, its work consists in tokenizing the source and target sentences, batching them and creating
+        the decoder inputs.
+        :param tokenizer: the tokenizer used by the collator when called.
+        :param truncation: whether to apply truncation during the tokenization (default=True).
+        :param max_length: maximum allowed length fot the tokenized sentences (default=None)
+        :param padding: the padding strategy to apply during the tokenization (defualt=True).
+        :param add_special_tokens: whether to use special tokens during the tokenization (default=True)-
+        :param return_tensors: type of tensors from the tokenizer (default="pt").
+        :param use_language_tokens: whether to use language tokens by the tokenizer (default=True).
+        :param shift_labels_right: if the labels must be shifted in order to create the decoder inputs (default=True).
+        """
         self.tokenizer = tokenizer
         self.use_language_tokens = use_language_tokens
         self.shift_labels_right = shift_labels_right
@@ -67,12 +79,28 @@ class BatchCollatorCMLM(BatchCollator):
                  add_special_tokens: bool = True,
                  return_tensors: Union[str, TensorType, None] = "pt",
                  use_language_tokens: bool = True,
+                 shift_labels_right: bool = False,
                  train: bool = False) -> None:
+        """
+        Variation of the standard batch collator, used mainly for the CMLM model. At training time, the
+        decoder inputs (except for the pad and language tokens) are masked by a random number in
+        [1, seq_len - n_special_tokens], the labels are then padded where the masks are placed. At inference time,
+        all the decoder inputs (except, again, the pad and language tokens) are masked.
+        :param tokenizer: the tokenizer used by the collator when called.
+        :param truncation: whether to apply truncation during the tokenization (default=True).
+        :param max_length: maximum allowed length fot the tokenized sentences (default=None)
+        :param padding: the padding strategy to apply during the tokenization (defualt=True).
+        :param add_special_tokens: whether to use special tokens during the tokenization (default=True)-
+        :param return_tensors: type of tensors from the tokenizer (default="pt").
+        :param shift_labels_right: if the labels must be shifted in order to create the decoder inputs (default=False).
+        :param train: whether the collator is used during training (default=False).
+        """
         super().__init__(tokenizer, truncation, max_length, padding, add_special_tokens, return_tensors,
-                         use_language_tokens, False)
+                         use_language_tokens, shift_labels_right)
+        # Parameters
         self.train = train
 
-    def _mask_target(self, tgt: torch.Tensor) -> Dict[str, Union[torch.Tensor, List[int]]]:
+    def __mask_target(self, tgt: torch.Tensor) -> Dict[str, Union[torch.Tensor, List[int]]]:
         # Retrieve all the special tokens from the tokenizer and its mask id
         tokenizer_special_tokens = self.tokenizer.all_special_ids
         tokenizer_special_tokens.remove(self.tokenizer.bos_token_id)  # sos can be masked
@@ -121,7 +149,7 @@ class BatchCollatorCMLM(BatchCollator):
     def __call__(self, batch):
         tokenized_batch = super().__call__(batch)
         input_ids, labels = tokenized_batch["input_ids"], tokenized_batch["labels"]
-        masked_target = self._mask_target(labels)
+        masked_target = self.__mask_target(labels)
         return {"input_ids": input_ids, "decoder_input_ids": masked_target["decoder_input_ids"],
                 "labels": masked_target["labels"], "mask_idxs": masked_target["mask_idxs"],
                 "n_masks": masked_target["n_masks"]}

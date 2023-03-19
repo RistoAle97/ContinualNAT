@@ -73,12 +73,12 @@ class CMLM(TransformerCore):
         predicted_length = self.pooler(e_output, True).unsqueeze(1)
         return predicted_length
 
-    def _mask_predict(self,
-                      input_ids: torch.Tensor,
-                      tgt_lang_token_id: int,
-                      pad_token_id: int,
-                      mask_token_id: int,
-                      iterations: int = 10) -> torch.Tensor:
+    def __mask_predict(self,
+                       input_ids: torch.Tensor,
+                       tgt_lang_token_id: int,
+                       pad_token_id: int,
+                       mask_token_id: int,
+                       iterations: int = 10) -> torch.Tensor:
         with torch.no_grad():
             # Parameters
             batch_size, seq_len = input_ids.size()
@@ -141,4 +141,4 @@ class CMLM(TransformerCore):
                  pad_token_id: int,
                  mask_token_id: int,
                  iterations: int = 10) -> torch.Tensor:
-        return self._mask_predict(input_ids, sos_token_id, pad_token_id, mask_token_id, iterations)
+        return self.__mask_predict(input_ids, sos_token_id, pad_token_id, mask_token_id, iterations)
