@@ -28,10 +28,9 @@ def create_masks(input_ids: torch.Tensor,
     d_pad_mask = (decoder_input_ids == pad_token_id).to(decoder_input_ids.device)
     if decoder_mask not in [None, "causal", "diagonal"]:
         raise ValueError("The decoder mask should be one of None, \"causal\" and \"diagonal\"")
-    match decoder_mask:
-        case "causal":
-            decoder_mask = generate_causal_mask(decoder_input_ids.shape[-1]).to(decoder_input_ids.device)
-        case "diagonal":
-            decoder_mask = generate_causal_nat_mask(decoder_input_ids.shape[-1]).to(decoder_input_ids.device)
+    if decoder_mask == "causal":
+        decoder_mask = generate_causal_mask(decoder_input_ids.shape[-1]).to(decoder_input_ids.device)
+    elif decoder_mask == "diagonal":
+        decoder_mask = generate_causal_nat_mask(decoder_input_ids.shape[-1]).to(decoder_input_ids.device)
 
     return {"e_pad_mask": e_pad_mask, "d_pad_mask": d_pad_mask, "d_mask": decoder_mask}
