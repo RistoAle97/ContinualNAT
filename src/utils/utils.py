@@ -1,6 +1,4 @@
 import torch
-from torch import nn
-from typing import Tuple
 
 
 SUPPORTED_LANGUAGES = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX", "es": "es_XX", "et": "et_EE",
@@ -27,39 +25,6 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start
     shifted_input_ids = torch.where(shifted_input_ids == decoder_start_token_id, pad_token_id, shifted_input_ids)
     shifted_input_ids[:, 0] = decoder_start_token_id
     return shifted_input_ids
-
-
-def model_n_parameters(model: nn.Module) -> Tuple[int, int]:
-    """
-    Computes the number of parameters, and the trainable ones, of a pytorch model.
-    :param: model: a pytorch nn.Module.
-    """
-    trainable_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    model_parameters = sum(p.numel() for p in model.parameters())
-    return model_parameters, trainable_parameters
-
-
-def model_size(model: nn.Module, size: str = "mb") -> float:
-    """
-    Computes the size of a pytorch model in terms of kb, mb or gb.
-    :param model: a pytorch nn.Module.
-    :param size: string which defines the wanted size to compute.
-    :return: the size of the model.
-    """
-    if size not in ["kb", "mb", "gb"]:
-        raise ValueError("The size of the model can only be shown in kb, mb or gb.")
-
-    allowed_sizes = {"kb": 1, "mb": 2, "gb": 3}
-    param_size = 0
-    for param in model.parameters():
-        param_size += param.nelement() * param.element_size()
-
-    buffer_size = 0
-    for buffer in model.buffers():
-        buffer_size += buffer.nelement() * buffer.element_size()
-
-    size_all = (param_size + buffer_size) / 1024 ** allowed_sizes[size]
-    return size_all
 
 
 def compute_lr(step: int, d_model: int, warmup_steps: int) -> float:

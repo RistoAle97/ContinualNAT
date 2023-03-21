@@ -1,9 +1,9 @@
 import torch
 import math
-from torch import nn
 from torch.functional import F
 from . import TransformerCore
 from ..modules import Pooler
+from ..utils import init_bert_weights
 from typing import Tuple
 
 
@@ -50,22 +50,7 @@ class CMLM(TransformerCore):
         self.pooler = Pooler(d_model)
 
         # Use BERT weight initialization
-        self.apply(self._init_bert_weights)
-
-    @staticmethod
-    def _init_bert_weights(module: nn.Module) -> None:
-        """
-        Initialize module's weights following BERT https://arxiv.org/pdf/1810.04805.pdf.
-        :param module: the module to initialize.
-        """
-        if isinstance(module, (nn.Linear, nn.Embedding)):
-            module.weight.data.normal_(mean=0.0, std=0.02)
-        elif isinstance(module, nn.LayerNorm):
-            module.bias.data.zero_()
-            module.weight.data.fill_(1.0)
-
-        if isinstance(module, nn.Linear) and module.bias is not None:
-            module.bias.data.zero_()
+        self.apply(init_bert_weights)
 
     def forward(self,
                 src_input: torch.Tensor,
