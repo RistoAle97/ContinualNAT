@@ -46,12 +46,12 @@ class Transformer(TransformerCore):
                          dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_tgt,
                          share_embeddings_tgt_out)
         # Initialize weights
-        self._init_weights()
+        self.__init_weights()
         self.src_embedding.weight.data.normal_(0, self.d_model ** (-0.5))
         if not self.share_embeddings_src_trg:
             self.tgt_embedding.weight.data.normal_(0, self.d_model ** (-0.5))
 
-    def _init_weights(self):
+    def __init_weights(self):
         for p in self.parameters():
             if p.dim() > 1 and not isinstance(p, nn.Embedding):
                 nn.init.xavier_uniform_(p)
@@ -87,6 +87,25 @@ class Transformer(TransformerCore):
                  pad_token_id: int,
                  max_new_tokens: int = 10,
                  beam_size: int = 5) -> torch.Tensor:
+        """
+        Generate tokens at inference time using greedy or beam search decoding.
+        :param input_ids: tokenized source sentence.
+        :param e_pad_mask: padding mask for the encoder.
+        :param sos_token_id: start of sequence token, in a multilingual setting this should be the target
+            language token.
+        :param eos_token_id: end of sequence token.
+        :param pad_token_id: pad token.
+        :param max_new_tokens: the number of new tokens allowed on top of the source sentence length (default=10).
+        :param beam_size: size of the beam, if it is equal to 1 than greedy decoding will be applied, otherwise
+            beam search will be performed (default=5).
+        :return: tokenized translation of the source sentence.
+        """
+        if beam_size < 1:
+            raise ValueError("The beam size must be at least 1.")
+
+        if max_new_tokens < 0:
+            raise ValueError("The number of max new tokens must be at least 0.")
+
         if beam_size == 1:
             output = greedy_decoding(self, input_ids, sos_token_id, eos_token_id, pad_token_id, max_new_tokens)
         else:

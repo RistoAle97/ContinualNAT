@@ -150,11 +150,15 @@ class CMLM(TransformerCore):
         :param mask_token_id: the mask token id.
         :param tgt_lang_token_id: the target language token id, if none is passed, then no token will appended ad the
             end of the target tokens (default=None).
-        :param iterations: the number of iterations of the mask-predict (default=10).
+        :param iterations: the number of iterations of the mask-predict. If its value is <=1, then the decoding will be
+            purely non-autoregressive (default=10).
         :param length_beam_size: the number of top lengths to consider for each sentence, akin to the beam size of
             the beam search (default=5).
         :return: tokenized translation of source sentence.
         """
+        if length_beam_size < 1:
+            raise ValueError("The number of lengths to consider for each sentence must be at least 1.")
+
         batch_size = input_ids.shape[0]
 
         # Compute encodings
@@ -178,12 +182,12 @@ class CMLM(TransformerCore):
 
         # Initialize target tokens
         tgt_tokens = input_ids.new(batch_size, length_beam_size, non_pad_tokens).fill_(mask_token_id)
+        tgt_tokens = (1 - length_mask) * tgt_tokens + length_mask * pad_token_id
         if tgt_lang_token_id is not None:
             for i, lengths in enumerate(length_beams):
                 lengths = lengths + torch.arange(0, length_beam_size * non_pad_tokens, non_pad_tokens)
                 tgt_tokens[i].view(-1)[lengths] = tgt_lang_token_id
 
-        tgt_tokens = (1 - length_mask) * tgt_tokens + length_mask * pad_token_id
         tgt_tokens = tgt_tokens.view(batch_size * length_beam_size, non_pad_tokens)
 
         # Duplicate encoder's output and padding mask to match the number of length beams
