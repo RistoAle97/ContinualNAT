@@ -17,7 +17,8 @@ class BatchCollator:
                  add_special_tokens: bool = True,
                  return_tensors: Union[str, TensorType, None] = "pt",
                  use_language_tokens: bool = True,
-                 shift_labels_right: bool = True) -> None:
+                 shift_labels_right: bool = True,
+                 use_cls_token: bool = False) -> None:
         """
         Standard collator, its work consists in tokenizing the source and target sentences, batching them and creating
         the decoder inputs.
@@ -29,19 +30,24 @@ class BatchCollator:
         :param return_tensors: type of tensors from the tokenizer (default="pt").
         :param use_language_tokens: whether to use language tokens by the tokenizer (default=True).
         :param shift_labels_right: if the labels must be shifted in order to create the decoder inputs (default=True).
+        :param use_cls_token: whether to add the cls token at the beginnning of the source sentences (default=False).
         """
         self.tokenizer = tokenizer
         self.use_language_tokens = use_language_tokens
         self.shift_labels_right = shift_labels_right
+        self.use_cls_token = use_cls_token
         self.collator_state = {"truncation": truncation, "max_length": max_length, "padding": padding,
                                "add_special_tokens": add_special_tokens, "return_tensors": return_tensors}
 
     def __call__(self, batch) -> Dict[str, torch.Tensor]:
         # Build and tokenize the batches
-        input_ids_batch = [sentence_pair["src_sentence"] for sentence_pair in batch]
-        labels_batch = [sentence_pair["tgt_sentence"] for sentence_pair in batch]
-        input_ids_batch = self.tokenizer(input_ids_batch, **self.collator_state)["input_ids"]
-        labels_batch = self.tokenizer(text_target=labels_batch, **self.collator_state)["input_ids"]
+        src_sentences = [sentence_pair["src_sentence"] for sentence_pair in batch if self.use_cls_token]
+        if self.use_cls_token:
+            src_sentences = [self.tokenizer.cls_token + " " + src_sentence for src_sentence in src_sentences]
+
+        tgt_sentences = [sentence_pair["tgt_sentence"] for sentence_pair in batch]
+        input_ids_batch = self.tokenizer(src_sentences, **self.collator_state)["input_ids"]
+        labels_batch = self.tokenizer(text_target=tgt_sentences, **self.collator_state)["input_ids"]
 
         # Check if the tokenizer support language codes
         tokenizer_has_lang_codes = hasattr(self.tokenizer, "src_lang") and hasattr(self.tokenizer, "tgt_lang")

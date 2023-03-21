@@ -1,2 +1,2 @@
 from .collators import BatchCollator, BatchCollatorCMLM
-from .datasets import TranslationDataset, TranslationDatasetCMLM
+from .datasets import TranslationDataset

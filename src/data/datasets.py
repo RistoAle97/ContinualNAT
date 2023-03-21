@@ -57,24 +57,3 @@ class TranslationDataset(Dataset):
         src_sentence = sentence_pair[self.src_lang]
         tgt_sentence = sentence_pair[self.tgt_lang]
         return {"src_sentence": src_sentence, "tgt_sentence": tgt_sentence}
-
-
-class TranslationDatasetCMLM(TranslationDataset):
-
-    def __init__(self,
-                 src_lang: str,
-                 tgt_lang: str,
-                 dataset: datasets.Dataset) -> None:
-        """
-        Simple variation of the standard translation dataset mainly used for masked language models like BERT or CMLM,
-        a <length> token is placed at the start of each source sentence.
-        :param src_lang: the source language.
-        :param tgt_lang: the target language.
-        :param dataset: the Huggingface dataset to wrap.
-        """
-        super().__init__(src_lang, tgt_lang, dataset)
-
-    def __getitem__(self, idx) -> Dict[str, str]:
-        sentence_pair = super().__getitem__(idx)
-        return {"src_sentence": "<length> " + sentence_pair["src_sentence"],
-                "tgt_sentence": sentence_pair["tgt_sentence"]}
