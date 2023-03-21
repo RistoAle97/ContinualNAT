@@ -178,6 +178,8 @@ class CMLM(TransformerCore):
 
         # Predict the best length_beam_size lengths for each sentence
         target_lengths = self.predict_target_length(encodings)
+        target_lengths[:, 0] += float("-inf")
+        target_lengths = F.log_softmax(target_lengths, dim=-1)
         length_beams = target_lengths.topk(length_beam_size, dim=1)[1]
         length_beams[length_beams < 2] = 2
 
