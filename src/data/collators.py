@@ -85,7 +85,6 @@ class BatchCollatorCMLM(BatchCollator):
                  add_special_tokens: bool = True,
                  return_tensors: Union[str, TensorType, None] = "pt",
                  use_language_tokens: bool = True,
-                 shift_labels_right: bool = False,
                  train: bool = False) -> None:
         """
         Variation of the standard batch collator, used mainly for the CMLM model. At training time, the
@@ -98,11 +97,10 @@ class BatchCollatorCMLM(BatchCollator):
         :param padding: the padding strategy to apply during the tokenization (defualt=True).
         :param add_special_tokens: whether to use special tokens during the tokenization (default=True)-
         :param return_tensors: type of tensors from the tokenizer (default="pt").
-        :param shift_labels_right: if the labels must be shifted in order to create the decoder inputs (default=False).
         :param train: whether the collator is used during training (default=False).
         """
         super().__init__(tokenizer, truncation, max_length, padding, add_special_tokens, return_tensors,
-                         use_language_tokens, shift_labels_right)
+                         use_language_tokens, False, True)
         # Parameters
         self.train = train
 
