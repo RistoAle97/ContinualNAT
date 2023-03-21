@@ -1,5 +1,5 @@
-# ContinualNAT-NMT
-Continual learning for non-autoregressive multilingual neural machine translation.
+# ContinualNAT
+Continual learning for non-autoregressive multilingual neural machine translation (NAT).
 
 ## Models implemented
 - [Transformer](https://arxiv.org/abs/1706.03762) 
