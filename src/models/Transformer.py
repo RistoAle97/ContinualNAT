@@ -17,7 +17,7 @@ class Transformer(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
-                 norm_first: bool = False,
+                 norm_first: bool = True,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True) -> None:
         """
@@ -36,7 +36,7 @@ class Transformer(TransformerCore):
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
-            feedforward operations, otherwise after. Default: False (after).
+            feedforward operations, otherwise after. Default: True (before).
         :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
             (default=True).
         :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear

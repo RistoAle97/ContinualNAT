@@ -51,7 +51,7 @@ if __name__ == "__main__":
     dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=batch_collator_train, drop_last=True)
 
     # Model
-    transformer = Transformer(len(tokenizer), norm_first=True).to(device)
+    transformer = Transformer(len(tokenizer)).to(device)
     n_parameters, n_trainable_parameters = model_n_parameters(transformer)
     transformer_size = model_size(transformer)
     print(f"\nUsing {transformer.__class__.__name__} model:")

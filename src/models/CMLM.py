@@ -19,11 +19,11 @@ class CMLM(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
-                 norm_first: bool = False,
+                 norm_first: bool = True,
                  share_embeddings_src_tgt: bool = True,
                  share_embeddings_tgt_out: bool = True) -> None:
         """
-        The Conditional Masked Language Model from Ghazvininejad et al. https://arxiv.org/pdf/1904.09324.pdf, a
+        The Conditional Masked Language Model (CMLM) from Ghazvininejad et al. https://arxiv.org/pdf/1904.09324.pdf, a
         non-autoregressive model whose training is based on BERT by Devlin et al. https://arxiv.org/pdf/1810.04805.pdf
         and uses an iterative decoding strategy called mask-predict during inference.
         :param src_vocab_size: input language vocabulary size.
@@ -37,7 +37,7 @@ class CMLM(TransformerCore):
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
-            feedforward operations, otherwise after. Default: False (after).
+            feedforward operations, otherwise after. Default: True (before).
         :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
             (default=True).
         :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
@@ -86,7 +86,7 @@ class CMLM(TransformerCore):
 
     def __mask_predict(self,
                        encodings: torch.Tensor,
-                       e_pad_mask: torch.tensor,
+                       e_pad_mask: torch.Tensor,
                        tgt_input: torch.Tensor,
                        pad_token_id: int,
                        mask_token_id: int,

@@ -13,7 +13,7 @@ class DecoderLayerNAT(nn.Module):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-5,
-                 norm_first: bool = False,
+                 norm_first: bool = True,
                  use_highway_layer: bool = False) -> None:
         """
         The non-autoregressive transformer decoder layer as first introduced by Gu et al.
@@ -27,6 +27,8 @@ class DecoderLayerNAT(nn.Module):
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
+            feedforward operations, otherwise after. Default: True (before).
         :param use_highway_layer: whether to use a highway connection around each sublayer, if set to False then
             residual connections will be used (default=True)
         """
