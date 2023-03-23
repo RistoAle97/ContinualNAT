@@ -41,7 +41,7 @@ class BatchCollator:
 
     def __call__(self, batch) -> Dict[str, torch.Tensor]:
         # Build and tokenize the batches
-        src_sentences = [sentence_pair["src_sentence"] for sentence_pair in batch if self.use_cls_token]
+        src_sentences = [sentence_pair["src_sentence"] for sentence_pair in batch]
         if self.use_cls_token:
             src_sentences = [self.tokenizer.cls_token + " " + src_sentence for src_sentence in src_sentences]
 

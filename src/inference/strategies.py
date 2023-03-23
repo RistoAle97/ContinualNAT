@@ -21,6 +21,7 @@ def greedy_decoding(model: TransformerCore,
     :param max_new_tokens: maximum allowed new tokens.
     :return: the tokenized translated sentence.
     """
+    assert max_new_tokens >= 0
     with torch.no_grad():
         # Parameters
         max_length = input_ids.shape[-1] + max_new_tokens
@@ -80,17 +81,21 @@ def beam_decoding(model: TransformerCore,
     :param beam_size: number of beams.
     :return: the tokenized translated sentence.
     """
+    assert max_new_tokens >= 0
+    assert beam_size > 1
     with torch.no_grad():
         # Parameters
         max_length = input_ids.shape[-1] + max_new_tokens
         device = next(model.parameters()).device
         batch_size = input_ids.shape[0]
 
+        # Scores for each sentence in the beam
         beam_scores = torch.zeros((batch_size, beam_size), dtype=torch.float, device=device)
         beam_scores[:, 1:] = 1e-9
-        beam_scores = beam_scores.view((batch_size * beam_size, ))
+        beam_scores = beam_scores.view((-1))  # (batch_size * beam_size)
 
         output = torch.ones(batch_size, 1, dtype=torch.int).fill_(sos_token_id).to(device)
         e_output = model.encode(input_ids)
+        e_output = e_output.repeat_interleave(beam_size, dim=0)
         return output
 
