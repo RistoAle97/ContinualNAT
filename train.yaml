@@ -1,6 +1,6 @@
 # Model
 model:
-  name: "CMLM" # this should reflect the model's class that you want to train
+  name: "Transformer" # this should reflect the model's class that you want to train
   parameters:
     d_model: 512
     n_heads: 8
@@ -14,20 +14,28 @@ model:
     shared_embeddings_trg_out: True
 
 # Tokenizer
-tokenizer: "tokenizers/mbart_tokenizer_cmlm"
+tokenizer: "facebook/mbart-large-cc25"
+padding: "longest"
 
 # Dataset
 dataset:
-  path: "yhavinga/ccmatrix"
-  cache_dir: "D:/MasterDegreeThesis/datasets/ccmatrix_"
-  split: "train[0:4096]"
-  verification_mode: "no_checks"
-
-# Batch Collator
-batch_collator:
-  max_length: 64
-  padding: "longest"
-  train: True
+  path: "wmt14"
+  name: "de-en"
+  cache_dir: "/disk1/a.ristori/datasets/wmt14"
 
 # Training parameters
+src_lang: "en"
+tgt_lang: "de"
+batch_size: 32
+max_length: 64
+tokens_per_batch: 25000
+accumulation_steps: None
+training_updates: 100000
+log_step: 100
+validation_step: True
 
+# Loss function
+label_smoothing: 0.1
+
+# Scheduler
+warmup_steps: 4000

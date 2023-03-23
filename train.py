@@ -13,6 +13,7 @@ from tqdm.auto import tqdm
 from src.data import *
 from src.models import *
 from src.utils import model_size, model_n_parameters, generate_causal_mask, compute_lr, SUPPORTED_LANGUAGES
+from typing import Dict, Union
 
 
 if __name__ == "__main__":
@@ -21,34 +22,39 @@ if __name__ == "__main__":
     print(f"Training on: {device}")
 
     # Retrieve configurations
-    with open("config.yaml") as config_file:
+    with open("train.yaml") as config_file:
         config = yaml.load(config_file, Loader=yaml.FullLoader)
 
-    huggingface_dataset = config["dataset"]
-    src_lang = config["src_lang"]
-    tgt_lang = config["tgt_lang"]
-    batch_size = config["batch_size"]
-    max_length = config["max_length"]
-    padding = config["padding"]
-    warmup_steps = config["warmup_steps"]
-    tokens_per_batch = config["tokens_per_batch"]
-    accumulation_steps = config["accumulation_steps"]
-    training_updates = config["training_udpates"]
+    dataset_parameters: Dict[str, str] = config["dataset"]
+    src_lang: str = config["src_lang"]
+    tgt_lang: str = config["tgt_lang"]
+    batch_size: int = config["batch_size"]
+    max_length: int = config["max_length"]
+    padding: str = config["padding"]
+    warmup_steps: int = config["warmup_steps"]
+    tokens_per_batch: int = config["tokens_per_batch"]
+    accumulation_steps: Union[int, str] = config["accumulation_steps"]
+    log_update_step: int = config["log_step"]
+    validation_step: bool = config["validation_step"]
+    training_updates: int = config["training_updates"]
 
     # Tokenizer
-    tokenizer: MBartTokenizer = MBartTokenizer.from_pretrained("tokenizers/mbart_tokenizer_cmlm",
+    tokenizer: MBartTokenizer = MBartTokenizer.from_pretrained(config["tokenizer"],
                                                                src_lang=SUPPORTED_LANGUAGES[src_lang],
-                                                               tgt_lang=SUPPORTED_LANGUAGES[tgt_lang])
+                                                               tgt_lang=SUPPORTED_LANGUAGES[tgt_lang],
+                                                               cache_dir="/disk1/a.ristori/tokenizers")
     print(f"Retrieved {tokenizer.__class__.__name__} with vocab size: {len(tokenizer)}\n")
 
     # Dataset
-    dataset = load_dataset("yhavinga/ccmatrix", f"{src_lang}-{tgt_lang}",
-                           cache_dir=f"D:/MasterDegreeThesis/datasets/ccmatrix_{src_lang}_{tgt_lang}",
-                           split="train[:4096]", verification_mode="no_checks")
-    # dataset = dataset.train_test_split(test_size=196)
-    dataset_train = TranslationDataset(src_lang, tgt_lang, dataset)
+    dataset_train = load_dataset(**dataset_parameters, split="train", verification_mode="no_checks")
+    dataset_train = TranslationDataset(src_lang, tgt_lang, dataset_train)
     batch_collator_train = BatchCollator(tokenizer, max_length=max_length, padding=padding)
     dataloader_train = DataLoader(dataset_train, batch_size, collate_fn=batch_collator_train, drop_last=True)
+    # if validation_step:
+    dataset_validation = load_dataset(**dataset_parameters, split="validation", verification_mode="no_checks")
+    dataset_validation = TranslationDataset(src_lang, tgt_lang, dataset_validation)
+    batch_collator_validation = BatchCollator(tokenizer, max_length=max_length, padding=padding)
+    dataloader_validation = DataLoader(dataset_validation, batch_size, collate_fn=batch_collator_validation)
 
     # Model
     transformer = Transformer(len(tokenizer)).to(device)
@@ -61,9 +67,9 @@ if __name__ == "__main__":
 
     # Define loss function, optimizer and learning rate scheduler
     pad_token = tokenizer.pad_token_id
-    loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token, label_smoothing=0.1)
-    optimizer = AdamW(transformer.parameters(), lr=1, betas=(0.9, 0.997), eps=1e-9)
-    scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, warmup_steps))
+    loss_fn = nn.CrossEntropyLoss(ignore_index=pad_token, label_smoothing=config["label_smoothing"])
+    optimizer = AdamW(transformer.parameters(), lr=1, betas=(0.9, 0.98), eps=1e-9)
+    scheduler = LambdaLR(optimizer, lambda steps: compute_lr(steps, transformer.d_model, config["warmup_steps"]))
 
     # Set accumulation steps to match the required number of tokens per batch if none was passed to the former
     if accumulation_steps == "None":
@@ -74,20 +80,19 @@ if __name__ == "__main__":
             accumulation_steps = 1
 
     with tqdm(desc=f"{transformer.__class__.__name__} training", total=training_updates) as pbar:
-        accumulation_loss = 0
+        accumulation_loss = 0.0
         current_step = 0
         n_updates = 0
-        training_end = False
-        transformer.train()
         board = SummaryWriter()
 
         # Train loop
-        while True:
-            for batch in dataloader_train:
+        while n_updates < training_updates:
+            for train_batch in dataloader_train:
+                transformer.train()
                 # Retrieve encoder inputs, labels and decoder inputs
-                input_ids = batch["input_ids"].to(device)
-                labels = batch["labels"].to(device)
-                decoder_input_ids = batch["decoder_input_ids"].to(device)
+                input_ids = train_batch["input_ids"].to(device)
+                labels = train_batch["labels"].to(device)
+                decoder_input_ids = train_batch["decoder_input_ids"].to(device)
 
                 # Create masks
                 e_pad_mask = (input_ids == pad_token).to(device)
@@ -119,20 +124,44 @@ if __name__ == "__main__":
                     accumulation_loss = 0
 
                     # Log loss and learning rate on the tensorboard
-                    board.add_scalar("Loss/train", mean_loss, current_step)
-                    board.add_scalar("Learning rate", optimizer.param_groups[0]["lr"], current_step)
+                    if n_updates % log_update_step == 0:
+                        board.add_scalar("Loss/train", mean_loss, n_updates)
+                        board.add_scalar("Learning rate", optimizer.param_groups[0]["lr"], n_updates)
+
+                        # Validation step
+                        if validation_step:
+                            transformer.eval()
+                            sum_validation_loss = 0.0
+                            for validation_batch in dataloader_validation:
+                                input_ids_validation = validation_batch["input_ids"].to(device)
+                                labels_validation = validation_batch["labels"].to(device)
+                                decoder_input_ids_validation = validation_batch["decoder_input_ids"].to(device)
+
+                                # Validation masks
+                                e_pad_mask_validation = (input_ids_validation == pad_token).to(device)
+                                d_pad_mask_validation = (decoder_input_ids_validation == pad_token).to(device)
+                                d_mask_validation = generate_causal_mask(decoder_input_ids.shape[-1]).to(device)
+
+                                with torch.cuda.amp.autocast():
+                                    validation_logits = transformer(input_ids_validation, decoder_input_ids_validation,
+                                                                    d_mask_validation, e_pad_mask_validation,
+                                                                    d_pad_mask_validation)
+                                    validation_loss = loss_fn(validation_logits.contiguous()
+                                                              .view(-1, validation_logits.size(-1)),
+                                                              labels_validation.contiguous().view(-1))
+
+                                sum_validation_loss += validation_loss.item()
+
+                            board.add_scalar("Loss/validation", sum_validation_loss / len(dataset_validation),
+                                             n_updates)
 
                     # Check stopping criteria
                     if n_updates == training_updates:
-                        training_end = True
                         break
 
                 current_step += 1
 
-            # End training if we reached the number of required updates
-            if training_end:
-                break
-
-    # Close tensorboard
+    # Close tensorboard and save the model
     board.flush()
     board.close()
+    torch.save(transformer, f"/home/a.ristori/ContinualNAT/{transformer.__class__.__name__}_{src_lang}_{tgt_lang}")

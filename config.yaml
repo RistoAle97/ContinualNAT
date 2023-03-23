@@ -10,6 +10,7 @@ tokens_per_batch: 25000
 padding: "longest"
 warmup_steps: 4000
 accumulation_steps: None
+log_step: 100
 training_udpates: 100000 # in some papers this is called the number of steps
 shift_labels_right: True
 
