@@ -15,4 +15,5 @@ if __name__ == "__main__":
     path = args.path
 
     # Load and save dataset
-    dataset = load_dataset(dataset_name, f"{src}-{tgt}", cache_dir=path, verification_mode="no_checks")
+    # dataset = load_dataset(dataset_name, f"{src}-{tgt}", cache_dir=path, verification_mode="no_checks")
+    dataset = load_dataset("cc100", lang=f"{src}", cache_dir="/disk1/a.ristori/datasets/cc100")

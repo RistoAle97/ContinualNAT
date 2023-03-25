@@ -27,7 +27,6 @@ if __name__ == "__main__":
     dataset_es = load_dataset("cc100", lang="es", split="train",
                               cache_dir="/disk1/a.ristori/cc100", verification_mode="no_checks", streaming=True)
     # min_length = min(len(dataset_en), len(dataset_de), len(dataset_fr), len(dataset_es))
-    # dataset = dataset_en[:min_length] + dataset_de[:min_length] + dataset_fr[:min_length] + dataset_es[:min_length]
     num_samples = 1000000
     dataset_en = dataset_en.take(num_samples)
     dataset_de = dataset_de.take(num_samples)
