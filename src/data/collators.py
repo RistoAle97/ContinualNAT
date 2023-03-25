@@ -165,4 +165,4 @@ class BatchCollatorCMLM(BatchCollator):
         input_ids = tokenized_batch["input_ids"]
         masked_target = self.__mask_target(tokenized_batch["labels"], tokenized_batch["decoder_input_ids"])
         return {"input_ids": input_ids, "labels": masked_target["labels"],
-                "decoder_input_ids": masked_target["decoder_input_ids"], "lengths": masked_target["lengths"]}
+                "decoder_input_ids": masked_target["decoder_input_ids"], "target_lengths": masked_target["lengths"]}
