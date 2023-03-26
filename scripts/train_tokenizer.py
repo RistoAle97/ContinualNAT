@@ -17,7 +17,7 @@ def batch_iterator(batch_size):
 
 
 if __name__ == "__main__":
-    # Load datasets and concatenate them based on the smallest one
+    # Load datasets and concatenate them
     dataset_en = load_dataset("cc100", lang="en", split="train",
                               cache_dir="/disk1/a.ristori/cc100", verification_mode="no_checks", streaming=True)
     dataset_de = load_dataset("cc100", lang="de", split="train",
@@ -26,7 +26,6 @@ if __name__ == "__main__":
                               cache_dir="/disk1/a.ristori/cc100", verification_mode="no_checks", streaming=True)
     dataset_es = load_dataset("cc100", lang="es", split="train",
                               cache_dir="/disk1/a.ristori/cc100", verification_mode="no_checks", streaming=True)
-    # min_length = min(len(dataset_en), len(dataset_de), len(dataset_fr), len(dataset_es))
     num_samples = 1000000
     dataset_en = dataset_en.take(num_samples)
     dataset_de = dataset_de.take(num_samples)
@@ -38,11 +37,10 @@ if __name__ == "__main__":
     special_tokens = ["<s>", "<pad>", "</s>", "<unk>", "<length>", "<mask>"]
     sentencepiece_tokenizer = SentencePieceBPETokenizer()
     sentencepiece_tokenizer.post_processor = ByteLevel()
-    sentencepiece_tokenizer.train_from_iterator(batch_iterator(100), 64000, special_tokens=special_tokens)
+    sentencepiece_tokenizer.train_from_iterator(batch_iterator(1000), 32000, special_tokens=special_tokens)
 
     # Wrap it around a MBartTokenizer
     mbart_tokenizer = MBartTokenizerFast(tokenizer_object=sentencepiece_tokenizer, model_max_length=1024)
     mbart_tokenizer.cls_token = "<length>"
     mbart_tokenizer.cls_token_id = 4
     mbart_tokenizer.save_pretrained("tokenizers/mbart_tokenizer")
-    # new_tokenizer.push_to_hub()  # una volta fatto
