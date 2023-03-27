@@ -8,22 +8,30 @@ SUPPORTED_LANGUAGES = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX
                        "zh": "zh_CN"}
 
 
-def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int, decoder_start_token_id: int) -> torch.Tensor:
+def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
     """
-    Shift input ids one token to the right.
-    :param input_ids: a tensor of shape (batch_size, seq_len) or (seq_len).
+    Shift input ids one token to the right by moving the target language token to the sequence's start in a MBart style.
+    :param input_ids: a tensor of shape (1, seq_len) or (seq_len).
     :param pad_token_id: id of the pad token.
-    :param decoder_start_token_id: start token id, which, in the case of the mBart tokenizer, is the target
-        token language.
     :return: torch.Tensor shifted to the right.
     """
     if len(input_ids.shape) == 1:
         input_ids = input_ids.unsqueeze(0)
 
-    shifted_input_ids: torch.Tensor = input_ids.new_zeros(input_ids.shape)
-    shifted_input_ids[:, 1:] = input_ids[:, :-1].clone()
-    shifted_input_ids = torch.where(shifted_input_ids == decoder_start_token_id, pad_token_id, shifted_input_ids)
-    shifted_input_ids[:, 0] = decoder_start_token_id
+    batch_size, seq_len = input_ids.size()
+    shifted_input_ids: torch.Tensor = input_ids.clone()
+
+    # Compute the indexes of the lang tokens and retrieve them
+    eos_idxs = (input_ids.ne(pad_token_id).sum(dim=1) - 1).view(-1)
+    eos_idxs += torch.arange(0, batch_size * seq_len, seq_len)
+    decoder_start_token_ids = shifted_input_ids.view(-1).gather(0, eos_idxs).squeeze(0)
+
+    # Pad the previous positions where the language tokens have been found
+    shifted_input_ids.view(-1)[eos_idxs] = pad_token_id
+
+    # Shift the tokens to the right and put the language tokens at the start
+    shifted_input_ids[:, 1:] = shifted_input_ids[:, :-1].clone()
+    shifted_input_ids[:, 0] = decoder_start_token_ids
     return shifted_input_ids
 
 
