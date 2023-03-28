@@ -3,6 +3,8 @@ Continual learning for multilingual non-autoregressive neural machine translatio
 
 ## Built with
 ![Pytorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![Lightning](https://img.shields.io/badge/Lightning-792DE4?style=for-the-badge&logo=pytorch-lightning&logoColor=white)
+![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97-huggingface-FF9D00?style=for-the-badge&labelColor=FFD21E)
 
 ## Models
 **AR (autoregressive) models:**
