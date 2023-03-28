@@ -1,7 +1,7 @@
 import torch
 import random
 import numpy as np
-from transformers import PreTrainedTokenizer
+from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy, TensorType
 from src.utils import shift_tokens_right
 from typing import Dict, Union
@@ -10,7 +10,7 @@ from typing import Dict, Union
 class BatchCollator:
 
     def __init__(self,
-                 tokenizer: PreTrainedTokenizer,
+                 tokenizer: PreTrainedTokenizerBase,
                  truncation: bool = True,
                  max_length: Union[int, None] = None,
                  padding: Union[bool, str, PaddingStrategy] = True,
@@ -88,7 +88,7 @@ class BatchCollator:
 class BatchCollatorCMLM(BatchCollator):
 
     def __init__(self,
-                 tokenizer: PreTrainedTokenizer,
+                 tokenizer: PreTrainedTokenizerBase,
                  truncation: bool = True,
                  max_length: Union[int, None] = None,
                  padding: Union[bool, str, PaddingStrategy] = True,

@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 main.py
 runs/
-data/distilled_dataset*
+data/
 /*.ipynb
 
 # C extensions

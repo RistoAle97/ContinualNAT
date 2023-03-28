@@ -19,17 +19,17 @@ padding: "longest"
 
 # Dataset
 dataset:
-  path: "wmt14"
-  name: "de-en"
-  cache_dir: "/disk1/a.ristori/datasets/wmt14"
+  path: "yhavinga/ccmatrix"
+  name: "en-de"
+  cache_dir: "/disk1/a.ristori/datasets/ccmatrix"
 
 # Training parameters
 src_lang: "en"
 tgt_lang: "de"
-batch_size: 32
-max_length: 64
+batch_size: 128
+max_length: 128
 tokens_per_batch: 25000
-accumulation_steps: None
+accumulate_gradient: None
 training_updates: 100000
 log_step: 100
 validation_step: True
