@@ -8,8 +8,7 @@ from . import TransformerCore
 class RefineNAT(TransformerCore):
 
     def __init__(self,
-                 src_vocab_size: int,
-                 tgt_vocab_size: int = None,
+                 vocab_size: int,
                  d_model: int = 512,
                  n_heads: int = 8,
                  num_encoder_layers: int = 6,
@@ -17,19 +16,14 @@ class RefineNAT(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
-                 norm_first: bool = True,
-                 share_embeddings_src_trg: bool = True,
-                 share_embeddings_trg_out: bool = True,
                  use_highway_layer: bool = True) -> None:
-        super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_trg,
-                         share_embeddings_trg_out)
+        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
+                         dim_ff, dropout, layer_norm_eps)
         # Parameters
-        self.norm_first = norm_first
         self.use_highway_layer = use_highway_layer
 
         # Decoders
-        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, norm_first,
+        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, True,
                                         use_highway_layer)
         norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.decoder = DecoderNAT(decoder_layer, num_decoder_layers, norm)

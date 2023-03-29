@@ -10,25 +10,19 @@ from typing import Tuple
 class CMLM(TransformerCore):
 
     def __init__(self,
-                 src_vocab_size: int,
-                 tgt_vocab_size: int = None,
+                 vocab_size: int,
                  d_model: int = 512,
                  n_heads: int = 8,
                  num_encoder_layers: int = 6,
                  num_decoder_layers: int = 6,
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-6,
-                 norm_first: bool = True,
-                 share_embeddings_src_tgt: bool = True,
-                 share_embeddings_tgt_out: bool = True) -> None:
+                 layer_norm_eps: float = 1e-6) -> None:
         """
         The Conditional Masked Language Model (CMLM) from Ghazvininejad et al. https://arxiv.org/pdf/1904.09324.pdf, a
         non-autoregressive model whose training is based on BERT by Devlin et al. https://arxiv.org/pdf/1810.04805.pdf
         and uses an iterative decoding strategy called mask-predict during inference.
-        :param src_vocab_size: input language vocabulary size.
-        :param tgt_vocab_size: target language vocabulary size, if no value is passed, then it will have the same size
-            of the source one.
+        :param vocab_size: shared vocabulary size.
         :param d_model: embedding dimension (default=512).
         :param n_heads: the number of heads in the multi-attention mechanism (default=8).
         :param num_encoder_layers: the number of encoder layers (default=6).
@@ -36,16 +30,9 @@ class CMLM(TransformerCore):
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
-        :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
-            feedforward operations, otherwise after. Default: True (before).
-        :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
-            (default=True).
-        :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
-            output (default=True).
         """
-        super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_tgt,
-                         share_embeddings_tgt_out)
+        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
+                         dim_ff, dropout, layer_norm_eps)
         # Pooler layer after the encoder to predict the target sentence length
         self.pooler = Pooler(d_model)
 
@@ -61,8 +48,8 @@ class CMLM(TransformerCore):
         Process source and target sequences.
         """
         # Embeddings and positional encoding
-        e_input = self.src_embedding(src_input)  # (batch_size, seq_len, d_model)
-        d_input = self.tgt_embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        e_input = self.embedding(src_input)  # (batch_size, seq_len, d_model)
+        d_input = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
         e_input = self.positional_encoder(e_input * math.sqrt(self.d_model))
         d_input = self.positional_encoder(d_input * math.sqrt(self.d_model))
 
@@ -72,7 +59,7 @@ class CMLM(TransformerCore):
         d_output = self.decoder(d_input, e_output, None, None, d_pad_mask, e_pad_mask)
 
         # Linear output
-        output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
+        output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)
         return output, predicted_length
 
     def predict_target_length(self, e_output: torch.Tensor) -> torch.Tensor:
