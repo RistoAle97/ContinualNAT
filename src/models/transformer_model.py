@@ -36,9 +36,9 @@ class Transformer(TransformerCore):
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps)
         # Initialize weights
-        # self.__init_weights()
-        init_bert_weights(self)
-        # self.embedding.weight.data.normal_(0, self.d_model ** (-0.5))
+        self.__init_weights()
+        # init_bert_weights(self)
+        self.embedding.weight.data.normal_(0, self.d_model ** (-0.5))
 
         # Scheduler
         self.lr_scheduler = None
@@ -59,21 +59,21 @@ class Transformer(TransformerCore):
         """
         # Embeddings and positional encoding
         e_input = self.embedding(src_input)  # (batch_size, seq_len, d_model)
-        e_input = self.positional_encoder(e_input)  # * math.sqrt(self.d_model))
+        e_input = self.positional_encoder(e_input * math.sqrt(self.d_model))
         d_input = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        d_input = self.positional_encoder(d_input)  # * math.sqrt(self.d_model))
+        d_input = self.positional_encoder(d_input * math.sqrt(self.d_model))
 
         # Encoder and decoder
         e_output = self.encoder(e_input, None, e_pad_mask)
         d_output = self.decoder(d_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
 
         # Linear output
-        output = self.linear_output(d_output)  # (batch_size, seq_len, tgt_vocab_size)
+        output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)
         return output
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=0.0005, betas=(0.9, 0.98), eps=1e-9, weight_decay=0.01)
-        self.lr_scheduler = get_inverse_sqrt_schedule(optimizer, 4000, self.trainer.estimated_stepping_batches)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-6, betas=(0.9, 0.98), eps=1e-9, weight_decay=0.01)
+        self.lr_scheduler = get_inverse_sqrt_schedule(optimizer, 0, self.trainer.estimated_stepping_batches)
         return optimizer
 
     def optimizer_step(self, *args, **kwargs):
