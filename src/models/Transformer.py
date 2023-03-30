@@ -2,10 +2,10 @@ import torch
 import math
 from torch import nn
 from torch.functional import F
-from transformers import get_cosine_schedule_with_warmup
+from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup, get_inverse_sqrt_schedule
 from .transformer_core import TransformerCore
 from ..inference import greedy_decoding, beam_decoding
-from ..utils import generate_causal_mask
+from ..utils import generate_causal_mask, init_bert_weights
 
 
 class Transformer(TransformerCore):
@@ -36,8 +36,9 @@ class Transformer(TransformerCore):
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps)
         # Initialize weights
-        self.__init_weights()
-        self.embedding.weight.data.normal_(0, self.d_model ** (-0.5))
+        # self.__init_weights()
+        init_bert_weights(self)
+        # self.embedding.weight.data.normal_(0, self.d_model ** (-0.5))
 
         # Scheduler
         self.lr_scheduler = None
@@ -58,9 +59,9 @@ class Transformer(TransformerCore):
         """
         # Embeddings and positional encoding
         e_input = self.embedding(src_input)  # (batch_size, seq_len, d_model)
-        e_input = self.positional_encoder(e_input * math.sqrt(self.d_model))
+        e_input = self.positional_encoder(e_input)  # * math.sqrt(self.d_model))
         d_input = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        d_input = self.positional_encoder(d_input * math.sqrt(self.d_model))
+        d_input = self.positional_encoder(d_input)  # * math.sqrt(self.d_model))
 
         # Encoder and decoder
         e_output = self.encoder(e_input, None, e_pad_mask)
@@ -71,8 +72,8 @@ class Transformer(TransformerCore):
         return output
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-4, betas=(0.9, 0.998), eps=1e-9)
-        self.lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 16000, self.trainer.estimated_stepping_batches)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=0.0005, betas=(0.9, 0.98), eps=1e-9, weight_decay=0.01)
+        self.lr_scheduler = get_inverse_sqrt_schedule(optimizer, 4000, self.trainer.estimated_stepping_batches)
         return optimizer
 
     def optimizer_step(self, *args, **kwargs):
@@ -96,7 +97,7 @@ class Transformer(TransformerCore):
                                ignore_index=1)
 
         # Log train loss
-        self.log("train loss", loss, prog_bar=True)
+        self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_ixs):
@@ -116,7 +117,7 @@ class Transformer(TransformerCore):
                                ignore_index=1)
 
         # Log validation loss
-        self.log("validation loss", loss, prog_bar=True)
+        self.log("val_loss", loss, prog_bar=True)
         return loss
 
     def generate(self,

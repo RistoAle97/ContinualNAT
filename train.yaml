@@ -26,10 +26,10 @@ dataset:
 # Training parameters
 src_lang: "en"
 tgt_lang: "de"
-batch_size: 128
-max_length: 128
-tokens_per_batch: 25000
-accumulate_gradient: None
+batch_size: 256
+max_length: 64
+tokens_per_batch: 4096
+accumulate_gradient: False
 training_updates: 100000
 log_step: 100
 validation_step: True
