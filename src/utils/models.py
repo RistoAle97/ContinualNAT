@@ -9,6 +9,7 @@ def init_bert_weights(module: nn.Module) -> None:
     """
     if isinstance(module, (nn.Linear, nn.Embedding)):
         module.weight.data.normal_(mean=0.0, std=0.02)
+        module.weight.data[1].zero_()
     elif isinstance(module, nn.LayerNorm):
         module.bias.data.zero_()
         module.weight.data.fill_(1.0)
