@@ -17,5 +17,5 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def forward(self, x) -> torch.Tensor:
-        x = x + self.pe[:, x.size(1), :]
+        x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
