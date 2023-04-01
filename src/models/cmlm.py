@@ -48,15 +48,15 @@ class CMLM(TransformerCore):
         Process source and target sequences.
         """
         # Embeddings and positional encoding
-        e_input = self.embedding(src_input)  # (batch_size, seq_len, d_model)
-        d_input = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        e_input = self.positional_encoder(e_input * math.sqrt(self.d_model))
-        d_input = self.positional_encoder(d_input * math.sqrt(self.d_model))
+        src_embeddings = self.embedding(src_input)  # (batch_size, seq_len, d_model)
+        tgt_embeddings = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
+        tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
 
         # Encoder and decoder
-        e_output = self.encoder(e_input, None, e_pad_mask)
+        e_output = self.encoder(src_embeddings, None, e_pad_mask)
         predicted_length = self.pooler(e_output)  # (batch_size, seq_len)
-        d_output = self.decoder(d_input, e_output, None, None, d_pad_mask, e_pad_mask)
+        d_output = self.decoder(tgt_embeddings, e_output, None, None, d_pad_mask, e_pad_mask)
 
         # Linear output
         output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)

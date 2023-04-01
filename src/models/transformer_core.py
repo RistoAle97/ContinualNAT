@@ -2,6 +2,7 @@ import torch
 import math
 import pytorch_lightning as pl
 from torch import nn
+from torch.functional import F
 from ..modules import PositionalEncoding
 
 
@@ -15,7 +16,11 @@ class TransformerCore(pl.LightningModule):
                  num_decoder_layers: int = 6,
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-6) -> None:
+                 layer_norm_eps: float = 1e-6,
+                 scale_embeddings: bool = False,
+                 sos_token_id: int = 0,
+                 eos_token_id: int = 2,
+                 pad_token_id: int = 1) -> None:
         """
         This class does not implement the forward method and should be used only as a base for the actual model's
         implementation.
@@ -27,6 +32,10 @@ class TransformerCore(pl.LightningModule):
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param scale_embeddings: whether to scale the output of the embedding layer (default=False).
+        :param sos_token_id: the start of sequence token id (default=0).
+        :param eos_token_id: the end of sequence token id (default=2).
+        :param pad_token_id: the pad token id (default=1).
         """
         super().__init__()
         # Parameters
@@ -39,17 +48,23 @@ class TransformerCore(pl.LightningModule):
         self.dropout = dropout
         self.layer_norm_eps = layer_norm_eps
 
+        # Token ids
+        self.sos_token_id = sos_token_id
+        self.eos_token_id = eos_token_id
+        self.pad_token_id = pad_token_id
+
         # Embeddings and positional encoder
-        self.embedding = nn.Embedding(self.vocab_size, d_model)
+        self.embedding = nn.Embedding(self.vocab_size, d_model, padding_idx=pad_token_id)
         self.positional_encoder = PositionalEncoding(d_model, dropout=dropout)
+        self.embedding_scale = 1.0 if not scale_embeddings else math.sqrt(d_model)
 
         # Encoder and decoder
-        encoder_layer = nn.TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout, layer_norm_eps=layer_norm_eps,
-                                                   batch_first=True, norm_first=True)
+        encoder_layer = nn.TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout, activation=F.gelu,
+                                                   layer_norm_eps=layer_norm_eps, batch_first=True, norm_first=True)
         encoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers, norm=encoder_norm)
-        decoder_layer = nn.TransformerDecoderLayer(d_model, n_heads, dim_ff, dropout, layer_norm_eps=layer_norm_eps,
-                                                   batch_first=True, norm_first=True)
+        decoder_layer = nn.TransformerDecoderLayer(d_model, n_heads, dim_ff, dropout, activation=F.gelu,
+                                                   layer_norm_eps=layer_norm_eps, batch_first=True, norm_first=True)
         decoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, norm=decoder_norm)
 
@@ -69,7 +84,7 @@ class TransformerCore(pl.LightningModule):
         :return: torch tensor representing the encodings with shape (batch_size, seq_len, d_model).
         """
         src_embeddings = self.embedding(e_input)  # (batch_size, seq_len, d_model)
-        src_embeddings = self.positional_encoder(src_embeddings * math.sqrt(self.d_model))
+        src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
         e_output = self.encoder(src_embeddings, e_mask, e_pad_mask)
         return e_output
 
@@ -90,7 +105,13 @@ class TransformerCore(pl.LightningModule):
         :return: torch tensor representing the decodings with shape (batch_size, seq_len, vocab_size).
         """
         tgt_embeddings = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        tgt_embeddings = self.positional_encoder(tgt_embeddings * math.sqrt(self.d_model))
+        tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
         d_output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)
         return d_output
+
+    def generate(self, *kwargs):
+        """
+        Method for generating the translation's tokens given the tokenized source language sentence.
+        """
+        raise NotImplementedError

@@ -1,6 +1,4 @@
 import torch
-import math
-from torch import nn
 from torch.functional import F
 from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup, get_inverse_sqrt_schedule
 from .transformer_core import TransformerCore
@@ -36,17 +34,12 @@ class Transformer(TransformerCore):
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
                          dim_ff, dropout, layer_norm_eps)
         # Initialize weights
-        self.__init_weights()
-        # init_bert_weights(self)
-        self.embedding.weight.data.normal_(0, self.d_model ** (-0.5))
+        self.apply(init_bert_weights)
 
         # Scheduler
-        self.lr_scheduler = None
-
-    def __init_weights(self):
-        for p in self.parameters():
-            if p.dim() > 1 and not isinstance(p, nn.Embedding):
-                nn.init.xavier_uniform_(p)
+        # self.lr_scheduler = None
+        self.train_loss = 0
+        self.val_loss = 0
 
     def forward(self,
                 src_input: torch.Tensor,
@@ -58,82 +51,91 @@ class Transformer(TransformerCore):
         Process masked source and target sequences.
         """
         # Embeddings and positional encoding
-        e_input = self.embedding(src_input)  # (batch_size, seq_len, d_model)
-        e_input = self.positional_encoder(e_input * math.sqrt(self.d_model))
-        d_input = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
-        d_input = self.positional_encoder(d_input * math.sqrt(self.d_model))
+        src_embeddings = self.embedding(src_input)  # (batch_size, seq_len, d_model)
+        src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
+        tgt_embeddings = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
 
         # Encoder and decoder
-        e_output = self.encoder(e_input, None, e_pad_mask)
-        d_output = self.decoder(d_input, e_output, d_mask, None, d_pad_mask, e_pad_mask)
+        e_output = self.encoder(src_embeddings, None, e_pad_mask)
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
 
         # Linear output
         output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)
         return output
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-6, betas=(0.9, 0.98), eps=1e-9, weight_decay=0.01)
-        self.lr_scheduler = get_inverse_sqrt_schedule(optimizer, 0, self.trainer.estimated_stepping_batches)
-        return optimizer
+        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-4)
+        lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 4000, self.trainer.estimated_stepping_batches)
+        return [optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
 
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
-        self.lr_scheduler.step()  # Step per iteration
 
-    def training_step(self, batch, batch_ixs):
+    def training_step(self, batch, batch_idx):
         # noinspection DuplicatedCode
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
 
         # Create masks
-        e_pad_mask = (input_ids == 1).to(self.device)
-        d_pad_mask = (decoder_input_ids == 1).to(self.device)
+        e_pad_mask = (input_ids == self.pad_token_id).to(self.device)
+        d_pad_mask = (decoder_input_ids == self.pad_token_id).to(self.device)
+        # noinspection DuplicatedCode
         d_mask = generate_causal_mask(decoder_input_ids.shape[-1]).to(self.device)
 
         # Compute loss
         logits = self(input_ids, decoder_input_ids, d_mask, e_pad_mask, d_pad_mask)
         loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1),
-                               ignore_index=1)
+                               ignore_index=self.pad_token_id)
 
         # Log train loss
-        self.log("train_loss", loss, prog_bar=True)
+        self.train_loss += loss.item()
+        if (self.trainer.global_step + 1) % self.trainer.log_every_n_steps == 0:
+            self.log("train_loss", self.train_loss / self.trainer.log_every_n_steps, prog_bar=True)
+            self.train_loss = 0
+        elif self.trainer.global_step == 0:
+            self.log("train_loss", self.train_loss, prog_bar=True)
+            self.train_loss = 0
+
         return loss
 
-    def validation_step(self, batch, batch_ixs):
+    def validation_step(self, batch, batch_idx):
         # noinspection DuplicatedCode
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
 
         # Create masks
-        e_pad_mask = (input_ids == 1).to(self.device)
-        d_pad_mask = (decoder_input_ids == 1).to(self.device)
+        e_pad_mask = (input_ids == self.pad_token_id).to(self.device)
+        d_pad_mask = (decoder_input_ids == self.pad_token_id).to(self.device)
+        # noinspection DuplicatedCode
         d_mask = generate_causal_mask(decoder_input_ids.shape[-1]).to(self.device)
 
         # Compute loss
         logits = self(input_ids, decoder_input_ids, d_mask, e_pad_mask, d_pad_mask)
         loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1),
-                               ignore_index=1)
+                               ignore_index=self.pad_token_id)
 
         # Log validation loss
-        self.log("val_loss", loss, prog_bar=True)
+        self.val_loss += loss.item()
+        if (batch_idx + 1) % len(self.trainer.val_dataloaders) == 0:
+            self.log("val_loss", self.val_loss / len(self.trainer.val_dataloaders), prog_bar=True)
+            self.val_loss = 0
+
         return loss
 
     def generate(self,
                  input_ids: torch.Tensor,
-                 sos_token_id: int,
-                 eos_token_id: int,
-                 pad_token_id: int,
+                 decoder_start_token_id: int,
                  max_new_tokens: int = 10,
                  beam_size: int = 5) -> torch.Tensor:
         """
         Generate tokens at inference time using greedy or beam search decoding.
         :param input_ids: tokenized source sentence.
-        :param sos_token_id: start of sequence token, in a multilingual setting this should be the target
-            language token.
-        :param eos_token_id: end of sequence token.
-        :param pad_token_id: pad token.
+        :param decoder_start_token_id: the token that will propend the output sequence, in a multilingual setting this
+            should be the target language token, in a blingual setting the start of sequence token should be
+            used instead.
         :param max_new_tokens: the number of new tokens allowed on top of the source sentence length (default=10).
         :param beam_size: size of the beam, if it is equal to 1 than greedy decoding will be applied, otherwise
             beam search will be performed (default=5).
@@ -146,8 +148,9 @@ class Transformer(TransformerCore):
             raise ValueError("The number of max new tokens must be at least 0.")
 
         if beam_size == 1:
-            output = greedy_decoding(self, input_ids, sos_token_id, eos_token_id, pad_token_id, max_new_tokens)
+            output = greedy_decoding(self, input_ids, decoder_start_token_id, max_new_tokens)
         else:
-            output = beam_decoding(self, input_ids, sos_token_id, eos_token_id, pad_token_id, max_new_tokens, beam_size)
+            output = beam_decoding(self, input_ids, self.sos_token_id, self.eos_token_id, self.pad_token_id,
+                                   max_new_tokens, beam_size)
 
         return output
