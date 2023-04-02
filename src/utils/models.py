@@ -16,34 +16,13 @@ def init_bert_weights(module: nn.Module) -> None:
         module.weight.data.normal_(mean=0.0, std=0.02)
         if module.bias is not None:
             module.bias.data.zero_()
-    if isinstance(module, nn.Embedding):
+    elif isinstance(module, nn.Embedding):
         module.weight.data.normal_(mean=0.0, std=0.02)
         if module.padding_idx is not None:
             module.weight.data[module.padding_idx].zero_()
     elif isinstance(module, nn.LayerNorm):
         module.bias.data.zero_()
         module.weight.data.fill_(1.0)
-
-
-'''def init_transformer_weights(module: nn.Module) -> None:
-    """
-    Initialize module's weigths following the transformer implementation from tensor2tensor. This method should be
-    called by using self.apply(init_transformer_weigths) inside the module class. All the weights are initialized by
-    using the Glorot initialization, except for the nn.Embedding of a TransformerCore module, in which case the weigths
-    are initiliazed following a normal distribution with mean 0.0 and std equal to the inverse square root of the
-    embedding dimension. If you are going to use this initialization it's greatly suggested to set the scale_embeddings
-    parameter of a TransformerCore module to True.
-    :param module: the pytorch nn.Module to initialize.
-    """
-    if isinstance(module, nn.Embedding):
-        # module.weight.data.normal_(mean=0.0, std=module.d_model ** (- 0.5))
-        module.weight.data.fill_(1.0)
-        if module.padding_idx is not None:
-            module.weight.data[module.padding_idx].zero_()
-    else:
-        for p in module.parameters(False):
-            if p.dim() > 1:
-                nn.init.xavier_uniform_(p)'''
 
 
 def model_n_parameters(model: nn.Module) -> Tuple[int, int]:

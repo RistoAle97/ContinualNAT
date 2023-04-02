@@ -1,5 +1,4 @@
 import torch
-import math
 from torch.functional import F
 from . import TransformerCore
 from ..modules import Pooler

@@ -1,4 +1,5 @@
 import torch
+from torch import nn
 from torch.functional import F
 from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup, get_inverse_sqrt_schedule
 from .transformer_core import TransformerCore
@@ -16,7 +17,11 @@ class Transformer(TransformerCore):
                  num_decoder_layers: int = 6,
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-6) -> None:
+                 layer_norm_eps: float = 1e-6,
+                 scale_embeddings: bool = False,
+                 sos_token_id: int = 0,
+                 eos_token_id: int = 2,
+                 pad_token_id: int = 1) -> None:
         """
         Transformer model whose architecture is based on the paper "Attention is all you need" from Vaswani et al.
         https://arxiv.org/pdf/1706.03762.pdf. The model, differently from the pytorch implementation, comes with
@@ -30,14 +35,17 @@ class Transformer(TransformerCore):
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param scale_embeddings: whether to scale the output of the embedding layer (default=False).
+        :param sos_token_id: the start of sequence token id (default=0).
+        :param eos_token_id: the end of sequence token id (default=2).
+        :param pad_token_id: the pad token id (default=1).
         """
-        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps)
+        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
+                         layer_norm_eps, scale_embeddings, sos_token_id, eos_token_id, pad_token_id)
         # Initialize weights
         self.apply(init_bert_weights)
 
-        # Scheduler
-        # self.lr_scheduler = None
+        # Train and validation losses
         self.train_loss = 0
         self.val_loss = 0
 
