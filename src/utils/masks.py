@@ -8,7 +8,7 @@ def generate_causal_mask(seq_len: int) -> torch.Tensor:
     :param seq_len: length of the sequence to mask.
     :return: causal mask for the autoregressive decoder.
     """
-    return torch.tril(torch.ones(1, seq_len, seq_len, dtype=torch.bool), diagonal=1)
+    return torch.tril(torch.ones(1, seq_len, seq_len, dtype=torch.bool))
 
 
 def generate_causal_nat_mask(seq_len: int) -> torch.Tensor:
