@@ -30,11 +30,12 @@ def create_masks(input_ids: torch.Tensor,
         raise ValueError("The decoder mask should be one of None, \"causal\" and \"diagonal\"")
 
     seq_len = decoder_input_ids.size(-1)
-    nopeak_mask = torch.ones(1, seq_len, seq_len, dtype=torch.bool)  # (1, seq_len, seq_len)
     if decoder_mask == "causal":
-        nopeak_mask = generate_causal_mask(seq_len)
+        nopeak_mask = generate_causal_mask(seq_len).to(decoder_input_ids.device)
     elif decoder_mask == "diagonal":
-        nopeak_mask = generate_causal_nat_mask(seq_len)
+        nopeak_mask = generate_causal_nat_mask(seq_len).to(decoder_input_ids.device)
+    else:
+        nopeak_mask = torch.ones(1, seq_len, seq_len, dtype=torch.bool, device=decoder_input_ids.device)
 
     d_mask = d_pad_mask & nopeak_mask  # (bsz, seq_len, seq_len)
     return e_mask, d_mask

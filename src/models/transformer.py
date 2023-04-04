@@ -1,10 +1,9 @@
 import torch
-from torch import nn
 from torch.functional import F
-from transformers import get_cosine_schedule_with_warmup, get_linear_schedule_with_warmup, get_inverse_sqrt_schedule
+from transformers import get_cosine_schedule_with_warmup
 from .transformer_core import TransformerCore
 from ..inference import greedy_decoding, beam_decoding
-from ..utils import generate_causal_mask, init_bert_weights
+from ..utils import init_bert_weights, create_masks
 
 
 class Transformer(TransformerCore):
@@ -26,7 +25,7 @@ class Transformer(TransformerCore):
         Transformer model whose architecture is based on the paper "Attention is all you need" from Vaswani et al.
         https://arxiv.org/pdf/1706.03762.pdf. The model, differently from the pytorch implementation, comes with
         embeddings, positional encoding, linear output and softmax layers. The model expects inputs with the format
-        (batch_size, seq_len).
+        (bsz, seq_len).
         :param vocab_size: shared vocabulary size.
         :param d_model: embedding dimension (default=512).
         :param n_heads: the number of heads in the multi-attention mechanism (default=8).
@@ -52,48 +51,43 @@ class Transformer(TransformerCore):
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
-                d_mask: torch.Tensor = None,
-                e_pad_mask: torch.Tensor = None,
-                d_pad_mask: torch.Tensor = None) -> torch.Tensor:
+                e_mask: torch.Tensor = None,
+                d_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Process masked source and target sequences.
         """
         # Embeddings and positional encoding
-        src_embeddings = self.embedding(src_input)  # (batch_size, seq_len, d_model)
+        src_embeddings = self.embedding(src_input)  # (bsz, seq_len, d_model)
         src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
-        tgt_embeddings = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        tgt_embeddings = self.embedding(tgt_input)  # (bsz, seq_len, d_model)
         tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
 
         # Encoder and decoder
-        e_output = self.encoder(src_embeddings, None, e_pad_mask)
-        d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
+        e_output = self.encoder(src_embeddings, e_mask)
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)
 
         # Linear output
-        output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)
+        output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
         return output
 
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(self.parameters(), lr=5e-4)
-        lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 4000, self.trainer.estimated_stepping_batches)
+        lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 0, self.trainer.estimated_stepping_batches)
         return [optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
 
     def optimizer_step(self, *args, **kwargs):
         super().optimizer_step(*args, **kwargs)
 
     def training_step(self, batch, batch_idx):
-        # noinspection DuplicatedCode
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
 
         # Create masks
-        e_pad_mask = (input_ids == self.pad_token_id).to(self.device)
-        d_pad_mask = (decoder_input_ids == self.pad_token_id).to(self.device)
-        # noinspection DuplicatedCode
-        d_mask = generate_causal_mask(decoder_input_ids.shape[-1]).to(self.device)
+        e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, "causal")
 
         # Compute loss
-        logits = self(input_ids, decoder_input_ids, d_mask, e_pad_mask, d_pad_mask)
+        logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
         loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1),
                                ignore_index=self.pad_token_id)
 
@@ -109,19 +103,15 @@ class Transformer(TransformerCore):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        # noinspection DuplicatedCode
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
 
         # Create masks
-        e_pad_mask = (input_ids == self.pad_token_id).to(self.device)
-        d_pad_mask = (decoder_input_ids == self.pad_token_id).to(self.device)
-        # noinspection DuplicatedCode
-        d_mask = generate_causal_mask(decoder_input_ids.shape[-1]).to(self.device)
+        e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, "causal")
 
         # Compute loss
-        logits = self(input_ids, decoder_input_ids, d_mask, e_pad_mask, d_pad_mask)
+        logits = self(input_ids, decoder_input_ids, e_mask, d_mask)
         loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1),
                                ignore_index=self.pad_token_id)
 
@@ -155,6 +145,7 @@ class Transformer(TransformerCore):
         if max_new_tokens < 0:
             raise ValueError("The number of max new tokens must be at least 0.")
 
+        self.eval()
         if beam_size == 1:
             output = greedy_decoding(self, input_ids, decoder_start_token_id, max_new_tokens)
         else:

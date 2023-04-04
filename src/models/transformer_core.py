@@ -1,9 +1,8 @@
 import torch
-import math
 import pytorch_lightning as pl
 from torch import nn
-from torch.functional import F
-from ..modules import PositionalEncoding
+from ..modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
+    TransformerDecoder
 
 
 class TransformerCore(pl.LightningModule):
@@ -56,17 +55,17 @@ class TransformerCore(pl.LightningModule):
         # Embeddings and positional encoder
         self.embedding = nn.Embedding(self.vocab_size, d_model, padding_idx=pad_token_id)
         self.positional_encoder = PositionalEncoding(d_model, dropout=dropout)
-        self.embedding_scale = 1.0 if not scale_embeddings else math.sqrt(d_model)
+        self.embedding_scale = 1.0 if not scale_embeddings else d_model ** 0.5
 
-        # Encoder and decoder
-        encoder_layer = nn.TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout, activation=F.gelu,
-                                                   layer_norm_eps=layer_norm_eps, batch_first=True, norm_first=True)
+        # Encoder
         encoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers, norm=encoder_norm)
-        decoder_layer = nn.TransformerDecoderLayer(d_model, n_heads, dim_ff, dropout, activation=F.gelu,
-                                                   layer_norm_eps=layer_norm_eps, batch_first=True, norm_first=True)
+        encoder_layer = TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout)
+        self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, norm=encoder_norm)
+
+        # Decoder
         decoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, norm=decoder_norm)
+        decoder_layer = TransformerDecoderLayer(d_model, n_heads, dim_ff, dropout)
+        self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, norm=decoder_norm)
 
         # Linear output
         self.linear_output = nn.Linear(d_model, self.vocab_size, bias=False)
@@ -74,40 +73,35 @@ class TransformerCore(pl.LightningModule):
 
     def encode(self,
                e_input: torch.Tensor,
-               e_mask: torch.Tensor = None,
-               e_pad_mask: torch.Tensor = None) -> torch.Tensor:
+               e_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Encodes the masked source sentence.
-        :param e_input: torch tensor of shape (batch_size, seq_len).
-        :param e_mask: causal mask for the encoder of shape (seq_len, seq_len).
-        :param e_pad_mask: key padding mask for the encoder of shape (batch_size, seq_len).
-        :return: torch tensor representing the encodings with shape (batch_size, seq_len, d_model).
+        :param e_input: torch tensor of shape (bsz, seq_len).
+        :param e_mask: mask for the encoder of shape (bsz, seq_len).
+        :return: torch tensor representing the encodings with shape (bsz, seq_len, d_model).
         """
-        src_embeddings = self.embedding(e_input)  # (batch_size, seq_len, d_model)
+        src_embeddings = self.embedding(e_input)  # (bsz, seq_len, d_model)
         src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
-        e_output = self.encoder(src_embeddings, e_mask, e_pad_mask)
+        e_output = self.encoder(src_embeddings, e_mask)
         return e_output
 
     def decode(self,
-               e_output: torch.Tensor,
                tgt_input: torch.Tensor,
+               e_output: torch.Tensor,
                d_mask: torch.Tensor = None,
-               e_pad_mask: torch.Tensor = None,
-               d_pad_mask: torch.Tensor = None) -> torch.Tensor:
+               e_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Decodes the masked target sentence given the encodings of the source sentence.
-        :param e_output: encodings coming from the encoder of shape (batch_size, seq_len, d_model).
-        :param tgt_input: torch tensor of shape (batch_size, seq_len)
-        :param d_mask: causal mask for the decoder of shape (seq_len, seq_len).
-        :param e_pad_mask: key padding mask for the encoder of shape (batch_size, seq_len) used for the multi-head
-            encoder-decoder attention.
-        :param d_pad_mask: key padding mask for the decoder of shape (batcg_size, seq_len).
-        :return: torch tensor representing the decodings with shape (batch_size, seq_len, vocab_size).
+        :param e_output: encodings coming from the encoder of shape (bsz, seq_len, d_model).
+        :param tgt_input: torch tensor of shape (bsz, seq_len)
+        :param e_mask: mask for the encoder of shape (bsz, seq_len).
+        :param d_mask: mask for the decoder of shape (bsz, seq_len).
+        :return: torch tensor representing the decodings with shape (bsz, seq_len, vocab_size).
         """
-        tgt_embeddings = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        tgt_embeddings = self.embedding(tgt_input)  # (bsz, seq_len, d_model)
         tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
-        d_output = self.decoder(tgt_embeddings, e_output, d_mask, None, d_pad_mask, e_pad_mask)
-        d_output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)
+        d_output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
         return d_output
 
     def generate(self, *kwargs):
