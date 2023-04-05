@@ -16,7 +16,11 @@ class CMLM(TransformerCore):
                  num_decoder_layers: int = 6,
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-6) -> None:
+                 layer_norm_eps: float = 1e-6,
+                 scale_embeddings: bool = False,
+                 sos_token_id: int = 0,
+                 eos_token_id: int = 2,
+                 pad_token_id: int = 1) -> None:
         """
         The Conditional Masked Language Model (CMLM) from Ghazvininejad et al. https://arxiv.org/pdf/1904.09324.pdf, a
         non-autoregressive model whose training is based on BERT by Devlin et al. https://arxiv.org/pdf/1810.04805.pdf
@@ -30,8 +34,8 @@ class CMLM(TransformerCore):
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         """
-        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps)
+        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
+                         layer_norm_eps, scale_embeddings, sos_token_id, eos_token_id, pad_token_id)
         # Pooler layer after the encoder to predict the target sentence length
         self.pooler = Pooler(d_model)
 
@@ -72,7 +76,7 @@ class CMLM(TransformerCore):
 
     def __mask_predict(self,
                        encodings: torch.Tensor,
-                       e_pad_mask: torch.Tensor,
+                       e_mask: torch.Tensor,
                        tgt_input: torch.Tensor,
                        pad_token_id: int,
                        mask_token_id: int,
@@ -83,9 +87,9 @@ class CMLM(TransformerCore):
             device = next(self.parameters()).device
 
             # Make first prediction in a fully non-autoregressive way
-            d_pad_mask = (tgt_input == pad_token_id).to(device)  # this mask will never change
+            d_pad_mask = tgt_input.ne(pad_token_id).unsqueeze(1).to(device)  # this mask will never change
             tgt_lengths = seq_len - d_pad_mask.sum(dim=1)
-            output = self.decode(encodings, tgt_input, e_pad_mask=e_pad_mask, d_pad_mask=d_pad_mask)
+            output = self.decode(encodings, tgt_input, e_mask=e_mask, d_mask=d_pad_mask)
             logits = F.log_softmax(output)
             p_tokens, tokens = logits.max(dim=-1)  # tokens probabilites and their ids
             tokens.view(-1)[d_pad_mask.view(-1).nonzero()] = pad_token_id
@@ -107,7 +111,7 @@ class CMLM(TransformerCore):
                 tokens.view(-1)[masks.view(-1)] = mask_token_id
 
                 # Compute the new tokens and their probabilities
-                output = self.decode(encodings, tokens, e_pad_mask=e_pad_mask, d_pad_mask=d_pad_mask)
+                output = self.decode(encodings, tokens, e_mask, d_pad_mask)
                 logits = F.log_softmax(output, dim=-1)
                 new_p_tokens, new_tokens = logits.max(dim=-1)
 
@@ -148,8 +152,8 @@ class CMLM(TransformerCore):
         batch_size = input_ids.shape[0]
 
         # Compute encodings
-        e_pad_mask = (input_ids == pad_token_id).to(input_ids.device)
-        encodings = self.encode(input_ids, e_pad_mask=e_pad_mask)
+        e_mask = input_ids.ne(pad_token_id).unsqueeze(1).to(input_ids.device)
+        encodings = self.encode(input_ids, e_mask)
 
         # Predict the best length_beam_size lengths for each sentence
         target_lengths = self.predict_target_length(encodings)
@@ -179,7 +183,7 @@ class CMLM(TransformerCore):
         # Duplicate encoder's output and padding mask to match the number of length beams
         duplicated_encodings = encodings.unsqueeze(2).repeat(1, 1, length_beam_size, 1)\
             .view(-1, batch_size * length_beam_size, encodings.size(-1))
-        duplicated_e_pad_mask = e_pad_mask.unsqueeze(1).repeat(1, length_beam_size, 1)\
+        duplicated_e_pad_mask = e_mask.unsqueeze(1).repeat(1, length_beam_size, 1)\
             .view(batch_size * length_beam_size, -1)
 
         # Mask-predict
