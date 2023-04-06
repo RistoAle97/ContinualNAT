@@ -3,8 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 main.py
-runs/
-data/distilled_dataset*
+logs/
+data/
 /*.ipynb
 
 # C extensions

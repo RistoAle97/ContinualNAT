@@ -8,8 +8,7 @@ from ..modules import DecoderLayerNAT, DecoderNAT, Fertility
 class FTNAT(TransformerCore):
 
     def __init__(self,
-                 src_vocab_size: int,
-                 tgt_vocab_size: int = None,
+                 vocab_size: int,
                  d_model: int = 512,
                  n_heads: int = 8,
                  num_encoder_layers: int = 6,
@@ -17,16 +16,11 @@ class FTNAT(TransformerCore):
                  dim_ff: int = 2048,
                  dropout: float = 0.1,
                  layer_norm_eps: float = 1e-6,
-                 norm_first: bool = True,
-                 share_embeddings_src_tgt: bool = True,
-                 share_embeddings_tgt_out: bool = True,
                  max_fertilities: int = 50) -> None:
         """
         The fertility NAT model (FT-NAT) by Gu et al. (https://arxiv.org/pdf/1711.02281.pdf), the first
         non-autoregressive model for neural machine translation.
-        :param src_vocab_size: input language vocabulary size.
-        :param tgt_vocab_size: target language vocabulary size, if no value is passed, then it will have the same size
-            of the source one.
+        :param vocab_size: shared vocabulary size.
         :param d_model: embedding dimension (default=512).
         :param n_heads: the number of heads in the multi-attention mechanism (default=8).
         :param num_encoder_layers: the number of encoder layers (default=6).
@@ -34,27 +28,19 @@ class FTNAT(TransformerCore):
         :param dim_ff: dimension of the feedforward sublayer (default=2048).
         :param dropout: the dropout value (default=0.1).
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
-        :param norm_first: if True, encoder and decoder layers will perform LayerNorms before other attention and
-            feedforward operations, otherwise after. Default: True (before).
-        :param share_embeddings_src_tgt: whether to share the weights beetween source and target embedding layers
-            (default=True).
-        :param share_embeddings_tgt_out: whether to share the weights beetween the target embeddings and the linear
-            output (default=True).
         :param max_fertilities: the maximum number of fertilities (default=50).
         """
-        super().__init__(src_vocab_size, tgt_vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps, norm_first, share_embeddings_src_tgt,
-                         share_embeddings_tgt_out)
+        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
+                         dim_ff, dropout, layer_norm_eps)
         # Parameters
-        self.norm_first = norm_first
         self.max_fertilities = max_fertilities
 
         # Fertility
         self.fertility = Fertility(d_model, max_fertilities)
 
         # Decoder
-        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, norm_first)
-        norm = nn.LayerNorm(d_model, layer_norm_eps) if norm_first else None
+        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, True)
+        norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.decoder = DecoderNAT(decoder_layer, num_decoder_layers, norm)
 
     @staticmethod

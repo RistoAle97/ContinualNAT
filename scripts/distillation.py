@@ -6,7 +6,7 @@ import os
 from transformers import MarianMTModel, MarianTokenizer
 from datasets import load_dataset
 from torch.utils.data import DataLoader
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 
 def parse_arguments():
@@ -68,6 +68,8 @@ if __name__ == '__main__':
     if evaluate_teacher:
         bleu_metric = evaluate.load("bleu")
         chrf_metric = evaluate.load("chrf")
+
+        # Compute scores
         bleu_score = bleu_metric.compute(predictions=translations, references=tgt_sentences)["bleu"] * 100
         chrf_score = chrf_metric.compute(predictions=translations, references=tgt_sentences)["score"]
         df_scores = {
@@ -76,6 +78,8 @@ if __name__ == '__main__':
             "bleu": [bleu_score],
             "chrf": [chrf_score]
         }
+
+        # Save scores
         df_scores = pd.DataFrame(df_scores)
         if os.path.exists("../data/distillation_teacher_scores.csv"):
             df_teacher_scores: pd.DataFrame = pd.read_csv("../data/distillation_teacher_scores.csv", index_col=0)

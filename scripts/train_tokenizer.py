@@ -1,7 +1,6 @@
 from datasets import load_dataset, concatenate_datasets
 from tokenizers.implementations import SentencePieceBPETokenizer
 from tokenizers.processors import ByteLevel
-from transformers import MBartTokenizerFast
 
 
 def batch_iterator(batch_size):
@@ -33,14 +32,10 @@ if __name__ == "__main__":
     dataset_es = dataset_es.take(num_samples)
     dataset = concatenate_datasets([dataset_en, dataset_de, dataset_fr, dataset_es])
 
-    # Train the sentencepiece tokenizer
+    # Train the SentencepieceBPE tokenizer
     special_tokens = ["<s>", "<pad>", "</s>", "<unk>", "<length>", "<mask>"]
+    vocab_size = 32000
     sentencepiece_tokenizer = SentencePieceBPETokenizer()
     sentencepiece_tokenizer.post_processor = ByteLevel()
-    sentencepiece_tokenizer.train_from_iterator(batch_iterator(1000), 32000, special_tokens=special_tokens)
-
-    # Wrap it around a MBartTokenizer
-    mbart_tokenizer = MBartTokenizerFast(tokenizer_object=sentencepiece_tokenizer, model_max_length=1024)
-    mbart_tokenizer.cls_token = "<length>"
-    mbart_tokenizer.cls_token_id = 4
-    mbart_tokenizer.save_pretrained("tokenizers/mbart_tokenizer")
+    sentencepiece_tokenizer.train_from_iterator(batch_iterator(1000), vocab_size, special_tokens=special_tokens)
+    sentencepiece_tokenizer.save(f"sentencepiece_config_{vocab_size / 1000}k.json")

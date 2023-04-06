@@ -9,9 +9,6 @@ model:
     dim_ff: 2048
     dropout: 0.1
     layer_norm_eps: float = 1e-6
-    norm_first: True
-    shared_embeddings_src_trg: True
-    shared_embeddings_trg_out: True
 
 # Tokenizer
 tokenizer: "facebook/mbart-large-cc25"
@@ -19,23 +16,19 @@ padding: "longest"
 
 # Dataset
 dataset:
-  path: "wmt14"
-  name: "de-en"
-  cache_dir: "/disk1/a.ristori/datasets/wmt14"
+  path: "yhavinga/ccmatrix"
+  name: "en-de"
+  cache_dir: "/disk1/a.ristori/datasets/ccmatrix"
 
 # Training parameters
 src_lang: "en"
 tgt_lang: "de"
-batch_size: 32
-max_length: 64
-tokens_per_batch: 25000
-accumulation_steps: None
+batch_size: 256
+max_length: 128
+tokens_per_batch: 4096
+accumulate_gradient: False
 training_updates: 100000
 log_step: 100
-validation_step: True
-
-# Loss function
-label_smoothing: 0.1
 
 # Scheduler
 warmup_steps: 4000
