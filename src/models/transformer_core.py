@@ -1,6 +1,8 @@
 import torch
 import pytorch_lightning as pl
 from torch import nn
+from torch.optim import AdamW
+from transformers import get_cosine_schedule_with_warmup
 from ..modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
     TransformerDecoder
 
@@ -71,6 +73,10 @@ class TransformerCore(pl.LightningModule):
         self.linear_output = nn.Linear(d_model, self.vocab_size, bias=False)
         self.linear_output.weight = self.embedding.weight
 
+        # Train and validation losses
+        self.train_loss = 0
+        self.val_loss = 0
+
     def encode(self,
                e_input: torch.Tensor,
                e_mask: torch.Tensor = None) -> torch.Tensor:
@@ -103,6 +109,17 @@ class TransformerCore(pl.LightningModule):
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)
         d_output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
         return d_output
+
+    def compute_loss(self, *kwargs) -> torch.Tensor:
+        """
+        Method for computing the model's loss.
+        """
+        raise NotImplementedError
+
+    def configure_optimizers(self):
+        optimizer = AdamW(self.parameters(), lr=5e-4)
+        lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 0, self.trainer.estimated_stepping_batches)
+        return [optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
 
     def generate(self, *kwargs):
         """

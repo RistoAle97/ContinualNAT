@@ -1,4 +1,5 @@
 import torch
+import copy
 from torch import nn
 from torch.functional import F
 from . import PositionalEncoding
@@ -125,7 +126,7 @@ class DecoderNAT(nn.Module):
         super().__init__()
         # Parameters
         self.num_layers = num_decoder_layers
-        self.layers = nn.ModuleList([decoder_layer for _ in range(num_decoder_layers)])
+        self.layers = nn.ModuleList([copy.deepcopy(decoder_layer) for _ in range(num_decoder_layers)])
         self.norm = norm
 
     def forward(self,

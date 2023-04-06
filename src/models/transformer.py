@@ -1,6 +1,5 @@
 import torch
 from torch.functional import F
-from transformers import get_cosine_schedule_with_warmup
 from .transformer_core import TransformerCore
 from ..inference import greedy_decoding, beam_decoding
 from ..utils import init_bert_weights, create_masks
@@ -44,10 +43,6 @@ class Transformer(TransformerCore):
         # Initialize weights
         self.apply(init_bert_weights)
 
-        # Train and validation losses
-        self.train_loss = 0
-        self.val_loss = 0
-
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
@@ -70,13 +65,11 @@ class Transformer(TransformerCore):
         output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
         return output
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(self.parameters(), lr=5e-4)
-        lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 0, self.trainer.estimated_stepping_batches)
-        return [optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
-
-    def optimizer_step(self, *args, **kwargs):
-        super().optimizer_step(*args, **kwargs)
+    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        logits = logits.contiguous().view(-1, logits.size(-1))
+        labels = labels.contiguous().view(-1)
+        loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id)
+        return loss
 
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
@@ -88,8 +81,7 @@ class Transformer(TransformerCore):
 
         # Compute loss
         logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
-        loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1),
-                               ignore_index=self.pad_token_id)
+        loss = self.compute_loss(logits, labels)
 
         # Log train loss
         self.train_loss += loss.item()
@@ -112,8 +104,7 @@ class Transformer(TransformerCore):
 
         # Compute loss
         logits = self(input_ids, decoder_input_ids, e_mask, d_mask)
-        loss = F.cross_entropy(logits.contiguous().view(-1, logits.size(-1)), labels.contiguous().view(-1),
-                               ignore_index=self.pad_token_id)
+        loss = self.compute_loss(logits, labels)
 
         # Log validation loss
         self.val_loss += loss.item()

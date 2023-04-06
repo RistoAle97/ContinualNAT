@@ -20,7 +20,8 @@ class CMLM(TransformerCore):
                  scale_embeddings: bool = False,
                  sos_token_id: int = 0,
                  eos_token_id: int = 2,
-                 pad_token_id: int = 1) -> None:
+                 pad_token_id: int = 1,
+                 mask_token_id: int = 5) -> None:
         """
         The Conditional Masked Language Model (CMLM) from Ghazvininejad et al. https://arxiv.org/pdf/1904.09324.pdf, a
         non-autoregressive model whose training is based on BERT by Devlin et al. https://arxiv.org/pdf/1810.04805.pdf
@@ -36,6 +37,9 @@ class CMLM(TransformerCore):
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          layer_norm_eps, scale_embeddings, sos_token_id, eos_token_id, pad_token_id)
+        # Token ids
+        self.mask_token_id = mask_token_id
+
         # Pooler layer after the encoder to predict the target sentence length
         self.pooler = Pooler(d_model)
 
@@ -45,24 +49,24 @@ class CMLM(TransformerCore):
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
-                e_pad_mask: torch.Tensor = None,
-                d_pad_mask: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+                e_mask: torch.Tensor = None,
+                d_mask: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
         """
         # Embeddings and positional encoding
-        src_embeddings = self.embedding(src_input)  # (batch_size, seq_len, d_model)
-        tgt_embeddings = self.embedding(tgt_input)  # (batch_size, seq_len, d_model)
+        src_embeddings = self.embedding(src_input)  # (bsz, seq_len, d_model)
+        tgt_embeddings = self.embedding(tgt_input)  # (bsz, seq_len, d_model)
         src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
         tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
 
         # Encoder and decoder
-        e_output = self.encoder(src_embeddings, None, e_pad_mask)
-        predicted_length = self.pooler(e_output)  # (batch_size, seq_len)
-        d_output = self.decoder(tgt_embeddings, e_output, None, None, d_pad_mask, e_pad_mask)
+        e_output = self.encoder(src_embeddings, e_mask)
+        predicted_length = self.pooler(e_output)  # (bsz, seq_len)
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)
 
         # Linear output
-        output = self.linear_output(d_output)  # (batch_size, seq_len, vocab_size)
+        output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
         return output, predicted_length
 
     def predict_target_length(self, e_output: torch.Tensor) -> torch.Tensor:
@@ -79,7 +83,6 @@ class CMLM(TransformerCore):
                        e_mask: torch.Tensor,
                        tgt_input: torch.Tensor,
                        pad_token_id: int,
-                       mask_token_id: int,
                        iterations: int = 10) -> Tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             # Parameters
@@ -108,7 +111,7 @@ class CMLM(TransformerCore):
 
                 # Apply the masks
                 masks = masks + torch.arange(0, batch_size * seq_len, seq_len, device=device).unsqueeze(1)
-                tokens.view(-1)[masks.view(-1)] = mask_token_id
+                tokens.view(-1)[masks.view(-1)] = self.mask_token_id
 
                 # Compute the new tokens and their probabilities
                 output = self.decode(encodings, tokens, e_mask, d_pad_mask)
@@ -128,7 +131,6 @@ class CMLM(TransformerCore):
     def generate(self,
                  input_ids: torch.Tensor,
                  pad_token_id: int,
-                 mask_token_id: int,
                  tgt_lang_token_id: int = None,
                  iterations: int = 10,
                  length_beam_size: int = 5) -> torch.Tensor:
@@ -137,7 +139,6 @@ class CMLM(TransformerCore):
         https://arxiv.org/pdf/1904.09324.pdf.
         :param input_ids: the tokenized source sentence.
         :param pad_token_id: the pad token id.
-        :param mask_token_id: the mask token id.
         :param tgt_lang_token_id: the target language token id, if none is passed, then no token will appended ad the
             end of the target tokens (default=None).
         :param iterations: the number of iterations of the mask-predict. If its value is <=1, then the decoding will be
@@ -157,7 +158,7 @@ class CMLM(TransformerCore):
 
         # Predict the best length_beam_size lengths for each sentence
         target_lengths = self.predict_target_length(encodings)
-        target_lengths[:, 0] += float("-inf")
+        target_lengths[:, 0] += -1e9
         target_lengths = F.log_softmax(target_lengths, dim=-1)
         length_beams = target_lengths.topk(length_beam_size, dim=1)[1]
         length_beams[length_beams < 2] = 2
@@ -171,7 +172,7 @@ class CMLM(TransformerCore):
         length_mask = torch.stack([length_mask[length_beams[batch] - 1] for batch in range(batch_size)], dim=0)
 
         # Initialize target tokens
-        tgt_tokens = input_ids.new(batch_size, length_beam_size, non_pad_tokens).fill_(mask_token_id)
+        tgt_tokens = input_ids.new(batch_size, length_beam_size, non_pad_tokens).fill_(self.mask_token_id)
         tgt_tokens = (1 - length_mask) * tgt_tokens + length_mask * pad_token_id
         if tgt_lang_token_id is not None:
             for i, lengths in enumerate(length_beams):
@@ -188,7 +189,7 @@ class CMLM(TransformerCore):
 
         # Mask-predict
         hypotheses, log_probabilities = self.__mask_predict(duplicated_encodings, duplicated_e_pad_mask, tgt_tokens,
-                                                            pad_token_id, mask_token_id, iterations)
+                                                            pad_token_id, iterations)
 
         # Reshape hypotheses and their log probabilities
         hypotheses = hypotheses.view(batch_size, length_beam_size, max_length)
