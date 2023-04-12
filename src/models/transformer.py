@@ -140,7 +140,6 @@ class Transformer(TransformerCore):
         if beam_size == 1:
             output = greedy_decoding(self, input_ids, decoder_start_token_id, max_new_tokens)
         else:
-            output = beam_decoding(self, input_ids, self.sos_token_id, self.eos_token_id, self.pad_token_id,
-                                   max_new_tokens, beam_size)
+            output = beam_decoding(self, input_ids, decoder_start_token_id, max_new_tokens, beam_size)
 
         return output
