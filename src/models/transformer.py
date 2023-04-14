@@ -118,7 +118,7 @@ class Transformer(TransformerCore):
                  input_ids: torch.Tensor,
                  decoder_start_token_id: int,
                  max_new_tokens: int = 10,
-                 beam_size: int = 5) -> torch.Tensor:
+                 num_beams: int = 5) -> torch.Tensor:
         """
         Generate tokens at inference time using greedy or beam search decoding.
         :param input_ids: tokenized source sentence.
@@ -126,20 +126,20 @@ class Transformer(TransformerCore):
             should be the target language token, in a blingual setting the start of sequence token should be
             used instead.
         :param max_new_tokens: the number of new tokens allowed on top of the source sentence length (default=10).
-        :param beam_size: size of the beam, if it is equal to 1 than greedy decoding will be applied, otherwise
+        :param num_beams: size of the beam, if it is equal to 1 than greedy decoding will be applied, otherwise
             beam search will be performed (default=5).
         :return: tokenized translation of the source sentence.
         """
-        if beam_size < 1:
+        if num_beams < 1:
             raise ValueError("The beam size must be at least 1.")
 
         if max_new_tokens < 0:
             raise ValueError("The number of max new tokens must be at least 0.")
 
         self.eval()
-        if beam_size == 1:
+        if num_beams == 1:
             output = greedy_decoding(self, input_ids, decoder_start_token_id, max_new_tokens)
         else:
-            output = beam_decoding(self, input_ids, decoder_start_token_id, max_new_tokens, beam_size)
+            output = beam_decoding(self, input_ids, decoder_start_token_id, max_new_tokens, num_beams)
 
         return output
