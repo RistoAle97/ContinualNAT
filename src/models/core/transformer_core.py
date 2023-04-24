@@ -3,74 +3,57 @@ import pytorch_lightning as pl
 from torch import nn
 from torch.optim import AdamW
 from transformers import get_cosine_schedule_with_warmup
-from ..modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
+from src.models.core.config_core import CoreConfig
+from src.modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
     TransformerDecoder
 
 
 class TransformerCore(pl.LightningModule):
 
     def __init__(self,
-                 vocab_size: int,
-                 d_model: int = 512,
-                 n_heads: int = 8,
-                 num_encoder_layers: int = 6,
-                 num_decoder_layers: int = 6,
-                 dim_ff: int = 2048,
-                 dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-6,
-                 scale_embeddings: bool = False,
-                 sos_token_id: int = 0,
-                 eos_token_id: int = 2,
-                 pad_token_id: int = 1) -> None:
+                 config: CoreConfig) -> None:
         """
         This class does not implement the forward method and should be used only as a base for the actual model's
         implementation.
-        :param vocab_size: shared vocabulary size.
-        :param d_model: embedding dimension (default=512).
-        :param n_heads: the number of heads in the multi-attention mechanism (default=8).
-        :param num_encoder_layers: the number of encoder layers (default=6).
-        :param num_decoder_layers: the number of decoder layers (default=6).
-        :param dim_ff: dimension of the feedforward sublayer (default=2048).
-        :param dropout: the dropout value (default=0.1).
-        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
-        :param scale_embeddings: whether to scale the output of the embedding layer (default=False).
-        :param sos_token_id: the start of sequence token id (default=0).
-        :param eos_token_id: the end of sequence token id (default=2).
-        :param pad_token_id: the pad token id (default=1).
         """
         super().__init__()
         # Parameters
-        self.vocab_size = vocab_size
-        self.d_model = d_model
-        self.n_heads = n_heads
-        self.num_encoder_layers = num_encoder_layers
-        self.num_decoder_layer = num_decoder_layers
-        self.dim_ff = dim_ff
-        self.dropout = dropout
-        self.layer_norm_eps = layer_norm_eps
+        self.vocab_size = config.vocab_size
+        self.d_model = config.d_model
+        self.n_heads = config.n_heads
+        self.num_encoder_layers = config.num_encoder_layers
+        self.num_decoder_layer = config.num_decoder_layers
+        self.dim_ff = config.dim_ff
+        self.dropout = config.dropout
+        self.dropout_mha = config.dropout_mha
+        self.dropout_ff = config.dropout_ff
+        self.activation_ff = config.activation_ff
+        self.layer_norm_eps = config.layer_norm_eps
 
         # Token ids
-        self.sos_token_id = sos_token_id
-        self.eos_token_id = eos_token_id
-        self.pad_token_id = pad_token_id
+        self.sos_token_id = config.sos_token_id
+        self.eos_token_id = config.eos_token_id
+        self.pad_token_id = config.pad_token_id
 
         # Embeddings and positional encoder
-        self.embedding = nn.Embedding(self.vocab_size, d_model, padding_idx=pad_token_id)
-        self.positional_encoder = PositionalEncoding(d_model, dropout=dropout)
-        self.embedding_scale = 1.0 if not scale_embeddings else d_model ** 0.5
+        self.embedding = nn.Embedding(self.vocab_size, self.d_model, padding_idx=self.pad_token_id)
+        self.positional_encoder = PositionalEncoding(self.d_model, dropout=self.dropout)
+        self.embedding_scale = 1.0 if not config.scale_embeddings else self.d_model ** 0.5
 
         # Encoder
-        encoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        encoder_layer = TransformerEncoderLayer(d_model, n_heads, dim_ff, dropout)
-        self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, norm=encoder_norm)
+        encoder_norm = nn.LayerNorm(self.d_model, self.layer_norm_eps)
+        encoder_layer = TransformerEncoderLayer(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.dropout_mha,
+                                                self.dropout_ff, self.activation_ff, self.layer_norm_eps)
+        self.encoder = TransformerEncoder(encoder_layer, self.num_encoder_layers, norm=encoder_norm)
 
         # Decoder
-        decoder_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        decoder_layer = TransformerDecoderLayer(d_model, n_heads, dim_ff, dropout)
-        self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, norm=decoder_norm)
+        decoder_norm = nn.LayerNorm(self.d_model, self.layer_norm_eps)
+        decoder_layer = TransformerDecoderLayer(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.dropout_mha,
+                                                self.dropout_ff, self.activation_ff, self.layer_norm_eps)
+        self.decoder = TransformerDecoder(decoder_layer, self.num_decoder_layers, norm=decoder_norm)
 
         # Linear output
-        self.linear_output = nn.Linear(d_model, self.vocab_size, bias=False)
+        self.linear_output = nn.Linear(self.d_model, self.vocab_size, bias=False)
         self.linear_output.weight = self.embedding.weight
 
         # Train and validation losses
