@@ -10,7 +10,7 @@ def greedy_decoding(model: TransformerCore,
                     max_new_tokens: int = 10) -> torch.Tensor:
     """
     Performs greedy search for translating tokenized input sentence, this should be used only by autoregressive
-    transformers. This method is heavily inspired by the greedy decoding from Huggingface.
+    transformers. This method is heavily inspired by the greedy_search method from Huggingface.
     :param model: the autoregressive model.
     :param input_ids: the tokenized input sentence of shape (bsz, seq_len).
     :param decoder_start_token_id: the decoder start token id, for multilingual models this should be the target
@@ -69,7 +69,7 @@ def beam_decoding(model: TransformerCore,
                   beams_to_keep: int = 1) -> torch.Tensor:
     """
     Performs beams search for translating tokenized input sentence, this should be used only by autoregressive
-    transformers. This method is heavily inspired by the beam_decoding form Huggingface.
+    transformers. This method is heavily inspired by the beam_search method from Huggingface.
     :param model: the autoregressive model.
     :param input_ids: the tokenized input sentence of shape (bsz, seq_len).
     :param decoder_start_token_id: the decoder start token id, for multilingual models this should be the target
