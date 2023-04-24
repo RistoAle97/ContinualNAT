@@ -57,3 +57,17 @@ class TranslationDataset(Dataset):
         src_sentence = sentence_pair[self.src_lang]
         tgt_sentence = sentence_pair[self.tgt_lang]
         return {"src_sentence": src_sentence, "tgt_sentence": tgt_sentence}
+
+
+class TextDataset(Dataset):
+
+    def __init__(self, dataset: datasets.Dataset) -> None:
+        super().__init__()
+        self.dataset = dataset
+
+    def __len__(self) -> int:
+        return len(self.dataset)
+
+    def __getitem__(self, idx) -> Dict[str, str]:
+        tgt_sentence = self.dataset[idx]["text"]
+        return {"tgt_sentence": tgt_sentence}

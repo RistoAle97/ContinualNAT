@@ -33,17 +33,3 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tens
     shifted_input_ids[:, 1:] = shifted_input_ids[:, :-1].clone()
     shifted_input_ids[:, 0] = decoder_start_token_ids
     return shifted_input_ids
-
-
-def compute_lr(step: int, d_model: int, warmup_steps: int) -> float:
-    """
-    Computes the current learning rate following the scheduling by Vaswani et al. https://arxiv.org/pdf/1706.03762.pdf.
-    :param step: the current step.
-    :param d_model: the model's embedding dimension.
-    :param warmup_steps: the number of warmup steps
-    :return: learning current for the current step.
-    """
-    if step == 0:
-        step = 1
-
-    return d_model ** (-0.5) * min(step ** (-0.5), step * warmup_steps ** (-1.5))
