@@ -6,7 +6,13 @@ from torch.functional import F
 
 class MultiHeadAttention(nn.Module):
 
-    def __init__(self, d_model: int = 512, n_heads: int = 8, dropout: float = 0.0):
+    def __init__(self, d_model: int = 512, n_heads: int = 8, dropout: float = 0.0) -> None:
+        """
+        The multi-head attention sublayer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf).
+        :param d_model: the model's embedding dimension (default=512).
+        :param n_heads: the number of heads (default=8).
+        :param dropout: the dropout value (default= 0.0).
+        """
         super().__init__()
         assert d_model % n_heads == 0
 
@@ -68,6 +74,13 @@ class MultiHeadAttention(nn.Module):
 class FeedForwardLayer(nn.Module):
 
     def __init__(self, d_model: int = 512, dim_ff: int = 2048, dropout: float = 0.0, activation: str = "relu") -> None:
+        """
+        The feed-forward sublayer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf).
+        :param d_model: the model's embedding dimension (default=512).
+        :param dim_ff: size of the intermediate linear transformation (default=2048).
+        :param dropout: the dropout value (default=0.0).
+        :param activation: the activation function, can be either ReLU or GeLu (default="relu").
+        """
         super().__init__()
         self.linear1 = nn.Linear(d_model, dim_ff)
         self.dropout = nn.Dropout(dropout)
@@ -93,7 +106,22 @@ class TransformerEncoderLayer(nn.Module):
                  dropout: float = 0.1,
                  dropout_mha: float = 0.0,
                  dropout_ff: float = 0.0,
+                 activation_ff: str = "relu",
                  layer_norm_eps: float = 1e-6) -> None:
+        """
+        The transformer encoder layer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). The layer
+        is made up of one multi-head attention sublayer followed by a feed-forward sublayer. Differently from the paper,
+        this implementation uses pre-norm in the residual connection.
+        :param d_model: the model's embedding dimension (default=512).
+        :param n_heads: the number of heads in the multi-attention mechanism (default=8).
+        :param dim_ff: dimension of the feedforward sublayer (default=2048).
+        :param dropout: the dropout value (default=0.1).
+        :param dropout_mha: the dropout value for the multi-head attention (default=0.0).
+        :param dropout_ff: the dropout value for the feed-forward sublayer (default=0.0).
+        :param activation_ff: the activation function for the feed-forward sub-layer, can be either ReLU or GeLU
+            (default="relu").
+        :param layer_norm_eps: :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        """
         super().__init__()
         # Self-attention sublayer
         self.mha_norm = nn.LayerNorm(d_model, layer_norm_eps)
@@ -102,7 +130,7 @@ class TransformerEncoderLayer(nn.Module):
 
         # Feed-forward sublayer
         self.ff_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.ff = FeedForwardLayer(d_model, dim_ff, dropout_ff)
+        self.ff = FeedForwardLayer(d_model, dim_ff, dropout_ff, activation_ff)
         self.ff_dropout = nn.Dropout(dropout)
 
     def forward(self,
@@ -120,6 +148,14 @@ class TransformerEncoderLayer(nn.Module):
 class TransformerEncoder(nn.Module):
 
     def __init__(self, encoder_layer: TransformerEncoderLayer, num_layers: int = 6, norm: nn.LayerNorm = None) -> None:
+        """
+        The encoder from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). Following the actual
+        implementation of the paper, a LayerNorm layer is put at the end of the encoder layers stack.
+        :param encoder_layer: transformer's encoder layer that will be used in order to build the stack of
+            encoder layers.
+        :param num_layers: the number of layers (default=6).
+        :param norm: the layer normalization that should be at the end of the encoder layers stack (default=None).
+        """
         super().__init__()
         self.num_layers = num_layers
         self.layers = nn.ModuleList([copy.deepcopy(encoder_layer) for _ in range(num_layers)])
@@ -147,7 +183,23 @@ class TransformerDecoderLayer(nn.Module):
                  dropout: float = 0.1,
                  dropout_mha: float = 0.0,
                  dropout_ff: float = 0.0,
+                 activation_ff: str = "relu",
                  layer_norm_eps: float = 1e-6) -> None:
+        """
+        The transformer decoder layer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). The layer
+        is made up of two multi-head attention sublayers (self-attention and encoder-decoder cross-attention) followed
+        by a feed-forward sublayer. Differently from the paper, this implementation uses pre-norm in the residual
+        connection.
+        :param d_model: the model's embedding dimension (default=512).
+        :param n_heads: the number of heads in the multi-attention mechanism (default=8).
+        :param dim_ff: dimension of the feedforward sublayer (default=2048).
+        :param dropout: the dropout value (default=0.1).
+        :param dropout_mha: the dropout value for the multi-head attention (default=0.0).
+        :param dropout_ff: the dropout value for the feed-forward sublayer (default=0.0).
+        :param activation_ff: the activation function for the feed-forward sub-layer, can be either ReLU or GeLU
+            (default="relu").
+        :param layer_norm_eps: :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        """
         super().__init__()
         # Self-attention sublayer
         self.sa_norm = nn.LayerNorm(d_model, layer_norm_eps)
@@ -161,8 +213,8 @@ class TransformerDecoderLayer(nn.Module):
 
         # Feed-forward sublayer
         self.ff_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.ff = FeedForwardLayer(d_model, dim_ff, dropout)
-        self.ff_dropout = nn.Dropout(dropout_ff)
+        self.ff = FeedForwardLayer(d_model, dim_ff, dropout_ff, activation_ff)
+        self.ff_dropout = nn.Dropout(dropout)
 
     def forward(self,
                 tgt_input: torch.Tensor,
@@ -184,6 +236,14 @@ class TransformerDecoderLayer(nn.Module):
 class TransformerDecoder(nn.Module):
 
     def __init__(self, decoder_layer: TransformerDecoderLayer, num_layers: int = 6, norm: nn.LayerNorm = None):
+        """
+        The decoder from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). Following the actual
+        implementation of the paper, a LayerNorm layer is put at the end of the decoder layers stack.
+        :param decoder_layer: transformer's decoder layer that will be used in order to build the stack of
+            decoder layers.
+        :param num_layers: the number of layers (default=6).
+        :param norm: the layer normalization that should be at the end of the decoder layers stack (default=None).
+        """
         super().__init__()
         self.num_layers = num_layers
         self.layers = nn.ModuleList([copy.deepcopy(decoder_layer) for _ in range(num_layers)])
