@@ -31,7 +31,7 @@ class CMLM(TransformerCore):
         self.val_loss = 0
 
     def __check_length_token(self, input_ids: torch.Tensor) -> bool:
-        is_using_length_token = torch.tensor(input_ids[:, 0] == self.length_token_id)
+        is_using_length_token = (input_ids[:, 0] == self.length_token_id)
         return is_using_length_token.all()
 
     def forward(self,
