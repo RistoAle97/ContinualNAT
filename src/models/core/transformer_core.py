@@ -3,7 +3,7 @@ import pytorch_lightning as pl
 from torch import nn
 from torch.optim import AdamW
 from transformers import get_cosine_schedule_with_warmup
-from src.models.core.config_core import CoreConfig
+from src.models.core import CoreConfig
 from src.modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
     TransformerDecoder
 
@@ -22,7 +22,7 @@ class TransformerCore(pl.LightningModule):
         self.d_model = config.d_model
         self.n_heads = config.n_heads
         self.num_encoder_layers = config.num_encoder_layers
-        self.num_decoder_layer = config.num_decoder_layers
+        self.num_decoder_layers = config.num_decoder_layers
         self.dim_ff = config.dim_ff
         self.dropout = config.dropout
         self.dropout_mha = config.dropout_mha

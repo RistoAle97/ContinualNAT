@@ -1,7 +1,8 @@
 import torch
 import math
 from torch import nn
-from src.models import TransformerCore, RefineNATConfig
+from src.models.core import TransformerCore
+from src.models.refinenat import RefineNATConfig
 from src.modules import DecoderLayerNAT, DecoderNAT
 
 

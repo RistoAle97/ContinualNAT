@@ -1,6 +1,7 @@
 import torch
 from torch.functional import F
-from src.models import TransformerCore, TransformerConfig
+from src.models.core import TransformerCore
+from src.models.transformer import TransformerConfig
 from src.inference import greedy_decoding, beam_decoding
 from src.utils import init_bert_weights, create_masks
 
@@ -60,8 +61,9 @@ class Transformer(TransformerCore):
 
         # Log train loss
         self.train_loss += loss.item()
-        if (self.trainer.global_step + 1) % self.trainer.log_every_n_steps == 0:
-            self.log("train_loss", self.train_loss / self.trainer.log_every_n_steps, prog_bar=True)
+        log_steps = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
+        if (self.trainer.global_step + 1) % log_steps == 0:
+            self.log("train_loss", self.train_loss / log_steps, prog_bar=True)
             self.train_loss = 0
         elif self.trainer.global_step == 0:
             self.log("train_loss", self.train_loss, prog_bar=True)

@@ -1,8 +1,8 @@
 import torch
 import math
 from torch import nn
-from src.models import TransformerCore
-from src.models import FTNATConfig
+from src.models.core import TransformerCore
+from src.models.ftnat import FTNATConfig
 from src.modules import DecoderLayerNAT, DecoderNAT, Fertility
 
 

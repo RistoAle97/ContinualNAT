@@ -1,6 +1,7 @@
 import torch
 from torch.functional import F
-from src.models import TransformerCore, CMLMConfig
+from src.models.core import TransformerCore
+from src.models.cmlm import CMLMConfig
 from src.modules import Pooler
 from src.utils import init_bert_weights, create_masks
 from typing import Tuple
