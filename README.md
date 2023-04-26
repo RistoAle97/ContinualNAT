@@ -7,7 +7,7 @@ Continual learning for multilingual non-autoregressive neural machine translatio
 ![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97-huggingface-FF9D00?style=for-the-badge&labelColor=FFD21E)
 
 ## Models
-The NAT models' names are based from the following [survey](https://arxiv.org/pdf/2204.09269.pdf).
+The NAT models' names are taken from the following [survey](https://arxiv.org/pdf/2204.09269.pdf).
 ### AR (autoregressive) models
 - [Transformer](https://arxiv.org/abs/1706.03762)
 
