@@ -59,16 +59,8 @@ class Transformer(TransformerCore):
         logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
         loss = self.compute_loss(logits, labels)
 
-        # Log train loss
-        self.train_loss += loss.item()
-        log_steps = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
-        if (self.trainer.global_step + 1) % log_steps == 0:
-            self.log("train_loss", self.train_loss / log_steps, prog_bar=True)
-            self.train_loss = 0
-        elif self.trainer.global_step == 0:
-            self.log("train_loss", self.train_loss, prog_bar=True)
-            self.train_loss = 0
-
+        # Update metrics for logging
+        self.train_metrics["train_loss"] += loss.item()
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -84,11 +76,7 @@ class Transformer(TransformerCore):
         loss = self.compute_loss(logits, labels)
 
         # Log validation loss
-        self.val_loss += loss.item()
-        if (batch_idx + 1) % len(self.trainer.val_dataloaders) == 0:
-            self.log("val_loss", self.val_loss / len(self.trainer.val_dataloaders), prog_bar=True)
-            self.val_loss = 0
-
+        self.val_metrics["val_loss"] += loss.item()
         return loss
 
     def generate(self,

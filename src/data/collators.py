@@ -119,13 +119,17 @@ class BatchCollatorCMLM(BatchCollator):
 
         # Retrieve all the special tokens from the tokenizer and its mask id
         if self.tokenizer.mask_token_id is None:
-            raise ValueError("For the CMLM model you should use a tokenizer that has a mask token defined.")
+            raise ValueError("For the CMLM model you should use a tokenizer whose mask token is defined.")
 
+        # tokenizer_special_tokens = self.tokenizer.all_special_ids
+        # tokenizer_special_tokens.remove(self.tokenizer.eos_token_id)  # the end of sequence token can be masked
         mask_token_id = self.tokenizer.mask_token_id
+        # tokenizer_special_tokens = torch.tensor(tokenizer_special_tokens)
 
         # Build the special tokens mask and get how many of them are there for each sentence
         special_tokens_masks = [self.tokenizer.get_special_tokens_mask(sentence, already_has_special_tokens=True)
                                 for sentence in labels]
+        # special_tokens_masks = torch.isin(labels, tokenizer_special_tokens)
         special_tokens_masks = torch.tensor(special_tokens_masks)  # 1 if special token, 0 otherwise
         n_special_tokens = torch.sum(special_tokens_masks, dim=-1)
 

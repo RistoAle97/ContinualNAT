@@ -27,9 +27,8 @@ class CMLM(TransformerCore):
         self.apply(init_bert_weights)
 
         # Train and validation losses
-        self.logits_loss = 0
-        self.lengths_loss = 0
-        self.val_loss = 0
+        self.train_metrics["cmlm_logits_loss"] = 0
+        self.train_metrics["cmlm_lengths_loss"] = 0
 
     def __check_length_token(self, input_ids: torch.Tensor) -> bool:
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
@@ -106,25 +105,10 @@ class CMLM(TransformerCore):
         logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
         loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
 
-        # Log train loss
-        self.train_loss += loss.item()
-        self.logits_loss += logits_loss
-        self.lengths_loss += lengths_loss
-        if (self.trainer.global_step + 1) % self.trainer.log_every_n_steps == 0:
-            self.log("train_loss", self.train_loss / self.trainer.log_every_n_steps, prog_bar=True)
-            self.log("cmlm_logits_loss", self.logits_loss / self.trainer.log_every_n_steps)
-            self.log("cmlm_lengths_loss", self.lengths_loss / self.trainer.log_every_n_steps)
-            self.train_loss = 0
-            self.logits_loss = 0
-            self.lengths_loss = 0
-        elif self.trainer.global_step == 0:
-            self.log("train_loss", self.train_loss, prog_bar=True)
-            self.log("cmlm_logits_loss", self.logits_loss)
-            self.log("cmlm_lengths_loss", self.lengths_loss)
-            self.train_loss = 0
-            self.logits_loss = 0
-            self.lengths_loss = 0
-
+        # Update metrics for logging
+        self.train_metrics["train_loss"] += loss.item()
+        self.train_metrics["cmlm_logits_loss"] += logits_loss
+        self.train_metrics["cmlm_lengths_loss"] += lengths_loss
         return loss
 
     def __mask_predict(self,

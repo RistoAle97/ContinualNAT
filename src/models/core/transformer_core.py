@@ -1,17 +1,16 @@
 import torch
-import pytorch_lightning as pl
 from torch import nn
 from torch.optim import AdamW
+from lightning import LightningModule
 from transformers import get_cosine_schedule_with_warmup
 from src.models.core import CoreConfig
 from src.modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
     TransformerDecoder
 
 
-class TransformerCore(pl.LightningModule):
+class TransformerCore(LightningModule):
 
-    def __init__(self,
-                 config: CoreConfig) -> None:
+    def __init__(self, config: CoreConfig) -> None:
         """
         This class does not implement the forward method and should be used only as a base for the actual model's
         implementation.
@@ -56,9 +55,10 @@ class TransformerCore(pl.LightningModule):
         self.linear_output = nn.Linear(self.d_model, self.vocab_size, bias=False)
         self.linear_output.weight = self.embedding.weight
 
-        # Train and validation losses
-        self.train_loss = 0
-        self.val_loss = 0
+        # Train and validation losses for logging purposes
+        self.batches_seen = 0
+        self.train_metrics = {"train_loss": 0}
+        self.val_metrics = {"val_loss": 0}
 
     def encode(self,
                e_input: torch.Tensor,
@@ -98,6 +98,29 @@ class TransformerCore(pl.LightningModule):
         Method for computing the model's loss.
         """
         raise NotImplementedError
+
+    def on_train_start(self) -> None:
+        # Set logging metrics to initial value (this is necessary if training is resumed from a checkpoint)
+        self.batches_seen = 0
+        self.train_metrics = dict.fromkeys(self.train_metrics, 0)
+        self.val_metrics = dict.fromkeys(self.val_metrics, 0)
+
+    def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
+        self.batches_seen += 1
+        batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
+        if self.batches_seen % batches == 0:
+            self.train_metrics = {key: value / batches for key, value in self.train_metrics.items()}
+            self.log_dict(self.train_metrics, prog_bar=True)
+            self.train_metrics = dict.fromkeys(self.train_metrics, 0)
+        elif self.batches_seen == 1:
+            self.log_dict(self.train_metrics, prog_bar=True)
+
+    def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx: int = 0) -> None:
+        dataloader_size = len(self.trainer.val_dataloaders)
+        if (batch_idx + 1) % dataloader_size == 0:
+            self.val_metrics = {key: value / dataloader_size for key, value in self.val_metrics.items()}
+            self.log_dict(self.val_metrics)
+            self.val_metrics = dict.fromkeys(self.val_metrics, 0)
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=5e-4)
