@@ -31,6 +31,6 @@ class Pooler(nn.Module):
 
     def forward(self, e_output: torch.Tensor) -> torch.Tensor:
         out = self.linear(e_output[:, 0])
-        out[:, 0] += float("-inf")
+        # out[:, 0] += float("-inf")
         # out = torch.tanh(out)
         return out
