@@ -1,34 +1,42 @@
+# Tokenizer
+tokenizer:
+  tokenizer_file: "tokenizers/sp_32k.json"
+  model_max_length: 1024
+  cls_token: "<length>"
+padding: "longest"
+
+# Dataset
+dataset:
+  path: "yhavinga/ccmatrix"
+  name: "en-es"
+  cache_dir: "/disk1/a.ristori/datasets/ccmatrix"
+  verification_mode: "no_checks"
+
 # Model
-model:
-  name: "Transformer" # this should reflect the model's class that you want to train
-  parameters:
+model: # you should add or change some parameters depending on the model you are training
     d_model: 512
     n_heads: 8
     num_encoder_layers: 6
     num_decoder_layers: 6
     dim_ff: 2048
     dropout: 0.1
-    layer_norm_eps: float = 1e-6
+    dropout_mha: 0.0
+    dropout_ff: 0.0
+    activation_ff: "relu"
+    layer_norm_eps: 0.000001
+    scale_embeddings: False
 
-# Tokenizer
-tokenizer: "facebook/mbart-large-cc25"
-padding: "longest"
+# Languages
+src_lang: "en"
+tgt_lang: "es"
 
-# Dataset
-dataset:
-  path: "yhavinga/ccmatrix"
-  name: "en-de"
-  cache_dir: "/disk1/a.ristori/datasets/ccmatrix"
+# Batch sizes anx maximum number of tokens per sentence
+train_batch_size: 512
+val_batch_size: 32
+max_length: 128
 
 # Training parameters
-src_lang: "en"
-tgt_lang: "de"
-batch_size: 256
-max_length: 128
-tokens_per_batch: 4096
-accumulate_gradient: False
+accumulate_gradient: True
+tokens_per_batch: 128000
 training_updates: 100000
-log_step: 100
-
-# Scheduler
-warmup_steps: 4000
+log_step: 500
