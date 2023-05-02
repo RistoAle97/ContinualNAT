@@ -1,4 +1,5 @@
 import torch
+from transformers import PreTrainedTokenizerBase
 from typing import Tuple
 
 
@@ -51,3 +52,26 @@ def create_masks(input_ids: torch.Tensor,
 
     d_mask = d_pad_mask & nopeak_mask  # (bsz, seq_len, seq_len)
     return e_mask, d_mask
+
+
+def mask_batch(tokenizer: PreTrainedTokenizerBase, batch: torch.Tensor) -> torch.Tensor:
+    """
+    Mask all the non-special tokens inside a batch. As an example:
+        [CLS] 3 10 129 9 149 [EOS] [LANG] [PAD] [PAD]
+    will be masked as
+        [CLS] [MASK] [MASK] [MASK] [MASK] [MASK] [EOS] [LANG] [PAD] [PAD].
+    :param tokenizer: the tokenizer that will provide the special tokens mask and the mask token.
+    :param batch: the tokenized batch to mask.
+    :return: the masked tokenized batch.
+    """
+    # Retrieve all the special tokens from the tokenizer
+    if tokenizer.mask_token_id is None:
+        raise ValueError("You should use a tokenizer whose mask token is defined.")
+
+    # Build the special tokens mask, such tokens must not be masked
+    special_tokens_masks = torch.tensor([tokenizer.get_special_tokens_mask(sentence, already_has_special_tokens=True)
+                                         for sentence in batch])
+    maskable_tokens = (special_tokens_masks.view(-1) == 0)
+    masked_batch = batch.clone().detach()
+    masked_batch.view(-1)[maskable_tokens] = tokenizer.mask_token_id
+    return masked_batch
