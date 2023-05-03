@@ -29,7 +29,7 @@ class BatchCollator:
         :param add_special_tokens: whether to use special tokens during the tokenization (default=True)-
         :param return_tensors: type of tensors from the tokenizer (default="pt").
         :param use_language_tokens: whether to use language tokens by the tokenizer (default=True).
-        :param is_mlm: whether the collator is used for a masked language model (MLM), it False then we're dealing with
+        :param is_mlm: whether the collator is used for a masked language model (MLM), if False then we're dealing with
             a causal model and the labels must be shifted to the right in order to create the decoder inputs
             (default=False).
         :param use_cls_token: whether to add the cls token at the beginnning of the source sentences (default=False).
@@ -64,7 +64,7 @@ class BatchCollator:
 
         # Create decoder input ids
         if not self.is_mlm:
-            if self.use_language_tokens and tokenizer_has_lang_codes and labels_batch[0, 0]:
+            if self.use_language_tokens and tokenizer_has_lang_codes:
                 tgt_lang_token_id = self.tokenizer.lang_code_to_id[self.tokenizer.tgt_lang]
                 starts_with_tgt_lang_token = labels_batch[0, 0].eq(tgt_lang_token_id)
                 if starts_with_tgt_lang_token:
@@ -121,15 +121,11 @@ class BatchCollatorCMLM(BatchCollator):
         if self.tokenizer.mask_token_id is None:
             raise ValueError("For the CMLM model you should use a tokenizer whose mask token is defined.")
 
-        # tokenizer_special_tokens = self.tokenizer.all_special_ids
-        # tokenizer_special_tokens.remove(self.tokenizer.eos_token_id)  # the end of sequence token can be masked
         mask_token_id = self.tokenizer.mask_token_id
-        # tokenizer_special_tokens = torch.tensor(tokenizer_special_tokens)
 
         # Build the special tokens mask and get how many of them are there for each sentence
         special_tokens_masks = [self.tokenizer.get_special_tokens_mask(sentence, already_has_special_tokens=True)
                                 for sentence in labels]
-        # special_tokens_masks = torch.isin(labels, tokenizer_special_tokens)
         special_tokens_masks = torch.tensor(special_tokens_masks)  # 1 if special token, 0 otherwise
         n_special_tokens = torch.sum(special_tokens_masks, dim=-1)
 
