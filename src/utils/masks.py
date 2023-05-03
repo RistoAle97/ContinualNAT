@@ -72,6 +72,6 @@ def mask_batch(tokenizer: PreTrainedTokenizerBase, batch: torch.Tensor) -> torch
     special_tokens_masks = torch.tensor([tokenizer.get_special_tokens_mask(sentence, already_has_special_tokens=True)
                                          for sentence in batch])
     maskable_tokens = (special_tokens_masks.view(-1) == 0)
-    masked_batch = batch.clone().detach()
+    masked_batch = batch.detach().clone()
     masked_batch.view(-1)[maskable_tokens] = tokenizer.mask_token_id
     return masked_batch
