@@ -63,7 +63,7 @@ class CMLM(TransformerCore):
 
     def predict_target_length(self, e_output: torch.Tensor, n_lengths: int = 1) -> torch.Tensor:
         """
-        Computes the encodings of the target sentence length given the encoder's output.
+        Computes the target sentence possible lengths given the encoder's output.
         :param e_output: the encoder's output.
         :param n_lengths: the number of possible lengths to consider for each sentence.
         :return: the encodings of the target sentence length.
@@ -118,17 +118,26 @@ class CMLM(TransformerCore):
                        iterations: int = 10) -> Tuple[torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             # Parameters
-            batch_size, seq_len = tgt_input.size()
+            bsz, seq_len = tgt_input.size()
             device = next(self.parameters()).device
 
-            # Make first prediction in a fully non-autoregressive way
+            # Make the first prediction in a fully non-autoregressive way
             d_mask = tgt_input.ne(self.pad_token_id).unsqueeze(1).to(device)  # this mask will never change
             tgt_lengths = seq_len - tgt_input.ne(self.mask_token_id).sum(dim=-1)
             output = self.decode(tgt_input, encodings, d_mask=d_mask, e_mask=e_mask)
             logits = F.log_softmax(output, dim=-1)
             p_tokens, tokens = logits.max(dim=-1)  # tokens probabilites and their ids
-            tokens.view(-1)[(d_mask == 0).view(-1).nonzero()] = self.pad_token_id
-            p_tokens.view(-1)[(d_mask == 0).view(-1).nonzero()] = 0
+
+            # Non-maskable tokens (such as eos, pad and lang tokens) should not be among those to be predicted
+            non_maskable_tokens = torch.zeros(bsz, seq_len, dtype=torch.int)
+            non_maskable_tokens[(torch.arange(bsz), tgt_lengths.view(-1))] = 1
+            non_maskable_tokens = non_maskable_tokens.cumsum(dim=1)
+            non_maskable_tokens = (non_maskable_tokens == 1).view(-1)
+
+            # Take the non-maskable tokens from the target input and set their probabilities to zero in order to not
+            # choose them during mask-predict iterations
+            tokens.view(-1)[non_maskable_tokens] = tgt_input.view(-1)[non_maskable_tokens]
+            p_tokens.view(-1)[non_maskable_tokens] = 0
 
             # Mask-predict iterations
             for i in range(1, iterations):
@@ -136,13 +145,13 @@ class CMLM(TransformerCore):
                 n_masks = (tgt_lengths * (1.0 - i / iterations)).int()
 
                 # Compute the indexes of the worst tokens in terms of probability
-                masks = [p_tokens[batch, :].topk(max(1, n_masks[batch]), largest=False, sorted=False)[1] for batch in
-                         range(batch_size)]
+                masks = [p_tokens[batch, :tgt_lengths[batch]].topk(max(1, n_masks[batch]), largest=False,
+                                                                   sorted=False)[1] for batch in range(bsz)]
                 masks = [torch.cat([mask, mask.new(seq_len - mask.size(0)).fill_(mask[0])], dim=0) for mask in masks]
                 masks = torch.stack(masks, dim=0)
 
                 # Apply the masks
-                masks = masks + torch.arange(0, batch_size * seq_len, seq_len, device=device).unsqueeze(1)
+                masks = masks + torch.arange(0, bsz * seq_len, seq_len, device=device).unsqueeze(1)
                 tokens.view(-1)[masks.view(-1)] = self.mask_token_id
 
                 # Compute the new tokens and their probabilities
@@ -152,9 +161,7 @@ class CMLM(TransformerCore):
 
                 # Update the output tokens and probabilities
                 p_tokens.view(-1)[masks.view(-1)] = new_p_tokens.view(-1)[masks.view(-1)]
-                p_tokens.view(-1)[(d_mask == 0).view(-1).nonzero()] = 0
                 tokens.view(-1)[masks.view(-1)] = new_tokens.view(-1)[masks.view(-1)]
-                tokens.view(-1)[(d_mask == 0).view(-1).nonzero()] = self.pad_token_id
 
             # Sum the log probabilities of the tokens for each sentence
             log_p_tokens = p_tokens.sum(-1)
@@ -169,7 +176,7 @@ class CMLM(TransformerCore):
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.
         :param input_ids: the tokenized source sentence.
-        :param tgt_lang_token_id: the target language token id, if none is passed, then no token will appended ad the
+        :param tgt_lang_token_id: the target language token id, if none is passed, then no token will appended at the
             end of the target tokens (default=None).
         :param iterations: the number of iterations of the mask-predict. If its value is equal to 1, then the decoding
             will be purely non-autoregressive (default=10).

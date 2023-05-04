@@ -37,7 +37,7 @@ def create_masks(input_ids: torch.Tensor,
         diagonal (the model will not attend on the current position). (default=None)
     :return: the masks for both the encoder and decoder of a transformer-based model.
     """
-    e_mask = input_ids.ne(pad_token_id).unsqueeze(1).to(input_ids.device)
+    e_mask = input_ids.ne(pad_token_id).unsqueeze(1).to(input_ids.device)  # (bsz, 1, seq_len)
     d_pad_mask = decoder_input_ids.ne(pad_token_id).unsqueeze(1).to(decoder_input_ids.device)
     if decoder_mask not in [None, "causal", "diagonal"]:
         raise ValueError("The decoder mask should be one of None, \"causal\" and \"diagonal\"")

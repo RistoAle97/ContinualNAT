@@ -1,6 +1,5 @@
 from torch import nn
 from typing import Tuple
-# from ..models import TransformerCore
 
 
 def init_bert_weights(module: nn.Module) -> None:
