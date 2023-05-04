@@ -22,18 +22,15 @@ class Pooler(nn.Module):
     def __init__(self, d_model: int = 512):
         """
         Pooler layer similar to the one from BERT by Devlin et al. https://arxiv.org/pdf/1810.04805.pdf. While its main
-        application is for classification tasks, it can also be used as length predictor as Ghazvininejad et al.
+        application is for classification tasks, it can also be used as a length predictor as Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.
         :param d_model: embedding dimension (default=512).
         """
         super().__init__()
-        self.linear = nn.Linear(d_model, d_model)
+        self.linear = nn.Linear(d_model, d_model, bias=False)
 
-    def forward(self, e_output: torch.Tensor, length_prediction: bool = False) -> torch.Tensor:
+    def forward(self, e_output: torch.Tensor) -> torch.Tensor:
         out = self.linear(e_output[:, 0])
-        out = torch.tanh(out)
-        if length_prediction:
-            out = F.log_softmax(out, -1)
-            out = out.argmax(-1)
-
+        # out[:, 0] += float("-inf")
+        # out = torch.tanh(out)
         return out

@@ -1,5 +1,5 @@
-from .transformer_core import TransformerCore
-from .transformer import Transformer
-from .ftnat import FTNAT
-from .refinenat import RefineNAT
-from .cmlm import CMLM
+from .core import CoreConfig, TransformerCore
+from .transformer import TransformerConfig, Transformer
+from .ftnat import FTNATConfig, FTNAT
+from .refinenat import RefineNATConfig, RefineNAT
+from .cmlm import CMLMConfig, CMLM

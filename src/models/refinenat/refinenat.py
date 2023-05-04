@@ -1,37 +1,32 @@
 import torch
 import math
 from torch import nn
-from ..modules import DecoderLayerNAT, DecoderNAT
-from . import TransformerCore
+from src.models.core import TransformerCore
+from src.models.refinenat import RefineNATConfig
+from src.modules import DecoderLayerNAT, DecoderNAT
 
 
 class RefineNAT(TransformerCore):
 
-    def __init__(self,
-                 vocab_size: int,
-                 d_model: int = 512,
-                 n_heads: int = 8,
-                 num_encoder_layers: int = 6,
-                 num_decoder_layers: int = 6,
-                 dim_ff: int = 2048,
-                 dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-6,
-                 use_highway_layer: bool = True) -> None:
-        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers,
-                         dim_ff, dropout, layer_norm_eps)
+    def __init__(self, config: RefineNATConfig) -> None:
+        """
+        The RefineNAT model by Lee et al. (https://arxiv.org/abs/1802.06901), the first NAT model whose decoding is
+        based on iterative refinement.
+        """
+        super().__init__(config)
         # Parameters
-        self.use_highway_layer = use_highway_layer
+        self.use_highway_layer = config.use_highway_layer
 
         # Decoders
-        decoder_layer = DecoderLayerNAT(d_model, n_heads, dim_ff, dropout, layer_norm_eps, True,
-                                        use_highway_layer)
-        norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.decoder = DecoderNAT(decoder_layer, num_decoder_layers, norm)
-        norm1 = nn.LayerNorm(d_model, layer_norm_eps)
-        self.decoder1 = DecoderNAT(decoder_layer, num_decoder_layers, norm1)
+        decoder_layer = DecoderLayerNAT(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.layer_norm_eps,
+                                        True, self.use_highway_layer)
+        norm = nn.LayerNorm(self.d_model, self.layer_norm_eps)
+        self.decoder = DecoderNAT(decoder_layer, self.num_decoder_layers, norm)
+        norm1 = nn.LayerNorm(self.d_model, self.layer_norm_eps)
+        self.decoder1 = DecoderNAT(decoder_layer, self.num_decoder_layers, norm1)
 
         # Linear output
-        self.linear_output1 = nn.Linear(d_model, self.tgt_vocab_size, bias=False)
+        self.linear_output1 = nn.Linear(self.d_model, self.tgt_vocab_size, bias=False)
 
     def forward(self,
                 src_input: torch.Tensor,

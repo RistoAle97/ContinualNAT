@@ -1,45 +1,21 @@
 import torch
 from torch.functional import F
-from .transformer_core import TransformerCore
-from ..inference import greedy_decoding, beam_decoding
-from ..utils import init_bert_weights, create_masks
+from src.models.core import TransformerCore
+from src.models.transformer import TransformerConfig
+from src.inference import greedy_decoding, beam_decoding
+from src.utils import init_bert_weights, create_masks
 
 
 class Transformer(TransformerCore):
 
-    def __init__(self,
-                 vocab_size: int,
-                 d_model: int = 512,
-                 n_heads: int = 8,
-                 num_encoder_layers: int = 6,
-                 num_decoder_layers: int = 6,
-                 dim_ff: int = 2048,
-                 dropout: float = 0.1,
-                 layer_norm_eps: float = 1e-6,
-                 scale_embeddings: bool = False,
-                 sos_token_id: int = 0,
-                 eos_token_id: int = 2,
-                 pad_token_id: int = 1) -> None:
+    def __init__(self, config: TransformerConfig) -> None:
         """
         Transformer model whose architecture is based on the paper "Attention is all you need" from Vaswani et al.
         https://arxiv.org/pdf/1706.03762.pdf. The model, differently from the pytorch implementation, comes with
         embeddings, positional encoding, linear output and softmax layers. The model expects inputs with the format
         (bsz, seq_len).
-        :param vocab_size: shared vocabulary size.
-        :param d_model: embedding dimension (default=512).
-        :param n_heads: the number of heads in the multi-attention mechanism (default=8).
-        :param num_encoder_layers: the number of encoder layers (default=6).
-        :param num_decoder_layers: the number of decoder layers (default=6).
-        :param dim_ff: dimension of the feedforward sublayer (default=2048).
-        :param dropout: the dropout value (default=0.1).
-        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
-        :param scale_embeddings: whether to scale the output of the embedding layer (default=False).
-        :param sos_token_id: the start of sequence token id (default=0).
-        :param eos_token_id: the end of sequence token id (default=2).
-        :param pad_token_id: the pad token id (default=1).
         """
-        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
-                         layer_norm_eps, scale_embeddings, sos_token_id, eos_token_id, pad_token_id)
+        super().__init__(config)
         # Initialize weights
         self.apply(init_bert_weights)
 
@@ -83,15 +59,8 @@ class Transformer(TransformerCore):
         logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
         loss = self.compute_loss(logits, labels)
 
-        # Log train loss
-        self.train_loss += loss.item()
-        if (self.trainer.global_step + 1) % self.trainer.log_every_n_steps == 0:
-            self.log("train_loss", self.train_loss / self.trainer.log_every_n_steps, prog_bar=True)
-            self.train_loss = 0
-        elif self.trainer.global_step == 0:
-            self.log("train_loss", self.train_loss, prog_bar=True)
-            self.train_loss = 0
-
+        # Update metrics for logging
+        self.train_metrics["train_loss"] += loss.item()
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -107,11 +76,7 @@ class Transformer(TransformerCore):
         loss = self.compute_loss(logits, labels)
 
         # Log validation loss
-        self.val_loss += loss.item()
-        if (batch_idx + 1) % len(self.trainer.val_dataloaders) == 0:
-            self.log("val_loss", self.val_loss / len(self.trainer.val_dataloaders), prog_bar=True)
-            self.val_loss = 0
-
+        self.val_metrics["val_loss"] += loss.item()
         return loss
 
     def generate(self,

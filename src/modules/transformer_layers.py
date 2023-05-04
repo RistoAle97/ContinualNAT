@@ -30,11 +30,11 @@ class MultiHeadAttention(nn.Module):
         self.out_proj = nn.Linear(d_model, d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def self_attention(self,
-                       query: torch.Tensor,
-                       key: torch.Tensor,
-                       value: torch.Tensor,
-                       mask: torch.Tensor = None) -> torch.Tensor:
+    def __self_attention(self,
+                         query: torch.Tensor,
+                         key: torch.Tensor,
+                         value: torch.Tensor,
+                         mask: torch.Tensor = None) -> torch.Tensor:
         attn_scores = torch.matmul(query, key.transpose(-2, -1))
         attn_scores /= self.d_model ** 0.5
         if mask is not None:
@@ -63,7 +63,7 @@ class MultiHeadAttention(nn.Module):
         v = v.transpose(1, 2)
 
         # Compute self-attention
-        scores = self.self_attention(q, k, v, mask)  # (bsz, n_heads, seq_len, d_model)
+        scores = self.__self_attention(q, k, v, mask)  # (bsz, n_heads, seq_len, d_model)
 
         # Concatenate heads and put through final linear layer
         concat = scores.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)

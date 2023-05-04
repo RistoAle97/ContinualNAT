@@ -1,4 +1,5 @@
 import torch
+import math
 
 
 SUPPORTED_LANGUAGES = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX", "es": "es_XX", "et": "et_EE",
@@ -33,3 +34,22 @@ def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tens
     shifted_input_ids[:, 1:] = shifted_input_ids[:, :-1].clone()
     shifted_input_ids[:, 0] = decoder_start_token_ids
     return shifted_input_ids
+
+
+def compute_accumulation_steps(batch_size: int, max_length: int, tokens_per_batch: int) -> int:
+    """
+    Computes the number of accumulation steps needed to reach, at least, the tokens per batch wanted by the user given
+    the batch size and the maximum number of tokens allowed per sentence.
+    :param batch_size: the batch size or, more easily explained, the number of sentences per batch.
+    :param max_length: the maximum number of tokens allowed per sentence, this also includes special tokens such as the
+        language ones.
+    :param tokens_per_batch: the number of tokens that the model should see at each training step.
+    :return: the number of accumulation steps needed to reach the desired tokens per batch.
+    """
+    actual_tokens_per_batch = batch_size * max_length
+    if tokens_per_batch > actual_tokens_per_batch:
+        accumulation_steps = math.ceil(tokens_per_batch / actual_tokens_per_batch)
+    else:
+        accumulation_steps = 1
+
+    return accumulation_steps
