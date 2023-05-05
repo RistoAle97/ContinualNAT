@@ -9,12 +9,12 @@ SUPPORTED_LANGUAGES = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX
                        "zh": "zh_CN"}
 
 
-def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
+def shift_lang_token_right(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
     """
-    Shift input ids one token to the right by moving the target language token to the sequence's start in a MBart style.
+    Shift input ids one token to the right by moving the language token to the sequence's start in a MBart style.
     :param input_ids: a tensor of shape (1, seq_len) or (seq_len).
     :param pad_token_id: id of the pad token.
-    :return: torch.Tensor shifted to the right.
+    :return: torch.Tensor with the language token moved to the beginning of each sequence.
     """
     if len(input_ids.shape) == 1:
         input_ids = input_ids.unsqueeze(0)

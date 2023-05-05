@@ -1,7 +1,7 @@
 import torch
 from torch.functional import F
 from src.models import TransformerCore
-from ..utils import generate_causal_mask, create_masks
+from ..utils import create_encoder_mask, create_decoder_mask
 
 
 def greedy_decoding(model: TransformerCore,
@@ -34,15 +34,13 @@ def greedy_decoding(model: TransformerCore,
         eos_token_id_tensor = torch.tensor([model.eos_token_id]).unsqueeze(1).to(device)
 
         # Encode the input tokens
-        e_mask = input_ids.ne(model.pad_token_id).unsqueeze(1).to(device)
+        e_mask = create_encoder_mask(input_ids, model.pad_token_id)
         e_output = model.encode(input_ids, e_mask)
 
         # Generate tokens in an autoregressive fashion
         for _ in range(max_length):
             # Obtain logits from the model's decoder
-            d_pad_mask = output.ne(model.pad_token_id).unsqueeze(1).to(device)
-            d_causal_mask = generate_causal_mask(output.size(-1)).to(device)
-            d_mask = d_pad_mask & d_causal_mask
+            d_mask = create_decoder_mask(output, model.pad_token_id, "causal")
             logits = model.decode(output, e_output, d_mask, e_mask)
 
             # Compute the new tokens and concatenate them to the previously generated ones
@@ -103,7 +101,7 @@ def beam_decoding(model: TransformerCore,
         output = torch.ones(batch_size * num_beams, 1, dtype=torch.int).fill_(decoder_start_token_id).to(device)
 
         # Encode the input tokens
-        e_mask = input_ids.ne(model.pad_token_id).unsqueeze(1).to(device)
+        e_mask = create_encoder_mask(input_ids, model.pad_token_id)
         e_output = model.encode(input_ids, e_mask)
 
         # Build the beam hypotheses and keep track of those sentences whose search has finished
@@ -113,7 +111,7 @@ def beam_decoding(model: TransformerCore,
         # Perform beam search
         cur_seq_len = 1
         while True:
-            _, d_mask = create_masks(input_ids, output, model.pad_token_id, decoder_mask="causal")
+            d_mask = create_decoder_mask(output, model.pad_token_id, "causal")
             logits = model.decode(output, e_output, d_mask, e_mask)
 
             # Compute the next tokens and their scores
