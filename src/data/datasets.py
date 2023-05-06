@@ -37,11 +37,19 @@ class TranslationDatasetCore:
         :param use_cls_token: whether to add the cls token at the beginnning of the source sentences (default=False).
         :param skip_idxs: the indices to skip (default=None).
         """
+        # Checks before initializing everything
+        if "translation" not in dataset.features.keys():
+            raise ValueError("You should use a dataset suitable for the translation task.")
+
+        if not hasattr(tokenizer, "src_lang") or not hasattr(tokenizer, "tgt_lang"):
+            raise ValueError("You should use a tokenizer that can has \"source_lang\" and \"tgt_lang\" defined.")
+
+        if src_lang not in SUPPORTED_LANGUAGES.keys() or tgt_lang not in SUPPORTED_LANGUAGES.keys():
+            raise ValueError("There should not be an unsupported language as the source or target language.")
+
         # Source and target languages
         self.src_lang = src_lang
         self.tgt_lang = tgt_lang
-        if "translation" not in dataset.features.keys():
-            raise ValueError("You should use a dataset suitable for the translation task.")
 
         # Dataset and stats about it
         self.dataset = dataset
@@ -51,12 +59,6 @@ class TranslationDatasetCore:
         self.max_length_tgt = 0
 
         # Tokenizer
-        if not hasattr(tokenizer, "src_lang") or not hasattr(tokenizer, "tgt_lang"):
-            raise ValueError("You should use a tokenizer that can has \"source_lang\" and \"tgt_lang\" defined.")
-
-        if src_lang not in SUPPORTED_LANGUAGES.keys() or tgt_lang not in SUPPORTED_LANGUAGES.keys():
-            raise ValueError("There should not be an unsupported language as the source or target language.")
-
         self.tokenizer = tokenizer
         self.tokenizer_state = {"truncation": truncation, "max_length": max_length, "padding": padding,
                                 "add_special_tokens": add_special_tokens, "return_tensors": return_tensors}
