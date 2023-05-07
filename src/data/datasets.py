@@ -95,9 +95,10 @@ class TranslationDatasetCore:
         tgt_sentence = sentence_pair[self.tgt_lang]
         self.tokenizer.src_lang = SUPPORTED_LANGUAGES[self.src_lang]
         self.tokenizer.tgt_lang = SUPPORTED_LANGUAGES[self.tgt_lang]
-        input_ids = self.tokenizer(src_sentence, **self.tokenizer_state)["input_ids"]
-        labels = self.tokenizer(text_target=tgt_sentence, **self.tokenizer_state)["input_ids"]
-        return {"input_ids": input_ids, "labels": labels}
+        input_ids = self.tokenizer(src_sentence, **self.tokenizer_state)
+        labels = self.tokenizer(text_target=tgt_sentence, **self.tokenizer_state, return_special_tokens_mask=True)
+        return {"input_ids": input_ids["input_ids"], "labels": labels["input_ids"],
+                "special_mask_labels": labels["special_tokens_mask"]}
 
 
 class TranslationDataset(TranslationDatasetCore, Dataset):
