@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torch.optim import AdamW
+from torchmetrics import MeanMetric
 from lightning import LightningModule
 from transformers import get_cosine_schedule_with_warmup
 from src.models.core import CoreConfig
@@ -56,9 +57,8 @@ class TransformerCore(LightningModule):
         self.linear_output.weight = self.embedding.weight
 
         # Train and validation losses for logging purposes
-        self.batches_seen = 0
-        self.train_metrics = {"train_loss": 0}
-        self.val_metrics = {"val_loss": 0}
+        self.train_metrics = {"train_loss": MeanMetric()}
+        self.val_metrics = {"val_loss": MeanMetric()}
 
     def encode(self,
                e_input: torch.Tensor,
@@ -100,27 +100,36 @@ class TransformerCore(LightningModule):
         raise NotImplementedError
 
     def on_train_start(self) -> None:
-        # Set logging metrics to initial value (this is necessary if training is resumed from a checkpoint)
-        self.batches_seen = 0
-        self.train_metrics = dict.fromkeys(self.train_metrics, 0)
-        self.val_metrics = dict.fromkeys(self.val_metrics, 0)
+        # Set logging metrics to initial values (this is necessary if training is resumed from a checkpoint)
+        self.train_metrics = dict.fromkeys(self.train_metrics, MeanMetric())
+        if isinstance(self.trainer.val_dataloaders, dict):
+            self.val_metrics = {f"val_loss_{lang_pair}": MeanMetric()
+                                for lang_pair in self.trainer.val_dataloaders.keys()}
+        elif isinstance(self.trainer.val_dataloaders, list):
+            self.val_metrics = {f"val_loss_{i}": MeanMetric() for i in range(len(self.trainer.val_dataloaders))}
+        else:
+            self.val_metrics = dict.fromkeys(self.val_metrics, MeanMetric())
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
-        self.batches_seen += 1
         batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
-        if self.batches_seen % batches == 0:
-            self.train_metrics = {key: value / batches for key, value in self.train_metrics.items()}
-            self.log_dict(self.train_metrics, prog_bar=True)
-            self.train_metrics = dict.fromkeys(self.train_metrics, 0)
-        elif self.batches_seen == 1:
-            self.log_dict(self.train_metrics, prog_bar=True)
+        if batch_idx * (self.trainer.current_epoch + 1) % batches == 0:
+            metrics_to_log = {metric_name: metric.compute() for metric_name, metric in self.train_metrics.items()}
+            self.log_dict(metrics_to_log, prog_bar=True)
+            for metric in self.train_metrics.values():
+                metric.reset()
+
+        elif batch_idx == 0 and self.trainer.current_epoch == 0:
+            metrics_to_log = {metric_name: value.compute() for metric_name, value in self.train_metrics.items()}
+            self.log_dict(metrics_to_log, prog_bar=True)
 
     def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx: int = 0) -> None:
-        dataloader_size = len(self.trainer.val_dataloaders)
-        if (batch_idx + 1) % dataloader_size == 0:
-            self.val_metrics = {key: value / dataloader_size for key, value in self.val_metrics.items()}
-            self.log_dict(self.val_metrics)
-            self.val_metrics = dict.fromkeys(self.val_metrics, 0)
+        langs_dataloader = list(self.trainer.val_dataloaders.items())[dataloader_idx]
+        lang_pair, dataloader = langs_dataloader
+        if (batch_idx + 1) % len(dataloader) == 0:
+            metric_name = f"val_loss_{lang_pair}"
+            metric_to_log = {metric_name: self.val_metrics[metric_name].compute()}
+            self.log_dict(metric_to_log, prog_bar=True, add_dataloader_idx=False)
+            self.val_metrics[metric_name].reset()
 
     def configure_optimizers(self):
         optimizer = AdamW(self.parameters(), lr=5e-4)
