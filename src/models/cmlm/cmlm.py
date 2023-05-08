@@ -1,5 +1,6 @@
 import torch
 from torch.functional import F
+from torchmetrics import MeanMetric
 from src.models.core import TransformerCore
 from src.models.cmlm import CMLMConfig
 from src.modules import Pooler
@@ -27,8 +28,9 @@ class CMLM(TransformerCore):
         self.apply(init_bert_weights)
 
         # Train and validation losses
-        self.train_metrics["cmlm_logits_loss"] = 0
-        self.train_metrics["cmlm_lengths_loss"] = 0
+        self.train_metrics["cmlm_logits_loss"] = MeanMetric()
+        self.train_metrics["cmlm_lengths_loss"] = MeanMetric()
+        self.val_metrics["cmlm_val_length_loss"] = MeanMetric()
 
     def __check_length_token(self, input_ids: torch.Tensor) -> bool:
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
@@ -106,9 +108,34 @@ class CMLM(TransformerCore):
         loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
 
         # Update metrics for logging
-        self.train_metrics["train_loss"] += loss.item()
-        self.train_metrics["cmlm_logits_loss"] += logits_loss
-        self.train_metrics["cmlm_lengths_loss"] += lengths_loss
+        self.train_metrics["train_loss"].update(loss.item())
+        self.train_metrics["cmlm_mlm_loss"].update(logits_loss)
+        self.train_metrics["cmlm_lengths_loss"].update(lengths_loss)
+        return loss
+
+    def validation_step(self, batch, batch_idx, dataloader_idx):
+        input_ids = batch["input_ids"]
+        labels = batch["labels"]
+        decoder_input_ids = batch["decoder_input_ids"]
+        target_lengths = batch["target_lengths"]
+
+        # Create masks
+        e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id)
+
+        # Compute loss
+        logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
+        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
+
+        # Log validation loss
+        lang_pairs = list(self.trainer.val_dataloaders.keys())
+        lang_pair = lang_pairs[dataloader_idx]
+        if f"val_loss_{lang_pair}" not in self.val_metrics:
+            self.val_metrics[f"val_loss_{lang_pair}"] = MeanMetric()
+            self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"] = MeanMetric()
+
+        self.val_metrics[f"val_loss_{lang_pair}"].update(loss.item())
+        self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"].update(logits_loss)
+        self.val_metrics["cmlm_val_lengths_loss"].update(lengths_loss)
         return loss
 
     def __mask_predict(self,
