@@ -46,7 +46,7 @@ class MultilingualTrainer:
         self.val_every_n_steps = val_every_n_steps
         self.log_every_n_steps = log_every_n_steps
         self.ckpt_every_n_steps = ckpt_every_n_steps
-        self.accumulation_steps = compute_accumulation_steps(train_bsz, max_length, tokens_per_batch)
+        self.accumulation_steps = compute_accumulation_steps(self.train_bsz, self.max_length, self.tokens_per_batch)
         self.streaming = streaming
         self.train_datasets, self.val_datasets = self.__build_datasets(train_dataset_cache_dir, val_dataset_cache_dir)
 

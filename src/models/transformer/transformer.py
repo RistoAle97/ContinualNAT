@@ -79,9 +79,6 @@ class Transformer(TransformerCore):
         # Log validation loss
         lang_pairs = list(self.trainer.val_dataloaders.keys())
         lang_pair = lang_pairs[dataloader_idx]
-        if f"val_loss_{lang_pair}" not in self.val_metrics:
-            self.val_metrics[f"val_loss_{lang_pair}"] = MeanMetric()
-
         self.val_metrics[f"val_loss_{lang_pair}"].update(loss.item())
         return loss
 

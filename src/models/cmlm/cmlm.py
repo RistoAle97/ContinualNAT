@@ -106,6 +106,14 @@ class CMLM(TransformerCore):
         loss = logits_loss + lengths_loss
         return loss, logits_loss.item(), lengths_loss.item()
 
+    def on_validation_start(self) -> None:
+        lang_pairs = list(self.trainer.val_dataloaders.keys())
+        for lang_pair in lang_pairs:
+            if f"val_loss_{lang_pair}" not in self.val_metrics:
+                self.val_metrics[f"val_loss_{lang_pair}"] = MeanMetric()
+                self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"] = MeanMetric()
+                self.val_metrics[f"cmlm_val_lengths_loss_{lang_pair}"] = MeanMetric()
+
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
         labels = batch["labels"]
@@ -119,7 +127,7 @@ class CMLM(TransformerCore):
         logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
         loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
 
-        # Update metrics for logging
+        # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
         self.train_metrics["cmlm_mlm_loss"].update(logits_loss)
         self.train_metrics["cmlm_lengths_loss"].update(lengths_loss)
@@ -138,14 +146,9 @@ class CMLM(TransformerCore):
         logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
         loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
 
-        # Log validation loss
+        # Update validation metrics
         lang_pairs = list(self.trainer.val_dataloaders.keys())
         lang_pair = lang_pairs[dataloader_idx]
-        if f"val_loss_{lang_pair}" not in self.val_metrics:
-            self.val_metrics[f"val_loss_{lang_pair}"] = MeanMetric()
-            self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"] = MeanMetric()
-            self.val_metrics[f"cmlm_val_lengths_loss_{lang_pair}"] = MeanMetric()
-
         self.val_metrics[f"val_loss_{lang_pair}"].update(loss.item())
         self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"].update(logits_loss)
         self.val_metrics[f"cmlm_val_lengths_loss_{lang_pair}"].update(lengths_loss)

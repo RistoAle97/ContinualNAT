@@ -100,9 +100,13 @@ class TransformerCore(LightningModule):
         raise NotImplementedError
 
     def on_train_start(self) -> None:
-        # Set logging metrics to initial values (this is necessary if training is resumed from a checkpoint)
-        self.train_metrics = dict.fromkeys(self.train_metrics, MeanMetric())
-        self.val_metrics = dict.fromkeys(self.val_metrics, MeanMetric())
+        self.train_metrics = {metric_name: MeanMetric() for metric_name in self.train_metrics.keys()}
+
+    def on_validation_start(self) -> None:
+        lang_pairs = list(self.trainer.val_dataloaders.keys())
+        for lang_pair in lang_pairs:
+            if f"val_loss_{lang_pair}" not in self.val_metrics:
+                self.val_metrics[f"val_loss_{lang_pair}"] = MeanMetric()
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
