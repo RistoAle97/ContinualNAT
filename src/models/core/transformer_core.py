@@ -102,13 +102,7 @@ class TransformerCore(LightningModule):
     def on_train_start(self) -> None:
         # Set logging metrics to initial values (this is necessary if training is resumed from a checkpoint)
         self.train_metrics = dict.fromkeys(self.train_metrics, MeanMetric())
-        if isinstance(self.trainer.val_dataloaders, dict):
-            self.val_metrics = {f"val_loss_{lang_pair}": MeanMetric()
-                                for lang_pair in self.trainer.val_dataloaders.keys()}
-        elif isinstance(self.trainer.val_dataloaders, list):
-            self.val_metrics = {f"val_loss_{i}": MeanMetric() for i in range(len(self.trainer.val_dataloaders))}
-        else:
-            self.val_metrics = dict.fromkeys(self.val_metrics, MeanMetric())
+        self.val_metrics = dict.fromkeys(self.val_metrics, MeanMetric())
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches

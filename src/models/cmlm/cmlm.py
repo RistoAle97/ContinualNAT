@@ -28,9 +28,8 @@ class CMLM(TransformerCore):
         self.apply(init_bert_weights)
 
         # Train and validation losses
-        self.train_metrics["cmlm_logits_loss"] = MeanMetric()
+        self.train_metrics["cmlm_mlm_loss"] = MeanMetric()
         self.train_metrics["cmlm_lengths_loss"] = MeanMetric()
-        self.val_metrics["cmlm_val_length_loss"] = MeanMetric()
 
     def __check_length_token(self, input_ids: torch.Tensor) -> bool:
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
@@ -132,11 +131,25 @@ class CMLM(TransformerCore):
         if f"val_loss_{lang_pair}" not in self.val_metrics:
             self.val_metrics[f"val_loss_{lang_pair}"] = MeanMetric()
             self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"] = MeanMetric()
+            self.val_metrics[f"cmlm_val_lengths_loss_{lang_pair}"] = MeanMetric()
 
         self.val_metrics[f"val_loss_{lang_pair}"].update(loss.item())
         self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"].update(logits_loss)
-        self.val_metrics["cmlm_val_lengths_loss"].update(lengths_loss)
+        self.val_metrics[f"cmlm_val_lengths_loss_{lang_pair}"].update(lengths_loss)
         return loss
+
+    def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx: int = 0) -> None:
+        langs_dataloader = list(self.trainer.val_dataloaders.items())[dataloader_idx]
+        lang_pair, dataloader = langs_dataloader
+        if (batch_idx + 1) % len(dataloader) == 0:
+            val_loss = f"val_loss_{lang_pair}"
+            mlm_loss = f"cmlm_val_mlm_loss_{lang_pair}"
+            lengths_loss = f"cmlm_val_lengths_loss_{lang_pair}"
+            metrics = [val_loss, mlm_loss, lengths_loss]
+            metrics_to_log = {metric: self.val_metrics[metric].compute() for metric in metrics}
+            self.log_dict(metrics_to_log, prog_bar=True, add_dataloader_idx=False)
+            for metric in metrics:
+                self.val_metrics[metric].reset()
 
     def __mask_predict(self,
                        encodings: torch.Tensor,
