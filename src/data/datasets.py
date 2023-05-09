@@ -1,12 +1,12 @@
 import torch
 import datasets
 import numpy as np
-from transformers import PreTrainedTokenizerBase
+from transformers import PreTrainedTokenizerBase, MBartTokenizer, MBartTokenizerFast
 from transformers.utils import PaddingStrategy, TensorType
 from torch.utils.data import Dataset, IterableDataset
 from tqdm.auto import tqdm
 from typing import Dict, Iterator, Set, Union
-from src.utils import SUPPORTED_LANGUAGES
+from src.utils import SUPPORTED_LANGS, MBART_LANG_MAP
 
 
 class TranslationDatasetCore:
@@ -44,12 +44,17 @@ class TranslationDatasetCore:
         if not hasattr(tokenizer, "src_lang") or not hasattr(tokenizer, "tgt_lang"):
             raise ValueError("You should use a tokenizer that can has \"source_lang\" and \"tgt_lang\" defined.")
 
-        if src_lang not in SUPPORTED_LANGUAGES.keys() or tgt_lang not in SUPPORTED_LANGUAGES.keys():
+        if src_lang not in SUPPORTED_LANGS or tgt_lang not in SUPPORTED_LANGS:
             raise ValueError("There should not be an unsupported language as the source or target language.")
 
         # Source and target languages
         self.src_lang = src_lang
         self.tgt_lang = tgt_lang
+        self.tokenizer_src_lang_code = src_lang
+        self.tokenizer_tgt_lang_code = tgt_lang
+        if isinstance(tokenizer, MBartTokenizer) or isinstance(tokenizer, MBartTokenizerFast):
+            self.tokenizer_src_lang_code = MBART_LANG_MAP[src_lang]
+            self.tokenizer_tgt_lang_code = MBART_LANG_MAP[tgt_lang]
 
         # Dataset and stats about it
         self.dataset = dataset
@@ -93,8 +98,8 @@ class TranslationDatasetCore:
         src_sentence = sentence_pair[self.src_lang]
         src_sentence = self.tokenizer.cls_token + " " + src_sentence if self.use_cls_token else src_sentence
         tgt_sentence = sentence_pair[self.tgt_lang]
-        self.tokenizer.src_lang = SUPPORTED_LANGUAGES[self.src_lang]
-        self.tokenizer.tgt_lang = SUPPORTED_LANGUAGES[self.tgt_lang]
+        self.tokenizer.src_lang = self.tokenizer_src_lang_code
+        self.tokenizer.tgt_lang = self.tokenizer_tgt_lang_code
         input_ids = self.tokenizer(src_sentence, **self.tokenizer_state)
         labels = self.tokenizer(text_target=tgt_sentence, **self.tokenizer_state, return_special_tokens_mask=True)
         return {"input_ids": input_ids["input_ids"], "labels": labels["input_ids"],
@@ -137,7 +142,7 @@ class TranslationDataset(TranslationDatasetCore, Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx) -> Dict[str, torch.Tensor]:
-        while idx in self.skip_idxs:
+        while self.dataset[idx]["id"] in self.skip_idxs:
             idx = np.random.randint(0, self.__len__())
 
         sentence_pair = self.dataset[idx]["translation"]
