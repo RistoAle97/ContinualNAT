@@ -35,6 +35,19 @@ class CMLM(TransformerCore):
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
         return is_using_length_token.all()
 
+    def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
+        self.__check_length_token(e_input)
+        e_output = super().encode(e_input, e_mask)
+        return e_output
+
+    def decode(self,
+               tgt_input: torch.Tensor,
+               e_output: torch.Tensor,
+               d_mask: torch.Tensor = None,
+               e_mask: torch.Tensor = None) -> torch.Tensor:
+        d_output = super().decode(tgt_input, e_output[:, 1:], d_mask, e_mask[:, :, 1:])
+        return d_output
+
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,

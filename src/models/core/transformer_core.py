@@ -66,7 +66,7 @@ class TransformerCore(LightningModule):
         """
         Encodes the masked source sentence.
         :param e_input: torch tensor of shape (bsz, seq_len).
-        :param e_mask: mask for the encoder of shape (bsz, seq_len).
+        :param e_mask: mask for the encoder of shape (bsz, 1, seq_len).
         :return: torch tensor representing the encodings with shape (bsz, seq_len, d_model).
         """
         src_embeddings = self.embedding(e_input)  # (bsz, seq_len, d_model)
@@ -83,8 +83,8 @@ class TransformerCore(LightningModule):
         Decodes the masked target sentence given the encodings of the source sentence.
         :param e_output: encodings coming from the encoder of shape (bsz, seq_len, d_model).
         :param tgt_input: torch tensor of shape (bsz, seq_len)
-        :param e_mask: mask for the encoder of shape (bsz, seq_len).
-        :param d_mask: mask for the decoder of shape (bsz, seq_len).
+        :param e_mask: mask for the encoder of shape (bsz, 1, seq_len).
+        :param d_mask: mask for the decoder of shape (bsz, seq_len, seq_len).
         :return: torch tensor representing the decodings with shape (bsz, seq_len, vocab_size).
         """
         tgt_embeddings = self.embedding(tgt_input)  # (bsz, seq_len, d_model)

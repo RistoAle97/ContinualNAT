@@ -9,9 +9,9 @@ Conditional Masked Language Models](https://arxiv.org/abs/1904.09324)
   - At the first iteration ($t=0$), the entire target sentence is masked; for later iterations, the number of masks $n$ is computed based on the number of iterations $T$.
   $$n = N \frac{T −t}{T}$$
   - The probability of the tokens with the highest probability are unchanged, while the other are masked and have their probability updated.
-  - Therefore, the decoding can explained with the following formula.
+  - Therefore, the decoding can be explained with the following formula.
   $$P(Y_{mask}^{(t)}|X,Y_{obs}^{(t)})=P(Y|X)$$
-  - When generating a hyperparameter $l$ is used to consider the top lengths candidates for each target sentence, akin to a beam size for the beam search.
+  - When generating, a hyperparameter $l$ is used to consider the top lengths candidates for each target sentence, akin to the beam size for the beam search.
   - At the end, the highest log-probability sequence is chosen between the $l$ possible ones.
   $$\frac{1}{N}\sum \log p_i^(T)$$
 - Use of a pooler layer (a la BERT) after the encoder to predict the target sentence length. The prediction is based on the encodings of <length> token.
