@@ -1,20 +1,26 @@
 import torch
 import math
 
+# Supported languages by this package, add more if you need to
+SUPPORTED_LANGS = {"de", "en", "es", "fr"}
 
-SUPPORTED_LANGUAGES = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX", "es": "es_XX", "et": "et_EE",
-                       "fi": "fi_FI", "fr": "fr_XX", "gu": "gu_IN", "hi": "hi_IN", "it": "it_IT", "ja": "ja_XX",
-                       "kk": "kk_KZ", "ko": "ko_KR", "lt": "lt_LT", "lv": "lv_LV", "my": "my_MM", "ne": "ne_NP",
-                       "nl": "nl_XX", "ro": "ro_RO", "ru": "ru_RU", "si": "si_LK", "tr": "tr_TR", "vn": "vi_VN",
-                       "zh": "zh_CN"}
+# Maps iso codes into language codes for the Mbart tokenizer
+MBART_LANG_MAP = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX", "es": "es_XX", "et": "et_EE",
+                  "fi": "fi_FI", "fr": "fr_XX", "gu": "gu_IN", "hi": "hi_IN", "it": "it_IT", "ja": "ja_XX",
+                  "kk": "kk_KZ", "ko": "ko_KR", "lt": "lt_LT", "lv": "lv_LV", "my": "my_MM", "ne": "ne_NP",
+                  "nl": "nl_XX", "ro": "ro_RO", "ru": "ru_RU", "si": "si_LK", "tr": "tr_TR", "vn": "vi_VN",
+                  "zh": "zh_CN"}
+
+# Maps ISO codes into language codes for the nllb and flores-200 datasets
+NLLB_FLORES200_LANG_MAP = {"en": "eng_Latn", "fr": "fra_Latn", "es": "spa_Latn", "de": "deu_Latn"}
 
 
-def shift_tokens_right(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
+def shift_lang_token_right(input_ids: torch.Tensor, pad_token_id: int) -> torch.Tensor:
     """
-    Shift input ids one token to the right by moving the target language token to the sequence's start in a MBart style.
+    Shift input ids one token to the right by moving the language token to the sequence's start in a MBart style.
     :param input_ids: a tensor of shape (1, seq_len) or (seq_len).
     :param pad_token_id: id of the pad token.
-    :return: torch.Tensor shifted to the right.
+    :return: torch.Tensor with the language token moved to the beginning of each sequence.
     """
     if len(input_ids.shape) == 1:
         input_ids = input_ids.unsqueeze(0)

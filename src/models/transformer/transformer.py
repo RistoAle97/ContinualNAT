@@ -60,10 +60,10 @@ class Transformer(TransformerCore):
         loss = self.compute_loss(logits, labels)
 
         # Update metrics for logging
-        self.train_metrics["train_loss"] += loss.item()
+        self.train_metrics["train_loss"].update(loss.item())
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx):
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
@@ -76,7 +76,9 @@ class Transformer(TransformerCore):
         loss = self.compute_loss(logits, labels)
 
         # Log validation loss
-        self.val_metrics["val_loss"] += loss.item()
+        lang_pairs = list(self.trainer.val_dataloaders.keys())
+        lang_pair = lang_pairs[dataloader_idx]
+        self.val_metrics[f"val_loss_{lang_pair}"].update(loss.item())
         return loss
 
     def generate(self,
