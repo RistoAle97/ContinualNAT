@@ -1,5 +1,5 @@
 # ContinualNAT
-Continual learning for multilingual non-autoregressive neural machine translation (NAT).
+Master Degree thesis on Continual learning for multilingual non-autoregressive neural machine translation (NAT).
 
 ## Built with
 [![Pytorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://github.com/pytorch/pytorch)
