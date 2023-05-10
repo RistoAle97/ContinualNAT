@@ -9,7 +9,7 @@ if __name__ == "__main__":
     torch.set_float32_matmul_precision("medium")
 
     # Translation directions
-    translation_directions = ["en-es", "es-en", "en-fr", "fr-en", "de-en", "en-de"]
+    translation_directions = ["en-es", "es-en", "en-fr", "fr-en"]
 
     # Tokenizer
     tokenizer = MBartTokenizerFast(tokenizer_file="tokenizers/sp_32k.json", model_max_length=1024, cls_token="<length>")

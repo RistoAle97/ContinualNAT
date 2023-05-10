@@ -142,7 +142,7 @@ class TranslationDataset(TranslationDatasetCore, Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx) -> Dict[str, torch.Tensor]:
-        while self.dataset[idx]["id"] in self.skip_idxs:
+        while idx in self.skip_idxs:
             idx = np.random.randint(0, self.__len__())
 
         sentence_pair = self.dataset[idx]["translation"]

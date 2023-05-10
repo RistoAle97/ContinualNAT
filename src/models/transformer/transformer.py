@@ -1,6 +1,5 @@
 import torch
 from torch.functional import F
-from torchmetrics import MeanMetric
 from src.models.core import TransformerCore
 from src.models.transformer import TransformerConfig
 from src.inference import greedy_decoding, beam_decoding
