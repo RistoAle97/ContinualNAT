@@ -2,7 +2,7 @@ import torch
 import random
 import numpy as np
 from src.utils import shift_lang_token_right
-from typing import Dict
+from typing import Dict, List, Union
 
 
 class BatchCollator:
@@ -28,13 +28,14 @@ class BatchCollator:
         self.return_special_tokens_mask = return_special_tokens_mask
         self.pad_token_id = pad_token_id
 
-    def __call__(self, batch) -> Dict[str, torch.Tensor]:
+    def __call__(self, batch) -> Dict[str, Union[torch.Tensor, List[List[str]]]]:
         # Put all the tokenized source and target sentences together and save the max length found for both
         src_max_length = 0
         tgt_max_length = 0
         src_tokenized_sentences = []
         tgt_tokenized_sentences = []
         labels_special_tokens_masks = []
+        references: List[List[str]] = []
         for sentence_pair in batch:
             tokenized_src = sentence_pair["input_ids"]
             tokenized_tgt = sentence_pair["labels"]
@@ -42,6 +43,7 @@ class BatchCollator:
             tgt_tokenized_sentences.append(tokenized_tgt)
             src_max_length = max(src_max_length, tokenized_src.size(-1))
             tgt_max_length = max(tgt_max_length, tokenized_tgt.size(-1))
+            references.append([sentence_pair["reference"]])
             labels_special_tokens_masks.append(sentence_pair["special_mask_labels"])
 
         # Pad the tensors and batchify them
@@ -72,7 +74,7 @@ class BatchCollator:
             special_tokens_mask = torch.stack(special_tokens_mask, dim=0).squeeze(1)
 
         return {"input_ids": input_ids, "labels": labels, "decoder_input_ids": decoder_input_ids,
-                "special_tokens_mask_labels": special_tokens_mask}
+                "special_tokens_mask_labels": special_tokens_mask, "references": references}
 
 
 class BatchCollatorCMLM(BatchCollator):
@@ -89,7 +91,6 @@ class BatchCollatorCMLM(BatchCollator):
         """
         super().__init__(True, False, True, pad_token_id)
         # Parameters
-        # self.tokenizer = tokenizer
         self.mask_token_id = mask_token_id
         self.train = train
 
@@ -133,10 +134,10 @@ class BatchCollatorCMLM(BatchCollator):
 
         return {"labels": labels, "decoder_input_ids": decoder_input_ids, "lengths": n_maskable_tokens}
 
-    def __call__(self, batch):
+    def __call__(self, batch) -> Dict[str, Union[torch.Tensor, List[List[str]]]]:
         tokenized_batch = super().__call__(batch)
         input_ids = tokenized_batch["input_ids"]
         masked_target = self.__mask_target(tokenized_batch["labels"], tokenized_batch["decoder_input_ids"],
                                            tokenized_batch["special_tokens_mask_labels"])
-        return {"input_ids": input_ids, "labels": masked_target["labels"],
+        return {"input_ids": input_ids, "references": tokenized_batch["references"], "labels": masked_target["labels"],
                 "decoder_input_ids": masked_target["decoder_input_ids"], "target_lengths": masked_target["lengths"]}
