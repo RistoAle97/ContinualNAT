@@ -80,7 +80,7 @@ class MultilingualTrainer:
 
         # Compute the number of sentences per language pair
         sentences_to_consider = self.train_bsz * self.train_steps * self.accumulation_steps
-        sentences_per_lang_pair = [sentences_to_consider // len(self.nmt_directions) for _ in self.lang_pairs]
+        sentences_per_lang_pair = [sentences_to_consider // len(self.nmt_directions)] * len(self.lang_pairs)
         remaining_sentences = sentences_to_consider % len(self.lang_pairs)
         if remaining_sentences > 0:
             for i in range(remaining_sentences):
@@ -156,6 +156,7 @@ class MultilingualTrainer:
 
             val_dataloaders[f"{src_lang}_{tgt_lang}"] = DataLoader(dataset, self.val_bsz, num_workers=8,
                                                                    collate_fn=batch_collator_val, pin_memory=True)
+
         return train_dataloader, val_dataloaders
 
     def __compute_logger_version(self, model: TransformerCore) -> str:
@@ -164,12 +165,12 @@ class MultilingualTrainer:
             logger_version += "_multilingual"
         else:
             first_lang, second_lang = list(self.nmt_directions)[0].split("-")
-            logger_version += f"{first_lang}_{second_lang}"
+            logger_version += f"_{first_lang}_{second_lang}"
             if len(self.nmt_directions) > 1:
                 logger_version += "_both"
 
         v_num = 0
-        while os.path.exists(f"logs/{logger_version}"):
+        while os.path.exists(f"logs/{logger_version}_{v_num}"):
             v_num += 1
 
         logger_version += f"_{v_num}"
