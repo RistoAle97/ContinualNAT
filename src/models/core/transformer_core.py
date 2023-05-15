@@ -127,11 +127,12 @@ class TransformerCore(LightningModule):
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
-        if batch_idx == 0 and self.trainer.global_step == 0:
+        if batch_idx == 0 and self.trainer.current_epoch == 0:
             # First batch seen during training
             metrics_to_log = {metric_name: value.compute() for metric_name, value in self.train_metrics.items()}
-            self.log_dict(metrics_to_log, prog_bar=True)
-        elif batch_idx * (self.trainer.current_epoch + 1) % batches == 0 and self.trainer.global_step % batches == 0:
+            # self.log_dict(metrics_to_log, logger=False, prog_bar=True)
+            self.logger.log_metrics(metrics_to_log, 0)
+        if (batch_idx + 1) * (self.trainer.current_epoch + 1) % batches == 0:
             # Log every n optimizer steps
             metrics_to_log = {metric_name: metric.compute() for metric_name, metric in self.train_metrics.items()}
             self.log_dict(metrics_to_log, prog_bar=True)
