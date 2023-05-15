@@ -65,21 +65,15 @@ class Transformer(TransformerCore):
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         input_ids = batch["input_ids"]
-        labels = batch["labels"]
-        decoder_input_ids = batch["decoder_input_ids"]
+        references = batch["references"]
 
-        # Create masks
-        e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, "causal")
+        # Compute translations
+        tokenizer, lang_pair, tgt_lang = self._val_tokenizer_tgtlang(dataloader_idx)
+        translation = self.generate(input_ids, tokenizer.lang_code_to_id[tgt_lang], num_beams=1)
+        predictions = tokenizer.batch_decode(translation, skip_special_tokens=True)
 
-        # Compute loss
-        logits = self(input_ids, decoder_input_ids, e_mask, d_mask)
-        loss = self.compute_loss(logits, labels)
-
-        # Log validation loss
-        lang_pairs = list(self.trainer.val_dataloaders.keys())
-        lang_pair = lang_pairs[dataloader_idx]
-        self.val_metrics[f"val_loss_{lang_pair}"].update(loss.item())
-        return loss
+        # Update the BLEU metric internal parameters
+        self.val_metrics[f"BLEU_{lang_pair}"].update(predictions, references)
 
     def generate(self,
                  input_ids: torch.Tensor,

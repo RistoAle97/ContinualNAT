@@ -106,14 +106,6 @@ class CMLM(TransformerCore):
         loss = logits_loss + lengths_loss
         return loss, logits_loss.item(), lengths_loss.item()
 
-    def on_validation_start(self) -> None:
-        lang_pairs = list(self.trainer.val_dataloaders.keys())
-        for lang_pair in lang_pairs:
-            if f"val_loss_{lang_pair}" not in self.val_metrics:
-                self.val_metrics[f"val_loss_{lang_pair}"] = MeanMetric()
-                self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"] = MeanMetric()
-                self.val_metrics[f"cmlm_val_lengths_loss_{lang_pair}"] = MeanMetric()
-
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
         labels = batch["labels"]
@@ -135,37 +127,15 @@ class CMLM(TransformerCore):
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
         input_ids = batch["input_ids"]
-        labels = batch["labels"]
-        decoder_input_ids = batch["decoder_input_ids"]
-        target_lengths = batch["target_lengths"]
+        references = batch["references"]
 
-        # Create masks
-        e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id)
+        # Compute translations
+        tokenizer, lang_pair, tgt_lang = self._val_tokenizer_tgtlang(dataloader_idx)
+        translation = self.generate(input_ids, tokenizer.lang_code_to_id[tgt_lang])
+        predictions = tokenizer.batch_decode(translation, skip_special_tokens=True)
 
-        # Compute loss
-        logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
-        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
-
-        # Update validation metrics
-        lang_pairs = list(self.trainer.val_dataloaders.keys())
-        lang_pair = lang_pairs[dataloader_idx]
-        self.val_metrics[f"val_loss_{lang_pair}"].update(loss.item())
-        self.val_metrics[f"cmlm_val_mlm_loss_{lang_pair}"].update(logits_loss)
-        self.val_metrics[f"cmlm_val_lengths_loss_{lang_pair}"].update(lengths_loss)
-        return loss
-
-    def on_validation_batch_end(self, outputs, batch, batch_idx, dataloader_idx: int = 0) -> None:
-        langs_dataloader = list(self.trainer.val_dataloaders.items())[dataloader_idx]
-        lang_pair, dataloader = langs_dataloader
-        if (batch_idx + 1) % len(dataloader) == 0:
-            val_loss = f"val_loss_{lang_pair}"
-            mlm_loss = f"cmlm_val_mlm_loss_{lang_pair}"
-            lengths_loss = f"cmlm_val_lengths_loss_{lang_pair}"
-            metrics = [val_loss, mlm_loss, lengths_loss]
-            metrics_to_log = {metric: self.val_metrics[metric].compute() for metric in metrics}
-            self.log_dict(metrics_to_log, prog_bar=True, add_dataloader_idx=False)
-            for metric in metrics:
-                self.val_metrics[metric].reset()
+        # Update the BLEU metric internal parameters
+        self.val_metrics[f"BLEU_{lang_pair}"].update(predictions, references)
 
     def __mask_predict(self,
                        encodings: torch.Tensor,
@@ -232,7 +202,7 @@ class CMLM(TransformerCore):
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.
         :param input_ids: the tokenized source sentence.
-        :param tgt_lang_token_id: the target language token id, if none is passed, then no token will appended at the
+        :param tgt_lang_token_id: the target language token id, if none is passed, then no token will be appended at the
             end of the target tokens (default=None).
         :param iterations: the number of iterations of the mask-predict. If its value is equal to 1, then the decoding
             will be purely non-autoregressive (default=10).
@@ -291,11 +261,10 @@ class CMLM(TransformerCore):
         duplicated_e_mask = e_mask[:, :, 1:].repeat_interleave(length_beam_size, dim=0)
 
         # Mask-predict
-        hypotheses, log_probabilities = self.__mask_predict(duplicated_encodings, duplicated_e_mask,
-                                                            tgt_tokens, iterations)
+        hyps, log_probabilities = self.__mask_predict(duplicated_encodings, duplicated_e_mask, tgt_tokens, iterations)
 
         # Reshape hypotheses and their log probabilities
-        hypotheses = hypotheses.view(batch_size, length_beam_size, hypotheses.size(-1))
+        hyps = hyps.view(batch_size, length_beam_size, hyps.size(-1))
         log_probabilities = log_probabilities.view(batch_size, length_beam_size)
 
         # Compute the best lengths in terms of log probabilities
@@ -304,5 +273,5 @@ class CMLM(TransformerCore):
         best_lengths = avg_log_prob.max(-1)[1]
 
         # Retrieve best hypotheses
-        output = torch.stack([hypotheses[batch, length, :] for batch, length in enumerate(best_lengths)], dim=0)
+        output = torch.stack([hyps[batch, length, :] for batch, length in enumerate(best_lengths)], dim=0)
         return output
