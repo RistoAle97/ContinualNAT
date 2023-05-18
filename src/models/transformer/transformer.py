@@ -44,7 +44,7 @@ class Transformer(TransformerCore):
     def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         logits = logits.contiguous().view(-1, logits.size(-1))
         labels = labels.contiguous().view(-1)
-        loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id)
+        loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id, label_smoothing=self.label_smoothing)
         return loss
 
     def training_step(self, batch, batch_idx):

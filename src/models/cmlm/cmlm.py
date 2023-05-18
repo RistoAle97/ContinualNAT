@@ -95,12 +95,13 @@ class CMLM(TransformerCore):
         # Logits loss
         logits = logits.contiguous().view(-1, logits.size(-1))
         labels = labels.contiguous().view(-1)
-        logits_loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id)
+        logits_loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id,
+                                      label_smoothing=self.label_smoothing)
 
         # Length loss
         predicted_lengths = predicted_lengths.contiguous().view(-1, predicted_lengths.size(-1))
         target_lengths = target_lengths.contiguous().view(-1)
-        lengths_loss = F.cross_entropy(predicted_lengths, target_lengths)
+        lengths_loss = F.cross_entropy(predicted_lengths, target_lengths, label_smoothing=self.label_smoothing)
 
         # Combine the losses
         loss = logits_loss + lengths_loss

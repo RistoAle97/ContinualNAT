@@ -15,7 +15,8 @@ class CoreConfig:
                  scale_embeddings: bool = False,
                  sos_token_id: int = 0,
                  eos_token_id: int = 2,
-                 pad_token_id: int = 1) -> None:
+                 pad_token_id: int = 1,
+                 label_smoothing: float = 0.0) -> None:
         """
         Base class for the models' configurations.
         :param vocab_size: shared vocabulary size.
@@ -35,6 +36,7 @@ class CoreConfig:
         :param sos_token_id: the start of sequence token id (default=0).
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
+        :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
         """
         self.vocab_size = vocab_size
         self.d_model = d_model
@@ -51,3 +53,4 @@ class CoreConfig:
         self.sos_token_id = sos_token_id
         self.eos_token_id = eos_token_id
         self.pad_token_id = pad_token_id
+        self.label_smoothing = label_smoothing
