@@ -1,16 +1,16 @@
 # Dataset, train set most of the time, that should be deduplicated
 dataset_to_clean:
-  path: "yhavinga/ccmatrix"
-  name: "en-fr"
-  cache_dir: "D:/MasterDegreeThesis/datasets/ccmatrix_en_fr"
-  split: "train[0:2500000]"
+  path: "wmt14"
+  name: "de-en"
+  cache_dir: "/disk1/a.ristori/datasets/wmt14"
+  split: "train"
   verification_mode: "no_checks"
 
 # Dataset, test set most of the time, that should not have duplicates on the previous one
 dataset_to_check:
   path: "wmt14"
-  name: "fr-en"
-  cache_dir: "D:/MasterDegreeThesis/datasets/wmt14_en_fr"
+  name: "de-en"
+  cache_dir: "/disk1/a.ristori/datasets/wmt14"
   split: "test"
   verification_mode: "no_checks"
 

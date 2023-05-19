@@ -3,14 +3,14 @@ import yaml
 from torch.utils.data import DataLoader, ConcatDataset
 from transformers import PreTrainedTokenizerBase
 from transformers.utils import PaddingStrategy
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
 from src.data import *
 from src.models import TransformerCore, CMLM
-from src.utils import MBART_LANG_MAP, NLLB_FLORES200_LANG_MAP, compute_accumulation_steps
+from src.utils import MBART_LANG_MAP, compute_accumulation_steps
 from typing import Dict, List, Set, Tuple, Union, NewType
 
 DatasetList = NewType("DatasetList", List[Union[TranslationDataset, IterableTranslationDataset]])
@@ -79,12 +79,12 @@ class MultilingualTrainer:
         translation_val_datasets = DatasetList([])
 
         # Compute the number of sentences per language pair
-        sentences_to_consider = self.train_bsz * self.train_steps * self.accumulation_steps
-        sentences_per_lang_pair = [sentences_to_consider // len(self.nmt_directions) for _ in self.lang_pairs]
+        '''sentences_to_consider = self.train_bsz * self.train_steps * self.accumulation_steps
+        sentences_per_lang_pair = [sentences_to_consider // len(self.nmt_directions)] * len(self.lang_pairs)
         remaining_sentences = sentences_to_consider % len(self.lang_pairs)
         if remaining_sentences > 0:
             for i in range(remaining_sentences):
-                sentences_per_lang_pair[i] += 1
+                sentences_per_lang_pair[i] += 1'''
 
         with open("duplicates.yaml") as config_file:
             config = yaml.load(config_file, Loader=yaml.FullLoader)
@@ -100,21 +100,26 @@ class MultilingualTrainer:
                 first_lang, second_lang = lang_pair
 
                 # Load the train and validation datasets
-                dataset_train = load_dataset("yhavinga/ccmatrix", f"{first_lang}-{second_lang}",
-                                             split=f"train[:{sentences_per_lang_pair[len(lang_pairs_seen)]}]",
-                                             cache_dir=train_cache_dir, verification_mode="no_checks")
-                first_lang = NLLB_FLORES200_LANG_MAP[first_lang]
-                second_lang = NLLB_FLORES200_LANG_MAP[second_lang]
-                dataset_val = load_dataset("facebook/flores", f"{first_lang}-{second_lang}",
-                                           cache_dir=val_cache_dir)
-                dataset_val = concatenate_datasets([dataset_val["dev"], dataset_val["devtest"]])
+                '''dataset_train = load_dataset("yhavinga/ccmatrix", f"{first_lang}-{second_lang}",
+                                             split=f"train[:30000000]",
+                                             cache_dir=train_cache_dir, verification_mode="no_checks")'''
+                if first_lang == "en":
+                    first_lang = second_lang
+                    second_lang = "en"
+
+                dataset_train = load_dataset("wmt14", f"{first_lang}-{second_lang}", split="train",
+                                             cache_dir=val_cache_dir, verification_mode="no_checks")
+
+                dataset_val = load_dataset("wmt14", f"{first_lang}-{second_lang}", split="validation",
+                                           cache_dir=val_cache_dir, verification_mode="no_checks")
+                '''dataset_val = concatenate_datasets([dataset_val["dev"], dataset_val["devtest"]])
                 dataset_val_dict = []
                 for sentence_pair in dataset_val:
                     dataset_val_dict.append({src_lang: sentence_pair[f"sentence_{first_lang}"],
                                              tgt_lang: sentence_pair[f"sentence_{second_lang}"]})
 
                 dataset_val = dataset_val.add_column("translation", dataset_val_dict)
-                dataset_val = dataset_val.remove_columns([f"sentence_{first_lang}", f"sentence_{second_lang}"])
+                dataset_val = dataset_val.remove_columns([f"sentence_{first_lang}", f"sentence_{second_lang}"])'''
                 lang_pairs_seen.append(lang_pair)
                 datasets_train[lang_pair] = dataset_train
                 datasets_val[lang_pair] = dataset_val
@@ -182,7 +187,8 @@ class MultilingualTrainer:
         # Logger and other train callbacks
         logger_version = self.__compute_logger_version(model)
         logger = TensorBoardLogger("", name="logs", version=logger_version)
-        checkpoint = ModelCheckpoint(save_top_k=2, monitor="train_loss", every_n_train_steps=self.ckpt_every_n_steps)
+        checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max",
+                                     every_n_train_steps=self.ckpt_every_n_steps)
         prog_bar_theme = RichProgressBarTheme(description="red", progress_bar="dark_blue",
                                               progress_bar_finished="dark_blue", progress_bar_pulse="dark_blue")
         prog_bar = RichProgressBar(theme=prog_bar_theme)
