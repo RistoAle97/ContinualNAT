@@ -1,9 +1,9 @@
 import torch
 from torch import nn
-from torch.optim import AdamW
+from torch.optim import Optimizer, AdamW
 from torchmetrics import MeanMetric, SacreBLEUScore
 from lightning import LightningModule
-from transformers import PreTrainedTokenizerBase, get_cosine_schedule_with_warmup
+from transformers import PreTrainedTokenizerBase, get_scheduler
 from src.data import TranslationDataset, IterableTranslationDataset
 from src.models.core import CoreConfig
 from src.modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
@@ -58,7 +58,14 @@ class TransformerCore(LightningModule):
         self.linear_output = nn.Linear(self.d_model, self.vocab_size, bias=False)
         self.linear_output.weight = self.embedding.weight
 
-        # Train and validation losses for logging purposes
+        # Optimizer and learning rate scheduler
+        self.optimizer = AdamW(self.parameters(), lr=5e-4)
+        self.lr_scheduler = {"name": "cosine", "num_warmup_steps": 0}
+
+        # Label smoothing value
+        self.label_smoothing = config.label_smoothing
+
+        # Train loss and validation mean BLEU for logging purposes
         self.train_metrics = {"train_loss": MeanMetric()}
         self.val_metrics = {"mean_BLEU": MeanMetric()}
 
@@ -130,7 +137,6 @@ class TransformerCore(LightningModule):
         if batch_idx == 0 and self.trainer.current_epoch == 0:
             # First batch seen during training
             metrics_to_log = {metric_name: value.compute() for metric_name, value in self.train_metrics.items()}
-            # self.log_dict(metrics_to_log, logger=False, prog_bar=True)
             self.logger.log_metrics(metrics_to_log, 0)
         if (batch_idx + 1) * (self.trainer.current_epoch + 1) % batches == 0:
             # Log every n optimizer steps
@@ -146,7 +152,7 @@ class TransformerCore(LightningModule):
             metric_name = f"BLEU_{lang_pair}"
 
             # Compute the BLEU score for the translation direction and log it
-            bleu_score = self.val_metrics[metric_name].compute()
+            bleu_score = self.val_metrics[metric_name].compute() * 100
             self.val_metrics["mean_BLEU"].update(bleu_score)
             metric_to_log = {metric_name: bleu_score}
             if dataloader_idx == len(self.trainer.val_dataloaders) - 1:
@@ -156,10 +162,33 @@ class TransformerCore(LightningModule):
             self.log_dict(metric_to_log, prog_bar=True, add_dataloader_idx=False, batch_size=batch["input_ids"].size(0))
             self.val_metrics[metric_name].reset()
 
+    def change_optimizer(self, optimizer: Optimizer) -> None:
+        """
+        Change the current model's optimizer. Keep in mind that the model uses AdamW with lr = 5e-4 as default.
+        :param optimizer: the new optimizer.
+        """
+        self.optimizer = optimizer
+
+    def change_lr_scheduler(self, lr_scheduler: str = None, warmup_steps: int = None) -> None:
+        """
+        Change the learning rate scheduler name or warmup steps. Keep in mind that the model uses a cosine scheduler
+        with no warmup steps as default.
+        :param lr_scheduler: the learning rate scheduler's name, such scheduler should be available in the Transformers
+            library (default=None).
+        :param warmup_steps: the number of warmup steps (default=None).
+        """
+        if lr_scheduler is not None:
+            self.lr_scheduler["name"] = lr_scheduler
+
+        if warmup_steps is not None and warmup_steps >= 0:
+            self.lr_scheduler["num_warmup_steps"] = warmup_steps
+
     def configure_optimizers(self):
-        optimizer = AdamW(self.parameters(), lr=5e-4)
-        lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 0, self.trainer.estimated_stepping_batches)
-        return [optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
+        # optimizer = AdamW(self.parameters(), lr=5e-4, eps=1e-6)
+        # lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 0, self.trainer.estimated_stepping_batches)
+        lr_scheduler = get_scheduler(**self.lr_scheduler, optimizer=self.optimizer,
+                                     num_training_steps=self.trainer.estimated_stepping_batches)
+        return [self.optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
 
     def generate(self, *kwargs):
         """
