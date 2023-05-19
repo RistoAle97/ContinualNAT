@@ -4,6 +4,7 @@ lightning>=2.0.2
 pandas>=1.5.3
 pyyaml>=6.0
 rich>=13.2.0
+sacrebleu>=2.3.1
 sentencepiece>=0.1.97
 tensorboard>=2.11.0
 torch>=1.13.1

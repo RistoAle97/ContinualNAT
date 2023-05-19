@@ -18,7 +18,8 @@ class TransformerConfig(CoreConfig):
                  scale_embeddings: bool = False,
                  sos_token_id: int = 0,
                  eos_token_id: int = 2,
-                 pad_token_id: int = 1) -> None:
+                 pad_token_id: int = 1,
+                 label_smoothing: float = 0.0) -> None:
         """
         Configuration class for the Transformer model.
         :param vocab_size: shared vocabulary size.
@@ -38,7 +39,8 @@ class TransformerConfig(CoreConfig):
         :param sos_token_id: the start of sequence token id (default=0).
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
+        :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, sos_token_id,
-                         eos_token_id, pad_token_id)
+                         eos_token_id, pad_token_id, label_smoothing)
