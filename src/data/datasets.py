@@ -94,7 +94,7 @@ class TranslationDatasetCore:
         return {"max_length_src": self.max_length_src, "max_length_tgt": self.max_length_tgt,
                 "avg_length_src": self.avg_length_src, "avg_length_tgt": self.avg_length_tgt}
 
-    def tokenize_pair(self, sentence_pair: Dict[str, str]) -> Dict[str, torch.Tensor]:
+    def tokenize_pair(self, sentence_pair: Dict[str, str]) -> Dict[str, Union[torch.Tensor, str]]:
         src_sentence = sentence_pair[self.src_lang]
         src_sentence = self.tokenizer.cls_token + " " + src_sentence if self.use_cls_token else src_sentence
         tgt_sentence = sentence_pair[self.tgt_lang]
@@ -103,7 +103,7 @@ class TranslationDatasetCore:
         input_ids = self.tokenizer(src_sentence, **self.tokenizer_state)
         labels = self.tokenizer(text_target=tgt_sentence, **self.tokenizer_state, return_special_tokens_mask=True)
         return {"input_ids": input_ids["input_ids"], "labels": labels["input_ids"],
-                "special_mask_labels": labels["special_tokens_mask"]}
+                "special_mask_labels": labels["special_tokens_mask"], "reference": tgt_sentence}
 
 
 class TranslationDataset(TranslationDatasetCore, Dataset):
