@@ -184,8 +184,6 @@ class TransformerCore(LightningModule):
             self.lr_scheduler["num_warmup_steps"] = warmup_steps
 
     def configure_optimizers(self):
-        # optimizer = AdamW(self.parameters(), lr=5e-4, eps=1e-6)
-        # lr_scheduler = get_cosine_schedule_with_warmup(optimizer, 0, self.trainer.estimated_stepping_batches)
         lr_scheduler = get_scheduler(**self.lr_scheduler, optimizer=self.optimizer,
                                      num_training_steps=self.trainer.estimated_stepping_batches)
         return [self.optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
