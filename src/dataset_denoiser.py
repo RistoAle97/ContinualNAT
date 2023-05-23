@@ -1,6 +1,6 @@
 import datasets
+import langdetect
 from multiprocessing import cpu_count
-from warnings import warn
 from tqdm.auto import tqdm
 from concurrent.futures import ThreadPoolExecutor, Future
 from sacremoses import MosesTokenizer
@@ -61,9 +61,8 @@ class DatasetDenoiser:
                 src_detected_lang: str = detect(src_sentence)
                 tgt_detected_lang: str = detect(tgt_sentence)
             except langdetect.lang_detect_exception.LangDetectException:
-                warn(f"Could not detect language of sentence pair at index: {i_s}")
-                src_detected_lang: str = "unknown"
-                tgt_detected_lang: str = "unknown"
+                src_detected_lang: str = "unk"
+                tgt_detected_lang: str = "unk"
 
             if src_lang != src_detected_lang or tgt_lang != tgt_detected_lang:
                 wrong_lang.append(i_s)
