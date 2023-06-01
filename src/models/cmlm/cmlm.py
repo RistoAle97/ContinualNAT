@@ -1,14 +1,14 @@
 import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
-from src.models.core import TransformerCore
+from src.models.core import TransformerNATCore
 from src.models.cmlm import CMLMConfig
 from src.modules import Pooler
 from src.utils import init_bert_weights, create_masks
 from typing import Tuple
 
 
-class CMLM(TransformerCore):
+class CMLM(TransformerNATCore):
 
     def __init__(self, config: CMLMConfig) -> None:
         """
@@ -29,11 +29,6 @@ class CMLM(TransformerCore):
 
         # Train and validation losses
         self.train_metrics["cmlm_mlm_loss"] = MeanMetric()
-        self.train_metrics["cmlm_lengths_loss"] = MeanMetric()
-
-    def __check_length_token(self, input_ids: torch.Tensor) -> bool:
-        is_using_length_token = (input_ids[:, 0] == self.length_token_id)
-        return is_using_length_token.all()
 
     def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
         self.__check_length_token(e_input)
@@ -75,18 +70,6 @@ class CMLM(TransformerCore):
         output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
         return output, predicted_lengths
 
-    def predict_target_length(self, e_output: torch.Tensor, n_lengths: int = 1) -> torch.Tensor:
-        """
-        Computes the target sentence possible lengths given the encoder's output.
-        :param e_output: the encoder's output.
-        :param n_lengths: the number of possible lengths to consider for each sentence.
-        :return: the encodings of the target sentence length.
-        """
-        length_logits = self.pooler(e_output)
-        length_logits = F.log_softmax(length_logits, dim=-1)
-        lengths = length_logits.topk(n_lengths, dim=-1)[1]
-        return lengths
-
     def compute_loss(self,
                      logits: torch.Tensor,
                      labels: torch.Tensor,
@@ -101,7 +84,7 @@ class CMLM(TransformerCore):
         # Length loss
         predicted_lengths = predicted_lengths.contiguous().view(-1, predicted_lengths.size(-1))
         target_lengths = target_lengths.contiguous().view(-1)
-        lengths_loss = F.cross_entropy(predicted_lengths, target_lengths, label_smoothing=self.label_smoothing)
+        lengths_loss = F.cross_entropy(predicted_lengths, target_lengths)
 
         # Combine the losses
         loss = logits_loss + lengths_loss
