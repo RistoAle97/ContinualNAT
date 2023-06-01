@@ -28,16 +28,9 @@ class MultilingualTrainer:
     @staticmethod
     def __build_translation_directions(train_datasets: List[TranslationDataset],
                                        val_datasets: List[TranslationDataset]) -> Tuple[Set[str], Set[Tuple[str, str]]]:
-        if len(train_datasets) != len(val_datasets):
-            raise ValueError("The number of train and validation datasets is not the same.")
-
         lang_pairs = set()  # unique language pairs (e.g.: en-es and es-en is considered as a single pair)
         train_directions = set([f"{dataset.src_lang}-{dataset.tgt_lang}" for dataset in train_datasets])
         val_directions = set([f"{dataset.src_lang}-{dataset.tgt_lang}" for dataset in val_datasets])
-        if train_directions != val_directions:
-            raise ValueError("There are train datasets with different a translation direction from the validation"
-                             "datasets.")
-
         for direction in train_directions:
             langs = direction.split("-")
             src_lang, tgt_lang = langs[0], langs[-1]
