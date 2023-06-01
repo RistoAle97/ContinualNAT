@@ -3,7 +3,6 @@ from torch.functional import F
 from torchmetrics import MeanMetric
 from src.models.core import TransformerNATCore
 from src.models.cmlm import CMLMConfig
-from src.modules import Pooler
 from src.utils import init_bert_weights, create_masks
 from typing import Tuple
 
@@ -19,10 +18,6 @@ class CMLM(TransformerNATCore):
         super().__init__(config)
         # Token ids
         self.mask_token_id = config.mask_token_id
-        self.length_token_id = config.length_token_id
-
-        # Pooler layer after the encoder to predict the target sentence length
-        self.pooler = Pooler(self.d_model)
 
         # Use BERT weight initialization
         self.apply(init_bert_weights)
@@ -40,7 +35,12 @@ class CMLM(TransformerNATCore):
                e_output: torch.Tensor,
                d_mask: torch.Tensor = None,
                e_mask: torch.Tensor = None) -> torch.Tensor:
-        d_output = super().decode(tgt_input, e_output[:, 1:], d_mask, e_mask[:, :, 1:])
+        if self.length_token_id is not None:
+            # Do not use the encodings of the <length> token inside the decoder
+            e_output = e_output[:, 1:]
+            e_mask = e_mask[:, :, 1:]
+
+        d_output = super().decode(tgt_input, e_output, d_mask, e_mask)
         return d_output
 
     def forward(self,
@@ -51,7 +51,7 @@ class CMLM(TransformerNATCore):
         """
         Process source and target sequences.
         """
-        if not self._check_length_token(src_input):
+        if self.length_token_id is not None and not self._check_length_token(src_input):
             raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs such"
                              "token to predict the target lengths.")
 
@@ -63,8 +63,17 @@ class CMLM(TransformerNATCore):
 
         # Encoder and decoder
         e_output = self.encoder(src_embeddings, e_mask)
-        predicted_lengths = self.pooler(e_output)  # (bsz, seq_len)
-        d_output = self.decoder(tgt_embeddings, e_output[:, 1:], d_mask, e_mask[:, :, 1:])
+        pooler_inputs = {"e_output": e_output}
+        if self.length_token_id is not None:
+            # Do not use the encodings of the <length> token inside the decoder
+            e_output = e_output[:, 1:]
+            e_mask = e_mask[:, :, 1:]
+        else:
+            # Use the encoder mask in the MeanPooler if no <length> token is defined
+            pooler_inputs["e_mask"] = e_mask
+
+        predicted_lengths = self.pooler(**pooler_inputs)  # (bsz, pooler_size)
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)
 
         # Linear output
         output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
@@ -73,18 +82,18 @@ class CMLM(TransformerNATCore):
     def compute_loss(self,
                      logits: torch.Tensor,
                      labels: torch.Tensor,
-                     predicted_lengths: torch.Tensor,
+                     lengths_logits: torch.Tensor,
                      target_lengths: torch.Tensor) -> Tuple[torch.Tensor, float, float]:
         # Logits loss
-        logits = logits.contiguous().view(-1, logits.size(-1))
-        labels = labels.contiguous().view(-1)
+        logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)
+        labels = labels.contiguous().view(-1)  # (bsz * seq_len)
         logits_loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id,
                                       label_smoothing=self.label_smoothing)
 
         # Length loss
-        predicted_lengths = predicted_lengths.contiguous().view(-1, predicted_lengths.size(-1))
+        lengths_logits = lengths_logits.contiguous().view(-1, lengths_logits.size(-1))
         target_lengths = target_lengths.contiguous().view(-1)
-        lengths_loss = F.cross_entropy(predicted_lengths, target_lengths)
+        lengths_loss = F.cross_entropy(lengths_logits, target_lengths)
 
         # Combine the losses
         loss = logits_loss + lengths_loss
@@ -100,13 +109,13 @@ class CMLM(TransformerNATCore):
         e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, None)
 
         # Compute loss
-        logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
-        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
+        logits, length_logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
+        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, length_logits, target_lengths)
 
         # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
         self.train_metrics["cmlm_mlm_loss"].update(logits_loss)
-        self.train_metrics["cmlm_lengths_loss"].update(lengths_loss)
+        self.train_metrics["lengths_loss"].update(lengths_loss)
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
@@ -213,7 +222,7 @@ class CMLM(TransformerNATCore):
         encodings = self.encode(input_ids, e_mask)
 
         # Predict the best length_beam_size lengths for each sentence
-        length_beams = self.predict_target_length(encodings, length_beam_size)
+        length_beams = self.predict_target_length(encodings, length_beam_size, e_mask)
         length_beams[length_beams < 2] = 2
 
         # Compute the largest length and the number of non-pad tokens

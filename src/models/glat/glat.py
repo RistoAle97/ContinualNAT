@@ -3,7 +3,7 @@ from torch import nn
 from torch.functional import F
 from src.models.core import TransformerNATCore
 from src.models.glat import GLATConfig
-from src.modules import Pooler, DecoderLayerNAT, DecoderNAT
+from src.modules import DecoderLayerNAT, DecoderNAT
 from src.utils import init_bert_weights, create_masks
 from typing import Tuple
 
@@ -19,12 +19,6 @@ class GLAT(TransformerNATCore):
         https://arxiv.org/pdf/1904.09324.pdf did for the CMLM model.
         """
         super().__init__(config)
-        # Token ids
-        self.length_token_id = config.length_token_id
-
-        # Pooler layer after the encoder to predict the target sentence length
-        self.pooler = Pooler(self.d_model)
-
         # Decoder
         decoder_norm = nn.LayerNorm(self.d_model, self.layer_norm_eps)
         decoder_layer = DecoderLayerNAT(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.dropout_mha,
@@ -110,7 +104,7 @@ class GLAT(TransformerNATCore):
         # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
         self.train_metrics["cmlm_mlm_loss"].update(logits_loss)
-        self.train_metrics["cmlm_lengths_loss"].update(lengths_loss)
+        self.train_metrics["lengths_loss"].update(lengths_loss)
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx):
