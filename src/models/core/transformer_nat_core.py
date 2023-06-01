@@ -2,6 +2,7 @@ import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
 from src.models.core import TransformerCore, NATCoreConfig
+from src.modules import LengthPooler, MeanPooler
 
 
 class TransformerNATCore(TransformerCore):
@@ -15,6 +16,9 @@ class TransformerNATCore(TransformerCore):
         # Parameters
         self.length_token_id = config.length_token_id
         self.src_embedding_copy = config.src_embedding_copy
+
+        # Pooler layer after the encoder to predict the target sentences' lengths
+        self.pooler = LengthPooler(self.d_model) if self.length_token_id is not None else MeanPooler(self.d_model)
 
         # Length loss
         self.train_metrics["lengths_loss"] = MeanMetric()
@@ -56,14 +60,23 @@ class TransformerNATCore(TransformerCore):
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
         return is_using_length_token.all()
 
-    def predict_target_length(self, e_output: torch.Tensor, n_lengths: int = 1) -> torch.Tensor:
+    def predict_target_length(self,
+                              e_output: torch.Tensor,
+                              n_lengths: int = 1,
+                              e_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Computes the target sentence possible lengths given the encoder's output.
-        :param e_output: the encoder's output.
-        :param n_lengths: the number of possible lengths to consider for each sentence.
-        :return: the encodings of the target sentence length.
+        :param e_output: the encoder's output of shape (bsz, seq_len, d_model).
+        :param n_lengths: the number of possible lengths to consider for each sentence (default=1).
+        :param e_mask: mask for the encoder, you can leave this parameter as None if you are using the <length> token
+            or if you want to perform mean pooling on all the source tokens (default=None).
+        :return: the encodings of the target sentences' lengths.
         """
-        length_logits = self.pooler(e_output)
-        length_logits = F.log_softmax(length_logits, dim=-1)
-        lengths = length_logits.topk(n_lengths, dim=-1)[1]
+        pooler_inputs = {"e_output": e_output}
+        if self.length_token_id is None:
+            pooler_inputs["e_mask"] = e_mask
+
+        lengths_logits = self.pooler(**pooler_inputs)  # (bsz, pooler_size)
+        lengths_logits = F.log_softmax(lengths_logits, dim=-1)  # (bsz, pooler_size)
+        lengths = lengths_logits.topk(n_lengths, dim=-1)[1]  # (bsz, n_lengths)
         return lengths
