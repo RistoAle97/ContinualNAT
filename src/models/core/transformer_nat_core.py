@@ -43,13 +43,16 @@ class TransformerNATCore(TransformerCore):
     def __soft_copy(self, e_output: torch.Tensor, e_mask: torch.Tensor, d_mask: torch.Tensor) -> torch.Tensor:
         pass
 
-    def copy_embeddings(self, src_embeddings: torch.Tensor, e_mask: torch.Tensor, d_mask: torch.Tensor) -> torch.Tensor:
+    def _copy_embeddings(self,
+                         src_embeddings: torch.Tensor,
+                         e_mask: torch.Tensor,
+                         d_mask: torch.Tensor) -> torch.Tensor:
         if self.src_embedding_copy == "uniform":
             return self.__uniform_copy(src_embeddings, e_mask, d_mask)
         else:
             return self.__soft_copy(src_embeddings, e_mask, d_mask)
 
-    def __check_length_token(self, input_ids: torch.Tensor) -> bool:
+    def _check_length_token(self, input_ids: torch.Tensor) -> bool:
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
         return is_using_length_token.all()
 

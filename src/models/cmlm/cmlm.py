@@ -31,7 +31,7 @@ class CMLM(TransformerNATCore):
         self.train_metrics["cmlm_mlm_loss"] = MeanMetric()
 
     def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
-        self.__check_length_token(e_input)
+        self._check_length_token(e_input)
         e_output = super().encode(e_input, e_mask)
         return e_output
 
@@ -51,7 +51,7 @@ class CMLM(TransformerNATCore):
         """
         Process source and target sequences.
         """
-        if not self.__check_length_token(src_input):
+        if not self._check_length_token(src_input):
             raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs such"
                              "token to predict the target lengths.")
 
@@ -200,7 +200,7 @@ class CMLM(TransformerNATCore):
         if length_beam_size < 1:
             raise ValueError("The number of lengths to consider for each sentence must be at least 1.")
 
-        if not self.__check_length_token(input_ids):
+        if not self._check_length_token(input_ids):
             raise ValueError("You are not using the <length> token at the start of the source sentences,"
                              "the model can not predict the target lengths.")
 

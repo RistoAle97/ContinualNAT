@@ -55,7 +55,7 @@ class GLAT(TransformerNATCore):
         """
         Process source and target sequences.
         """
-        if not self.__check_length_token(src_input):
+        if not self._check_length_token(src_input):
             raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs such"
                              "token to predict the target lengths.")
 

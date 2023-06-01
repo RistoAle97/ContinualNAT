@@ -1,4 +1,4 @@
-from src.models import CoreConfig
+from src.models.core import CoreConfig
 
 
 class NATCoreConfig(CoreConfig):
