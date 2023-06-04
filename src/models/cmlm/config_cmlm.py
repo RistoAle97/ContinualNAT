@@ -21,7 +21,8 @@ class CMLMConfig(NATCoreConfig):
                  pad_token_id: int = 1,
                  mask_token_id: int = 5,
                  length_token_id: int = None,
-                 label_smoothing: float = 0.0) -> None:
+                 label_smoothing: float = 0.0,
+                 pooler_size: int = 256) -> None:
         """
         Configuration class for the CMLM model.
         :param vocab_size: shared vocabulary size.
@@ -44,8 +45,9 @@ class CMLMConfig(NATCoreConfig):
         :param mask_token_id: the mask token id (default=5)
         :param length_token_id: the length token id, akin to a cls token (default=4).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
+        :param pooler_size: the pooler layer dimension (default=256).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, sos_token_id,
-                         eos_token_id, pad_token_id, length_token_id, label_smoothing, None)
+                         eos_token_id, pad_token_id, length_token_id, label_smoothing, None, pooler_size)
         self.mask_token_id = mask_token_id

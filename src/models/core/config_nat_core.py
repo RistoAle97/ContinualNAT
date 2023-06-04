@@ -21,7 +21,8 @@ class NATCoreConfig(CoreConfig):
                  pad_token_id: int = 1,
                  length_token_id: int = None,
                  label_smoothing: float = 0.0,
-                 src_embedding_copy: str = None) -> None:
+                 src_embedding_copy: str = None,
+                 pooler_size: int = 256) -> None:
         """
         Configuration class for the GLAT model.
         :param vocab_size: shared vocabulary size.
@@ -45,6 +46,7 @@ class NATCoreConfig(CoreConfig):
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
         :param src_embedding_copy: the type of copy to apply to the source embedding, possible values: uniform, soft and
             None (default=None).
+        :param pooler_size: the pooler layer dimension (default=256).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, sos_token_id,
@@ -55,3 +57,4 @@ class NATCoreConfig(CoreConfig):
                              "soft or None.")
 
         self.src_embedding_copy = src_embedding_copy
+        self.pooler_size = pooler_size

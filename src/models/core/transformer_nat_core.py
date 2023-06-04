@@ -16,10 +16,14 @@ class TransformerNATCore(TransformerCore):
         # Parameters
         self.length_token_id = config.length_token_id
         self.src_embedding_copy = config.src_embedding_copy
+        self.pooler_size = config.pooler_size
 
         # Pooler layer after the encoder to predict the target sentences' lengths
-        self.pooler = LengthPooler(self.d_model) if self.length_token_id is not None else MeanPooler(self.d_model)
-
+        if self.length_token_id is not None:
+            self.pooler = LengthPooler(self.d_model, self.pooler_size)
+        else:
+            self.pooler = MeanPooler(self.d_model, self.pooler_size)
+        
         # Length loss
         self.train_metrics["lengths_loss"] = MeanMetric()
 
