@@ -61,6 +61,10 @@ class TransformerNATCore(TransformerCore):
             return self.__soft_copy(src_embeddings, e_mask, d_mask)
 
     def _check_length_token(self, input_ids: torch.Tensor) -> bool:
+        if self.length_token_id is None:
+            # The model is not using a length token, we do not need to do any check
+            return True
+
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
         return is_using_length_token.all()
 

@@ -26,7 +26,10 @@ class CMLM(TransformerNATCore):
         self.train_metrics["cmlm_mlm_loss"] = MeanMetric()
 
     def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
-        self._check_length_token(e_input)
+        if not self._check_length_token(e_input):
+            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs"
+                             "such token to predict the target lengths.")
+
         e_output = super().encode(e_input, e_mask)
         return e_output
 
@@ -51,9 +54,9 @@ class CMLM(TransformerNATCore):
         """
         Process source and target sequences.
         """
-        if self.length_token_id is not None and not self._check_length_token(src_input):
-            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs such"
-                             "token to predict the target lengths.")
+        if not self._check_length_token(src_input):
+            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs"
+                             "such token to predict the target lengths.")
 
         # Embeddings and positional encoding
         src_embeddings = self.embedding(src_input)  # (bsz, seq_len, d_model)
