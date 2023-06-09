@@ -6,6 +6,7 @@ main.py
 logs/
 data/
 /*.ipynb
+scripts/
 
 # C extensions
 *.so
