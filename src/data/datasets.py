@@ -95,9 +95,9 @@ class TranslationDatasetCore:
                 "avg_length_src": self.avg_length_src, "avg_length_tgt": self.avg_length_tgt}
 
     def tokenize_pair(self, sentence_pair: Dict[str, str]) -> Dict[str, Union[torch.Tensor, str]]:
-        src_sentence = sentence_pair[self.src_lang]
+        src_sentence = sentence_pair[self.src_lang].strip()
         src_sentence = self.tokenizer.cls_token + " " + src_sentence if self.use_cls_token else src_sentence
-        tgt_sentence = sentence_pair[self.tgt_lang]
+        tgt_sentence = sentence_pair[self.tgt_lang].strip()
         self.tokenizer.src_lang = self.tokenizer_src_lang_code
         self.tokenizer.tgt_lang = self.tokenizer_tgt_lang_code
         input_ids = self.tokenizer(src_sentence, **self.tokenizer_state)
@@ -190,17 +190,3 @@ class IterableTranslationDataset(TranslationDatasetCore, IterableDataset):
 
             sentence_pair = sentence_pair_langs["translation"]
             yield self.tokenize_pair(sentence_pair)
-
-
-class TextDataset(Dataset):
-
-    def __init__(self, dataset: datasets.Dataset) -> None:
-        super().__init__()
-        self.dataset = dataset
-
-    def __len__(self) -> int:
-        return len(self.dataset)
-
-    def __getitem__(self, idx) -> Dict[str, str]:
-        tgt_sentence = self.dataset[idx]["text"]
-        return {"tgt_sentence": tgt_sentence}
