@@ -18,7 +18,7 @@ class BatchCollator:
         :param is_mlm: whether the collator is used for a masked language model (MLM), if False then we're dealing with
             a causal model and the labels must be shifted to the right in order to create the decoder inputs
             (default=False).
-        :param shift_lang_token: whether to move the lang token at the beginnning of the source sentences
+        :param shift_lang_token: whether to move the lang token at the beginning of the source sentences
             (default=False).
         :param return_special_tokens_mask: whether to return the special tokens mask for the labels (default=False).
         :param pad_token_id: the pad token id (default=1).
