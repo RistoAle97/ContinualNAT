@@ -23,7 +23,7 @@ class CMLM(TransformerNATCore):
         self.apply(init_bert_weights)
 
         # Train and validation losses
-        self.train_metrics["cmlm_mlm_loss"] = MeanMetric()
+        self.train_metrics["mlm_loss"] = MeanMetric()
 
     def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
         if not self._check_length_token(e_input):
@@ -117,11 +117,11 @@ class CMLM(TransformerNATCore):
 
         # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
-        self.train_metrics["cmlm_mlm_loss"].update(logits_loss)
+        self.train_metrics["mlm_loss"].update(logits_loss)
         self.train_metrics["lengths_loss"].update(lengths_loss)
         return loss
 
-    def validation_step(self, batch, batch_idx, dataloader_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx: int = 0):
         input_ids = batch["input_ids"]
         references = batch["references"]
 
