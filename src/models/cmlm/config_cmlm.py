@@ -43,7 +43,8 @@ class CMLMConfig(NATCoreConfig):
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
         :param mask_token_id: the mask token id (default=5)
-        :param length_token_id: the length token id, akin to a cls token (default=4).
+        :param length_token_id: the length token id, akin to a cls token, if no length token is passed then a mean
+            pooling over the entire source tokens will be used for the length prediction (default=None).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
         :param pooler_size: the pooler layer dimension (default=256).
         """
