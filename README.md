@@ -20,6 +20,5 @@ The NAT models' names are taken from the following [survey](https://arxiv.org/pd
 
 ### NAR (non-autoregressive) models
 - [FT-NAT](https://arxiv.org/abs/1711.02281) (_WIP_)
-- [RefineNAT](https://arxiv.org/abs/1802.06901) (_WIP_)
 - [CMLM](https://arxiv.org/abs/1904.09324)
 - [GLAT](https://arxiv.org/abs/2008.07905) (_WIP_)
