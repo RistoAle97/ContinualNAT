@@ -106,14 +106,14 @@ class CMLM(TransformerNATCore):
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
-        target_lengths = batch["target_lengths"]
+        tgt_lengths = batch["tgt_lengths"]
 
         # Create masks
         e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, None)
 
         # Compute loss
         logits, length_logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
-        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, length_logits, target_lengths)
+        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, length_logits, tgt_lengths)
 
         # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
