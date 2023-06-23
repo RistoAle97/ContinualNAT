@@ -94,6 +94,7 @@ class TranslationDataset(TranslationDatasetCore, Dataset):
         self.fill_to_max_length = fill_to_max_length
         if fill_to_max_length:
             self.tokenizer_state["add_special_tokens"] = False
+            self.tokenizer_state["max_length"] -= 2  # just a workaround
 
     def __len__(self) -> int:
         return len(self.dataset)
