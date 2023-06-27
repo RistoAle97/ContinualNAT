@@ -16,11 +16,14 @@ class GLATConfig(NATCoreConfig):
                  activation_ff: str = "relu",
                  layer_norm_eps: float = 1e-6,
                  scale_embeddings: bool = False,
-                 sos_token_id: int = 0,
+                 bos_token_id: int = 0,
                  eos_token_id: int = 2,
                  pad_token_id: int = 1,
                  length_token_id: int = None,
-                 label_smoothing: float = 0.0) -> None:
+                 label_smoothing: float = 0.0,
+                 src_embedding_copy: str = "uniform",
+                 pooler_size: int = 256,
+                 tau: float = 0.3) -> None:
         """
         Configuration class for the GLAT model.
         :param vocab_size: shared vocabulary size.
@@ -37,12 +40,17 @@ class GLATConfig(NATCoreConfig):
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         :param scale_embeddings: whether to scale the output of the embedding layer with the inverse square root
             of d_model (default=False).
-        :param sos_token_id: the start of sequence token id (default=0).
+        :param bos_token_id: the start of sequence token id (default=0).
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
         :param length_token_id: the length token id, akin to a cls token (default=4).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
+        :param src_embedding_copy: the type of copy to apply to the source embedding, possible values: uniform, soft and
+            None (default=None).
+        :param pooler_size: the pooler layer dimension (default=256).
+        :param tau: the tau value for the soft-copy mechanism (default=0.3).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
-                         dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, sos_token_id,
-                         eos_token_id, pad_token_id, length_token_id, label_smoothing, "soft")
+                         dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
+                         eos_token_id, pad_token_id, length_token_id, label_smoothing, src_embedding_copy, pooler_size)
+        self.tau = tau

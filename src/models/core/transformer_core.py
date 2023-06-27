@@ -1,7 +1,8 @@
 import torch
 from torch import nn
 from torch.optim import Optimizer, AdamW
-from torchmetrics import MeanMetric, SacreBLEUScore
+from torchmetrics import MeanMetric
+from torchmetrics.text import SacreBLEUScore
 from lightning import LightningModule
 from transformers import PreTrainedTokenizerBase, get_scheduler
 from src.data import TranslationDataset, IterableTranslationDataset
@@ -33,7 +34,7 @@ class TransformerCore(LightningModule):
         self.layer_norm_eps = config.layer_norm_eps
 
         # Token ids
-        self.sos_token_id = config.sos_token_id
+        self.bos_token_id = config.bos_token_id
         self.eos_token_id = config.eos_token_id
         self.pad_token_id = config.pad_token_id
 
@@ -114,7 +115,7 @@ class TransformerCore(LightningModule):
         lang_pair, dataloader = langs_dataloader
         if isinstance(dataloader.dataset, Union[TranslationDataset, IterableTranslationDataset]):
             tokenizer = dataloader.dataset.tokenizer
-            tgt_lang_code = dataloader.dataset.tokenizer_tgt_lang_code
+            tgt_lang_code = dataloader.dataset.tgt_lang_code
         else:
             raise ValueError("You should use a TranslationDataset or IterableTranslationDataset as datasets for the"
                              "dataloader.")
@@ -154,12 +155,12 @@ class TransformerCore(LightningModule):
             # Compute the BLEU score for the translation direction and log it
             bleu_score = self.val_metrics[metric_name].compute() * 100
             self.val_metrics["mean_BLEU"].update(bleu_score)
-            metric_to_log = {metric_name: bleu_score}
             if dataloader_idx == len(self.trainer.val_dataloaders) - 1:
-                metric_to_log["mean_BLEU"] = self.val_metrics["mean_BLEU"].compute()
+                self.log("mean_BLEU", self.val_metrics["mean_BLEU"].compute(), prog_bar=True, add_dataloader_idx=False,
+                         batch_size=dataloader.batch_size)
                 self.val_metrics["mean_BLEU"].reset()
 
-            self.log_dict(metric_to_log, prog_bar=True, add_dataloader_idx=False, batch_size=batch["input_ids"].size(0))
+            self.log(metric_name, bleu_score, prog_bar=True, add_dataloader_idx=False, batch_size=dataloader.batch_size)
             self.val_metrics[metric_name].reset()
 
     def change_optimizer(self, optimizer: Optimizer) -> None:
