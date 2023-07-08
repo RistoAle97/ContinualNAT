@@ -5,7 +5,7 @@ from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
-from src.data import *
+from src.data import TranslationDataset, BatchCollator, BatchCollatorCMLM
 from src.models import TransformerCore, CMLM
 from src.utils import MBART_LANG_MAP, compute_accumulation_steps
 from typing import Dict, List, Set, Tuple
@@ -26,11 +26,9 @@ class MultilingualTrainer:
         self.ckpt_every_n_steps = ckpt_every_n_steps
 
     @staticmethod
-    def __build_translation_directions(train_datasets: List[TranslationDataset],
-                                       val_datasets: List[TranslationDataset]) -> Tuple[Set[str], Set[Tuple[str, str]]]:
+    def __build_nmt_directions(train_datasets: List[TranslationDataset]) -> Tuple[Set[str], Set[Tuple[str, str]]]:
         lang_pairs = set()  # unique language pairs (e.g.: en-es and es-en is considered as a single pair)
         train_directions = set([f"{dataset.src_lang}-{dataset.tgt_lang}" for dataset in train_datasets])
-        val_directions = set([f"{dataset.src_lang}-{dataset.tgt_lang}" for dataset in val_datasets])
         for direction in train_directions:
             langs = direction.split("-")
             src_lang, tgt_lang = langs[0], langs[-1]
@@ -104,7 +102,7 @@ class MultilingualTrainer:
               tokens_per_batch: int = None,
               logger_version: str = None) -> None:
         # Build translation directions and unique lang pairs
-        nmt_directions, lang_pairs = self.__build_translation_directions(train_datasets, val_datasets)
+        nmt_directions, lang_pairs = self.__build_nmt_directions(train_datasets)
 
         # Dataloaders
         train_dataloader, val_dataloaders = self.__build_dataloaders(model, train_datasets, val_datasets,
