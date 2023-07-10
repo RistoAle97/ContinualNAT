@@ -18,12 +18,14 @@ class MultilingualTrainer:
                  train_steps: int = 100000,
                  val_every_n_steps: int = 10000,
                  log_every_n_steps: int = 500,
-                 ckpt_every_n_steps: int = 10000) -> None:
+                 ckpt_every_n_steps: int = 10000,
+                 log_directory: str = "") -> None:
         self.tokenizer = tokenizer
         self.train_steps = train_steps
         self.val_every_n_steps = val_every_n_steps
         self.log_every_n_steps = log_every_n_steps
         self.ckpt_every_n_steps = ckpt_every_n_steps
+        self.log_directory = log_directory
 
     @staticmethod
     def __build_nmt_directions(train_datasets: List[TranslationDataset]) -> Tuple[Set[str], Set[Tuple[str, str]]]:
@@ -117,7 +119,7 @@ class MultilingualTrainer:
         if logger_version is None:
             logger_version = self.__compute_logger_version(model, nmt_directions, lang_pairs)
 
-        logger = TensorBoardLogger("", name="logs", version=logger_version)
+        logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
         checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max",
                                      every_n_train_steps=self.ckpt_every_n_steps)
         prog_bar_theme = RichProgressBarTheme(description="red", progress_bar="dark_blue",
