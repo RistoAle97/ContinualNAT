@@ -4,6 +4,7 @@ from transformers import PreTrainedTokenizerBase
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
 from lightning.pytorch.loggers import TensorBoardLogger
+from lightning.pytorch.loggers.wandb import WandbLogger
 from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
 from src.data import TranslationDataset, BatchCollator, BatchCollatorCMLM
 from src.models import TransformerCore, CMLM
@@ -19,13 +20,15 @@ class MultilingualTrainer:
                  val_every_n_steps: int = 10000,
                  log_every_n_steps: int = 500,
                  ckpt_every_n_steps: int = 10000,
-                 log_directory: str = "") -> None:
+                 log_directory: str = "",
+                 use_wandb: bool = True) -> None:
         self.tokenizer = tokenizer
         self.train_steps = train_steps
         self.val_every_n_steps = val_every_n_steps
         self.log_every_n_steps = log_every_n_steps
         self.ckpt_every_n_steps = ckpt_every_n_steps
         self.log_directory = log_directory
+        self.use_wandb = use_wandb
 
     @staticmethod
     def __build_nmt_directions(train_datasets: List[TranslationDataset]) -> Tuple[Set[str], Set[Tuple[str, str]]]:
@@ -119,7 +122,11 @@ class MultilingualTrainer:
         if logger_version is None:
             logger_version = self.__compute_logger_version(model, nmt_directions, lang_pairs)
 
-        logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
+        if self.use_wandb:
+            logger = WandbLogger(self.log_directory, name="logs", project=logger_version)
+        else:
+            logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
+
         checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max",
                                      every_n_train_steps=self.ckpt_every_n_steps)
         prog_bar_theme = RichProgressBarTheme(description="red", progress_bar="dark_blue",
