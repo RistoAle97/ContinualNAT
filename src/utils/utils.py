@@ -1,9 +1,6 @@
 import torch
 import math
 
-# Supported languages by this package, add more if you need to
-SUPPORTED_LANGS = {"de", "en", "es", "fr"}
-
 # Maps iso codes into language codes for the Mbart tokenizer
 MBART_LANG_MAP = {"ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX", "es": "es_XX", "et": "et_EE",
                   "fi": "fi_FI", "fr": "fr_XX", "gu": "gu_IN", "hi": "hi_IN", "it": "it_IT", "ja": "ja_XX",

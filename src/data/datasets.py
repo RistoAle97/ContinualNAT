@@ -4,7 +4,7 @@ import numpy as np
 from transformers import MBartTokenizer, MBartTokenizerFast
 from torch.utils.data import Dataset, IterableDataset
 from typing import Dict, Iterator, Set, Union
-from src.utils import SUPPORTED_LANGS, MBART_LANG_MAP
+from src.utils import MBART_LANG_MAP
 
 
 class TranslationDatasetCore:
@@ -33,9 +33,6 @@ class TranslationDatasetCore:
 
         if not hasattr(tokenizer, "src_lang") or not hasattr(tokenizer, "tgt_lang"):
             raise ValueError("You should use a tokenizer that can has \"source_lang\" and \"tgt_lang\" defined.")
-
-        if src_lang not in SUPPORTED_LANGS or tgt_lang not in SUPPORTED_LANGS:
-            raise ValueError("There should not be an unsupported language as the source or target language.")
 
         # Source and target languages
         self.src_lang = src_lang
