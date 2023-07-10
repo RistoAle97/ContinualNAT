@@ -48,17 +48,36 @@ class TransformerNATCore(TransformerCore):
         embeddings_copy = torch.gather(src_embeddings, 1, mapped_inputs.expand(*mapped_inputs.size(), self.d_model))
         return embeddings_copy
 
-    def __soft_copy(self, e_output: torch.Tensor, e_mask: torch.Tensor, d_mask: torch.Tensor) -> torch.Tensor:
-        pass
+    @staticmethod
+    def __soft_copy(src_lengths: torch.tensor,
+                    tgt_lengths: torch.Tensor,
+                    e_output: torch.Tensor,
+                    tau: float = 0.3) -> torch.Tensor:
+        max_src_length = src_lengths.max().unsqueeze(-1)
+        max_tgt_length = tgt_lengths.max().unsqueeze(-1)
+        index_s = torch.arange(max_src_length[-1], device=src_lengths.device).expand(
+            *max_src_length).contiguous().float()  # (max_src_length)
+        index_t = torch.arange(max_tgt_length[-1], device=tgt_lengths.device).expand(
+            *max_tgt_length).contiguous().float()  # (max_tgt_length)
+        diff = -(index_t[:, None] - index_s[None, :]).abs()  # (max_tgt_length, max_src_length)
+        diff = diff.unsqueeze(0).expand(tgt_lengths.size(0), *diff.size())  # (bsz, max_tgt_length, max_src_length)
+        mask = (src_lengths[:, None] - 1 - index_s[None, :]).lt(0).float().squeeze(1)  # (bsz, max_src_length)
+        logits = (diff / tau - 1e-9 * mask[:, None, :])
+        probs = logits.softmax(-1)  # (bsz, max_tgt_length, max_src_length)
+        embeddings_copy = torch.bmm(probs, e_output)  # (bsz, max_tgt_length, d_model)
+        return embeddings_copy
 
     def _copy_embeddings(self,
                          src_embeddings: torch.Tensor,
                          e_mask: torch.Tensor,
-                         d_mask: torch.Tensor) -> torch.Tensor:
+                         d_mask: torch.Tensor,
+                         src_lengths: torch.Tensor,
+                         tgt_lengths: torch.Tensor,
+                         tau: float = 0.3) -> torch.Tensor:
         if self.src_embedding_copy == "uniform":
             return self.__uniform_copy(src_embeddings, e_mask, d_mask)
         else:
-            return self.__soft_copy(src_embeddings, e_mask, d_mask)
+            return self.__soft_copy(src_lengths, tgt_lengths, src_embeddings, tau)
 
     def _check_length_token(self, input_ids: torch.Tensor) -> bool:
         if self.length_token_id is None:

@@ -3,6 +3,7 @@ from torch import nn
 from torch.functional import F
 from src.models.core import TransformerNATCore
 from src.models.glat import GLATConfig
+from src.models.glat.glat_utils import LambdaScheduler
 from src.modules import DecoderLayerNAT, DecoderNAT
 from src.utils import init_bert_weights, create_masks
 from typing import Tuple
@@ -24,6 +25,12 @@ class GLAT(TransformerNATCore):
         decoder_layer = DecoderLayerNAT(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.dropout_mha,
                                         self.dropout_ff, self.activation_ff, self.layer_norm_eps, False)
         self.decoder = DecoderNAT(decoder_layer, self.num_decoder_layers, norm=decoder_norm)
+
+        # Tau value for the soft-copy mechanism
+        self.tau = config.tau
+
+        # Scheduler for the lambda value used by the glancing strategy
+        self.lambda_scheduler = LambdaScheduler()
 
         # Use BERT weight initialization
         self.apply(init_bert_weights)
@@ -55,13 +62,14 @@ class GLAT(TransformerNATCore):
 
         # Embeddings and positional encoding
         src_embeddings = self.embedding(src_input)  # (bsz, seq_len, d_model)
-        tgt_embeddings = self.embedding(tgt_input)  # (bsz, seq_len, d_model)
+        # tgt_embeddings = self.embedding(tgt_input)  # (bsz, seq_len, d_model)
         src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
-        tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
 
         # Encoder and decoder
         e_output = self.encoder(src_embeddings, e_mask)
         predicted_lengths = self.pooler(e_output)  # (bsz, seq_len)
+        tgt_embeddings = self._copy_embeddings(e_output, e_mask, d_mask, None, None, self.tau)
+        # tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
         d_output = self.decoder(tgt_embeddings, e_output[:, 1:], d_mask, e_mask[:, :, 1:])
 
         # Linear output
@@ -88,22 +96,28 @@ class GLAT(TransformerNATCore):
         loss = logits_loss + lengths_loss
         return loss, logits_loss.item(), lengths_loss.item()
 
+    def on_train_start(self) -> None:
+        super().on_train_start()
+        self.lambda_scheduler.anneal_steps = self.trainer.estimated_stepping_batches
+
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
-        target_lengths = batch["target_lengths"]
+        tgt_lengths = batch["tgt_lengths"]
 
         # Create masks
         e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, None)
 
-        # Compute loss
+        # Glancing strategy
         logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
-        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
+
+        # Compute loss
+        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, tgt_lengths)
 
         # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
-        self.train_metrics["cmlm_mlm_loss"].update(logits_loss)
+        self.train_metrics["glat_loss"].update(logits_loss)
         self.train_metrics["lengths_loss"].update(lengths_loss)
         return loss
 
@@ -121,7 +135,8 @@ class GLAT(TransformerNATCore):
 
     def generate(self,
                  input_ids: torch.Tensor,
-                 tgt_lang_token_id: int = None) -> torch.Tensor:
+                 tgt_lang_token_id: int = None,
+                 length_beam_size: int = 5) -> torch.Tensor:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.
