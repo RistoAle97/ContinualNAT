@@ -123,7 +123,7 @@ class MultilingualTrainer:
             logger_version = self.__compute_logger_version(model, nmt_directions, lang_pairs)
 
         if self.use_wandb:
-            logger = WandbLogger(self.log_directory, name="logs", project=logger_version)
+            logger = WandbLogger(logger_version, self.log_directory, project="ContinualNAT", version=logger_version)
         else:
             logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
 
