@@ -3,9 +3,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 main.py
-logs/
-data/
+/logs/
+/data/
 /*.ipynb
+/scripts/
 
 # C extensions
 *.so

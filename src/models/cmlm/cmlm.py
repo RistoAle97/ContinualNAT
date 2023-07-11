@@ -1,14 +1,13 @@
 import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
-from src.models.core import TransformerCore
+from src.models.core import TransformerNATCore
 from src.models.cmlm import CMLMConfig
-from src.modules import Pooler
 from src.utils import init_bert_weights, create_masks
 from typing import Tuple
 
 
-class CMLM(TransformerCore):
+class CMLM(TransformerNATCore):
 
     def __init__(self, config: CMLMConfig) -> None:
         """
@@ -19,24 +18,18 @@ class CMLM(TransformerCore):
         super().__init__(config)
         # Token ids
         self.mask_token_id = config.mask_token_id
-        self.length_token_id = config.length_token_id
-
-        # Pooler layer after the encoder to predict the target sentence length
-        self.pooler = Pooler(self.d_model)
 
         # Use BERT weight initialization
         self.apply(init_bert_weights)
 
         # Train and validation losses
-        self.train_metrics["cmlm_mlm_loss"] = MeanMetric()
-        self.train_metrics["cmlm_lengths_loss"] = MeanMetric()
-
-    def __check_length_token(self, input_ids: torch.Tensor) -> bool:
-        is_using_length_token = (input_ids[:, 0] == self.length_token_id)
-        return is_using_length_token.all()
+        self.train_metrics["mlm_loss"] = MeanMetric()
 
     def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
-        self.__check_length_token(e_input)
+        if not self._check_length_token(e_input):
+            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs"
+                             "such token to predict the target lengths.")
+
         e_output = super().encode(e_input, e_mask)
         return e_output
 
@@ -45,7 +38,12 @@ class CMLM(TransformerCore):
                e_output: torch.Tensor,
                d_mask: torch.Tensor = None,
                e_mask: torch.Tensor = None) -> torch.Tensor:
-        d_output = super().decode(tgt_input, e_output[:, 1:], d_mask, e_mask[:, :, 1:])
+        if self.length_token_id is not None:
+            # Do not use the encodings of the <length> token inside the decoder
+            e_output = e_output[:, 1:]
+            e_mask = e_mask[:, :, 1:]
+
+        d_output = super().decode(tgt_input, e_output, d_mask, e_mask)
         return d_output
 
     def forward(self,
@@ -56,9 +54,9 @@ class CMLM(TransformerCore):
         """
         Process source and target sequences.
         """
-        if not self.__check_length_token(src_input):
-            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs such"
-                             "token to predict the target lengths.")
+        if not self._check_length_token(src_input):
+            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs"
+                             "such token to predict the target lengths.")
 
         # Embeddings and positional encoding
         src_embeddings = self.embedding(src_input)  # (bsz, seq_len, d_model)
@@ -68,40 +66,37 @@ class CMLM(TransformerCore):
 
         # Encoder and decoder
         e_output = self.encoder(src_embeddings, e_mask)
-        predicted_lengths = self.pooler(e_output)  # (bsz, seq_len)
-        d_output = self.decoder(tgt_embeddings, e_output[:, 1:], d_mask, e_mask[:, :, 1:])
+        pooler_inputs = {"e_output": e_output}
+        if self.length_token_id is not None:
+            # Do not use the encodings of the <length> token inside the decoder
+            e_output = e_output[:, 1:]
+            e_mask = e_mask[:, :, 1:]
+        else:
+            # Use the encoder mask in the MeanPooler if no <length> token is defined
+            pooler_inputs["e_mask"] = e_mask
+
+        predicted_lengths = self.pooler(**pooler_inputs)  # (bsz, pooler_size)
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)
 
         # Linear output
         output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
         return output, predicted_lengths
 
-    def predict_target_length(self, e_output: torch.Tensor, n_lengths: int = 1) -> torch.Tensor:
-        """
-        Computes the target sentence possible lengths given the encoder's output.
-        :param e_output: the encoder's output.
-        :param n_lengths: the number of possible lengths to consider for each sentence.
-        :return: the encodings of the target sentence length.
-        """
-        length_logits = self.pooler(e_output)
-        length_logits = F.log_softmax(length_logits, dim=-1)
-        lengths = length_logits.topk(n_lengths, dim=-1)[1]
-        return lengths
-
     def compute_loss(self,
                      logits: torch.Tensor,
                      labels: torch.Tensor,
-                     predicted_lengths: torch.Tensor,
+                     lengths_logits: torch.Tensor,
                      target_lengths: torch.Tensor) -> Tuple[torch.Tensor, float, float]:
         # Logits loss
-        logits = logits.contiguous().view(-1, logits.size(-1))
-        labels = labels.contiguous().view(-1)
+        logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)
+        labels = labels.contiguous().view(-1)  # (bsz * seq_len)
         logits_loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id,
                                       label_smoothing=self.label_smoothing)
 
         # Length loss
-        predicted_lengths = predicted_lengths.contiguous().view(-1, predicted_lengths.size(-1))
+        lengths_logits = lengths_logits.contiguous().view(-1, lengths_logits.size(-1))
         target_lengths = target_lengths.contiguous().view(-1)
-        lengths_loss = F.cross_entropy(predicted_lengths, target_lengths, label_smoothing=self.label_smoothing)
+        lengths_loss = F.cross_entropy(lengths_logits, target_lengths)
 
         # Combine the losses
         loss = logits_loss + lengths_loss
@@ -111,22 +106,22 @@ class CMLM(TransformerCore):
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
-        target_lengths = batch["target_lengths"]
+        tgt_lengths = batch["tgt_lengths"]
 
         # Create masks
         e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, None)
 
         # Compute loss
-        logits, predicted_lengths = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
-        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, predicted_lengths, target_lengths)
+        logits, length_logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
+        loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, length_logits, tgt_lengths)
 
         # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
-        self.train_metrics["cmlm_mlm_loss"].update(logits_loss)
-        self.train_metrics["cmlm_lengths_loss"].update(lengths_loss)
+        self.train_metrics["mlm_loss"].update(logits_loss)
+        self.train_metrics["lengths_loss"].update(lengths_loss)
         return loss
 
-    def validation_step(self, batch, batch_idx, dataloader_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx: int = 0):
         input_ids = batch["input_ids"]
         references = batch["references"]
 
@@ -217,7 +212,7 @@ class CMLM(TransformerCore):
         if length_beam_size < 1:
             raise ValueError("The number of lengths to consider for each sentence must be at least 1.")
 
-        if not self.__check_length_token(input_ids):
+        if not self._check_length_token(input_ids):
             raise ValueError("You are not using the <length> token at the start of the source sentences,"
                              "the model can not predict the target lengths.")
 
@@ -230,7 +225,7 @@ class CMLM(TransformerCore):
         encodings = self.encode(input_ids, e_mask)
 
         # Predict the best length_beam_size lengths for each sentence
-        length_beams = self.predict_target_length(encodings, length_beam_size)
+        length_beams = self.predict_target_length(encodings, length_beam_size, e_mask)
         length_beams[length_beams < 2] = 2
 
         # Compute the largest length and the number of non-pad tokens

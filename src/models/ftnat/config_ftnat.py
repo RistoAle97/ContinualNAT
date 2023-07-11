@@ -16,7 +16,7 @@ class FTNATConfig(CoreConfig):
                  activation_ff: str = "relu",
                  layer_norm_eps: float = 1e-6,
                  scale_embeddings: bool = False,
-                 sos_token_id: int = 0,
+                 bos_token_id: int = 0,
                  eos_token_id: int = 2,
                  pad_token_id: int = 1,
                  max_fertilities: int = 50) -> None:
@@ -36,12 +36,12 @@ class FTNATConfig(CoreConfig):
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         :param scale_embeddings: whether to scale the output of the embedding layer with the inverse square root
             of d_model (default=False).
-        :param sos_token_id: the start of sequence token id (default=0).
+        :param bos_token_id: the start of sequence token id (default=0).
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
         :param max_fertilities: the maximum number of fertilities (default=50).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
-                         dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, sos_token_id,
+                         dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
                          eos_token_id, pad_token_id)
         self.max_fertilities = max_fertilities

@@ -63,7 +63,7 @@ class Transformer(TransformerCore):
         self.train_metrics["train_loss"].update(loss.item())
         return loss
 
-    def validation_step(self, batch, batch_idx, dataloader_idx):
+    def validation_step(self, batch, batch_idx, dataloader_idx: int = 0):
         input_ids = batch["input_ids"]
         references = batch["references"]
 

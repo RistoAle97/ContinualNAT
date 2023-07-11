@@ -10,7 +10,7 @@ class FTNAT(TransformerCore):
 
     def __init__(self, config: FTNATConfig) -> None:
         """
-        The fertility NAT model (FT-NAT) by Gu et al. (https://arxiv.org/pdf/1711.02281.pdf), the first
+        The fertility NAT model (FT-NAT) by Gu et al. https://arxiv.org/pdf/1711.02281.pdf, the first
         non-autoregressive model for neural machine translation.
         """
         super().__init__(config)

@@ -1,4 +1,7 @@
-class CoreConfig:
+from src.models import NATCoreConfig
+
+
+class GLATConfig(NATCoreConfig):
 
     def __init__(self,
                  vocab_size: int,
@@ -16,9 +19,13 @@ class CoreConfig:
                  bos_token_id: int = 0,
                  eos_token_id: int = 2,
                  pad_token_id: int = 1,
-                 label_smoothing: float = 0.0) -> None:
+                 length_token_id: int = None,
+                 label_smoothing: float = 0.0,
+                 src_embedding_copy: str = "uniform",
+                 pooler_size: int = 256,
+                 tau: float = 0.3) -> None:
         """
-        Base class for the models' configurations.
+        Configuration class for the GLAT model.
         :param vocab_size: shared vocabulary size.
         :param d_model: embedding dimension (default=512).
         :param n_heads: the number of heads in the multi-attention mechanism (default=8).
@@ -36,21 +43,14 @@ class CoreConfig:
         :param bos_token_id: the start of sequence token id (default=0).
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
+        :param length_token_id: the length token id, akin to a cls token (default=4).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
+        :param src_embedding_copy: the type of copy to apply to the source embedding, possible values: uniform, soft and
+            None (default=None).
+        :param pooler_size: the pooler layer dimension (default=256).
+        :param tau: the tau value for the soft-copy mechanism (default=0.3).
         """
-        self.vocab_size = vocab_size
-        self.d_model = d_model
-        self.n_heads = n_heads
-        self.num_encoder_layers = num_encoder_layers
-        self.num_decoder_layers = num_decoder_layers
-        self.dim_ff = dim_ff
-        self.dropout = dropout
-        self.dropout_mha = dropout_mha
-        self.dropout_ff = dropout_ff
-        self.activation_ff = activation_ff
-        self.layer_norm_eps = layer_norm_eps
-        self.scale_embeddings = scale_embeddings
-        self.bos_token_id = bos_token_id
-        self.eos_token_id = eos_token_id
-        self.pad_token_id = pad_token_id
-        self.label_smoothing = label_smoothing
+        super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
+                         dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
+                         eos_token_id, pad_token_id, length_token_id, label_smoothing, src_embedding_copy, pooler_size)
+        self.tau = tau

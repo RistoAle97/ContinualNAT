@@ -46,7 +46,7 @@ def greedy_decoding(model: TransformerCore,
             # Compute the new tokens and concatenate them to the previously generated ones
             p_logits = F.log_softmax(logits[:, -1], dim=1)
             new_tokens = p_logits.argmax(-1)
-            new_tokens = new_tokens * unfinished_sentences + 1 * (1 - unfinished_sentences)
+            new_tokens = new_tokens * unfinished_sentences + model.pad_token_id * (1 - unfinished_sentences)
             output = torch.cat([output, new_tokens[:, None]], dim=-1)
 
             # Update tensor that tracks unfinished sentences

@@ -1,7 +1,7 @@
-from src.models import CoreConfig
+from src.models.core import CoreConfig
 
 
-class RefineNATConfig(CoreConfig):
+class NATCoreConfig(CoreConfig):
 
     def __init__(self,
                  vocab_size: int,
@@ -16,12 +16,15 @@ class RefineNATConfig(CoreConfig):
                  activation_ff: str = "relu",
                  layer_norm_eps: float = 1e-6,
                  scale_embeddings: bool = False,
-                 sos_token_id: int = 0,
+                 bos_token_id: int = 0,
                  eos_token_id: int = 2,
                  pad_token_id: int = 1,
-                 use_highway_layer: bool = True) -> None:
+                 length_token_id: int = None,
+                 label_smoothing: float = 0.0,
+                 src_embedding_copy: str = None,
+                 pooler_size: int = 256) -> None:
         """
-        Configuration class for the RefineNAT model.
+        Configuration class for the GLAT model.
         :param vocab_size: shared vocabulary size.
         :param d_model: embedding dimension (default=512).
         :param n_heads: the number of heads in the multi-attention mechanism (default=8).
@@ -36,13 +39,22 @@ class RefineNATConfig(CoreConfig):
         :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         :param scale_embeddings: whether to scale the output of the embedding layer with the inverse square root
             of d_model (default=False).
-        :param sos_token_id: the start of sequence token id (default=0).
+        :param bos_token_id: the start of sequence token id (default=0).
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
-        :param use_highway_layer: whether to use highway connections around the sublayer or the usual residual ones
-            (default=True).
+        :param length_token_id: the length token id, akin to a cls token (default=4).
+        :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
+        :param src_embedding_copy: the type of copy to apply to the source embedding, possible values: uniform, soft and
+            None (default=None).
+        :param pooler_size: the pooler layer dimension (default=256).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
-                         dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, sos_token_id,
-                         eos_token_id, pad_token_id)
-        self.use_highway_layer = use_highway_layer
+                         dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
+                         eos_token_id, pad_token_id, label_smoothing)
+        self.length_token_id = length_token_id
+        if src_embedding_copy not in ["uniform", "soft", None]:
+            raise ValueError("The source embeddings copy can only be performed with one of the following mode: uniform,"
+                             "soft or None.")
+
+        self.src_embedding_copy = src_embedding_copy
+        self.pooler_size = pooler_size
