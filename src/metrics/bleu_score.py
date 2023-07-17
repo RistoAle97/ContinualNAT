@@ -6,6 +6,7 @@ from src.data.datasets import TranslationDataset
 from src.data.collators import BatchCollator, BatchCollatorCMLM
 from src.models.core.transformer_core import TransformerCore
 from src.models.cmlm.cmlm import CMLM
+from typing import Dict, Set
 
 
 def compute_sacrebleu(model: TransformerCore,
@@ -13,10 +14,13 @@ def compute_sacrebleu(model: TransformerCore,
                       tokenizer: PreTrainedTokenizerBase,
                       bsz: int = 32,
                       progr_bar: bool = False,
-                      metric_tokenize: str = "13a"):
-    if metric_tokenize not in ["none", "zh", "13a", "intl", "char", "ja-mecab"]:
-        raise ValueError("Wrong tokenizer passed for the SacreBLEU metric, use one of the following: \"none\", \"zh\", "
-                         "\"13a\", \"char\", \"ja-mecab\".")
+                      metric_tokenize: Set[str] = None) -> Dict[str, float]:
+    if metric_tokenize is None:
+        metric_tokenize = {"none"}
+
+    if metric_tokenize.intersection({"none", "zh", "13a", "intl", "char", "ja-mecab"}) != metric_tokenize:
+        raise ValueError("Wrong tokenizer passed for the SacreBLEU metric, use one or more of the following: \"none\","
+                         "\"zh\", \"13a\", \"char\", \"ja-mecab\".")
 
     scb = evaluate.load("sacrebleu")
     device = model.device
@@ -29,13 +33,15 @@ def compute_sacrebleu(model: TransformerCore,
     dataloader = DataLoader(dataset, batch_size=bsz, collate_fn=batch_collator)
     translations = []
     targets = []
-    if progr_bar:
-        dataloader = tqdm(dataloader)
-
+    dataloader = tqdm(dataloader) if progr_bar else dataloader
     for i, batch in enumerate(dataloader):
-        translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id["de_DE"])
+        translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code])
         decoded_translation = tokenizer.batch_decode(translation, skip_special_tokens=True)
         translations.extend([translation for translation in decoded_translation])
         targets.extend(batch["references"])
 
-    return scb.compute(predictions=translations, references=targets, tokenize=metric_tokenize)
+    bleu_scores = {tokenize: 0 for tokenize in metric_tokenize}
+    for tokenize in metric_tokenize:
+        bleu_scores[tokenize] = scb.compute(predictions=translations, references=targets, tokenize=tokenize)["score"]
+
+    return bleu_scores
