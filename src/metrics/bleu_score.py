@@ -13,7 +13,7 @@ def compute_sacrebleu(model: TransformerCore,
                       dataset: TranslationDataset,
                       tokenizer: PreTrainedTokenizerBase,
                       bsz: int = 32,
-                      progr_bar: bool = False,
+                      prog_bar: bool = False,
                       metric_tokenize: Set[str] = None) -> Dict[str, float]:
     if metric_tokenize is None:
         metric_tokenize = {"none"}
@@ -33,7 +33,7 @@ def compute_sacrebleu(model: TransformerCore,
     dataloader = DataLoader(dataset, batch_size=bsz, collate_fn=batch_collator)
     translations = []
     targets = []
-    dataloader = tqdm(dataloader) if progr_bar else dataloader
+    dataloader = tqdm(dataloader) if prog_bar else dataloader
     for i, batch in enumerate(dataloader):
         translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code])
         decoded_translation = tokenizer.batch_decode(translation, skip_special_tokens=True)

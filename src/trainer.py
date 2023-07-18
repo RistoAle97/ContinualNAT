@@ -9,7 +9,8 @@ from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTh
 from src.data.datasets import TranslationDataset
 from src.data.collators import BatchCollator, BatchCollatorCMLM
 from src.data.batch_samplers import HeterogeneousSampler, HomogeneousSampler
-from src.models import TransformerCore, CMLM
+from src.models.core import TransformerCore
+from src.models.cmlm import CMLM
 from src.utils import MBART_LANG_MAP, compute_accumulation_steps
 from typing import Dict, List, Set, Tuple
 
