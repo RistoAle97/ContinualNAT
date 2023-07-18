@@ -1,4 +1,4 @@
-from src.models.core import CoreConfig
+from src.models.core.config_core import CoreConfig
 
 
 class TransformerConfig(CoreConfig):

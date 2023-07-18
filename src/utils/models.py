@@ -1,5 +1,6 @@
-from torch import nn
 from typing import Tuple
+
+from torch import nn
 
 
 def init_bert_weights(module: nn.Module) -> None:

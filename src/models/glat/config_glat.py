@@ -1,4 +1,4 @@
-from src.models import NATCoreConfig
+from src.models.core.config_nat_core import NATCoreConfig
 
 
 class GLATConfig(NATCoreConfig):

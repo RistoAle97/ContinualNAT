@@ -1,7 +1,8 @@
-import torch
 import math
+
 import matplotlib as plt
 import numpy as np
+import torch
 from torch.optim.lr_scheduler import LambdaLR
 
 # Maps iso codes into language codes for the Mbart tokenizer
@@ -62,6 +63,11 @@ def compute_accumulation_steps(batch_size: int, max_length: int, tokens_per_batc
 
 
 def plot_lr_scheduler(lr_scheduler: LambdaLR, num_steps: int = 100000) -> None:
+    """
+    Plot the learning reate scheduler steps.
+    :param lr_scheduler: the learning rate scheduler.
+    :param num_steps: the number of steps to consider (default=100000).
+    """
     lrs = []
     for _ in range(1, num_steps):
         lr_scheduler.optimizer.step()

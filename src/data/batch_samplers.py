@@ -1,6 +1,8 @@
+from typing import List, Union
+
 import numpy as np
 from torch.utils.data import ConcatDataset, RandomSampler, SequentialSampler
-from typing import List, Union
+
 from src.data.datasets import TranslationDataset
 
 

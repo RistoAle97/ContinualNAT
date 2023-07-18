@@ -1,6 +1,7 @@
+from typing import Tuple
+
 import torch
 from transformers import PreTrainedTokenizerBase
-from typing import Tuple
 
 
 def generate_causal_mask(seq_len: int) -> torch.Tensor:
