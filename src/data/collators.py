@@ -137,10 +137,10 @@ class BatchCollatorCMLM(BatchCollator):
             for i, max_tokens_to_mask in enumerate(n_maskable_tokens):
                 if max_tokens_to_mask > 0:
                     # Sample the number of tokens to mask with a uniform distribution
-                    sample_size = np_generator.randint(min_masks, max_tokens_to_mask + 1)
+                    sample_size = np_generator.integers(min_masks, max_tokens_to_mask + 1)
 
                     # Sample the idxs to mask
-                    masks = np_generator.default_rng().choice(maskable_tokens_idxs[i], sample_size, replace=False)
+                    masks = np_generator.choice(maskable_tokens_idxs[i], sample_size, replace=False)
 
                     # Mask the decoder inputs
                     labels[i, masks] = decoder_input_ids[i, masks]
