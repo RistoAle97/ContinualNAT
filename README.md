@@ -7,11 +7,17 @@ Master Degree thesis on Continual learning for multilingual non-autoregressive n
 [![HuggingFace](https://img.shields.io/badge/%F0%9F%A4%97-huggingface-FF9D00?style=for-the-badge&labelColor=FFD21E)](https://github.com/huggingface/transformers)
 
 ## Setting and datasets
-- **Translation directions:** en-de, de-en, en-fr, fr-en, en-es, es-en (we opted for an english-centric setting). 
+- **Translation directions:** $en \Leftrightarrow de$, $en \Leftrightarrow fr$, $en \Leftrightarrow es$ (we opted for an english-centric setting). 
 - **Tokenizer training set:** [CC100](https://huggingface.co/datasets/cc100).
 - **Training set:** [CCMatrix](https://huggingface.co/datasets/yhavinga/ccmatrix).
-- **Validation set:** [Flores-200](https://huggingface.co/datasets/facebook/flores).
-- **Test set:** For the en-es and es-en pairs the [newtest2013]() was used, while the [WMT14](https://huggingface.co/datasets/wmt14) dataset was chosen for all the other translation directions.
+- **Validation set:**
+  - _newstest2012_ for $en \Leftrightarrow es$.
+  - _newstest2013_ for $en \Leftrightarrow de$ and $en \Leftrightarrow fr$.
+- **Test set:**
+  - _newstest2013_ for $en \Leftrightarrow es$.
+  - _newstest2014_ for $en \Leftrightarrow de$ and $en \Leftrightarrow fr$.
+
+The validation and test sets are on a [personal public repository](https://huggingface.co/datasets/thesistranslation/wmt14) on the Huggingface hub.
 
 ## Models
 The NAT models' names are taken from the following [survey](https://arxiv.org/pdf/2204.09269.pdf).
