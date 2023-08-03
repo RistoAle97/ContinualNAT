@@ -39,7 +39,7 @@ def compute_sacrebleu(model: TransformerCore,
     for i, batch in enumerate(dataloader):
         translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code])
         decoded_translation = tokenizer.batch_decode(translation, skip_special_tokens=True)
-        translations.extend([translation for translation in decoded_translation])
+        translations.extend(decoded_translation)
         targets.extend(batch["references"])
 
     bleu_scores = {tokenize: 0 for tokenize in metric_tokenize}
