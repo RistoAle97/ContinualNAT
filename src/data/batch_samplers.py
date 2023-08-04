@@ -1,6 +1,8 @@
+from typing import List, Union
+
 import numpy as np
 from torch.utils.data import ConcatDataset, RandomSampler, SequentialSampler
-from typing import List, Union
+
 from src.data.datasets import TranslationDataset
 
 
@@ -68,8 +70,9 @@ class HeterogeneousSampler(BatchSamplerCore):
 
     def __iter__(self):
         batch = []
+        np_generator = np.random.default_rng()
         for _ in range(self.max_len * len(self.samplers)):
-            sampler_idx = np.random.choice(len(self.samplers), p=self.weights)
+            sampler_idx = np_generator.choice(len(self.samplers), p=self.weights)
             try:
                 sample = next(self.samplers[sampler_idx])
             except StopIteration:

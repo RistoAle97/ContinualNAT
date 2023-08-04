@@ -1,4 +1,4 @@
-from src.models import NATCoreConfig
+from src.models.core.transformer_nat_core import NATCoreConfig
 
 
 class CMLMConfig(NATCoreConfig):

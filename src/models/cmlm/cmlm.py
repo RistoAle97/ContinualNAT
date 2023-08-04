@@ -1,10 +1,13 @@
+from typing import Tuple
+
 import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
-from src.models.core import TransformerNATCore
-from src.models.cmlm import CMLMConfig
-from src.utils import init_bert_weights, create_masks
-from typing import Tuple
+
+from src.models.core.transformer_nat_core import TransformerNATCore
+from src.models.cmlm.config_cmlm import CMLMConfig
+from src.utils.masks import create_masks
+from src.utils.models import init_bert_weights
 
 
 class CMLM(TransformerNATCore):

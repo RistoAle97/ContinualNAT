@@ -1,9 +1,12 @@
-import torch
 import math
+
+import torch
 from torch import nn
-from src.models.core import TransformerCore
-from src.models.ftnat import FTNATConfig
-from src.modules import DecoderLayerNAT, DecoderNAT, Fertility
+
+from src.models.core.transformer_core import TransformerCore
+from src.models.ftnat.config_ftnat import FTNATConfig
+from src.modules.layers_nat import DecoderLayerNAT, DecoderNAT
+from src.modules.pooling import Fertility
 
 
 class FTNAT(TransformerCore):

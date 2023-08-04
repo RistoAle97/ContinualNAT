@@ -1,10 +1,12 @@
-import torch
+from typing import Dict, Iterator, Set, Union
+
 import datasets
 import numpy as np
+import torch
 from transformers import MBartTokenizer, MBartTokenizerFast
 from torch.utils.data import Dataset, IterableDataset
-from typing import Dict, Iterator, Set, Union
-from src.utils import MBART_LANG_MAP
+
+from src.utils.utils import MBART_LANG_MAP
 
 
 class TranslationDatasetCore:

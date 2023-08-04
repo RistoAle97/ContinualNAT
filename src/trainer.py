@@ -1,15 +1,20 @@
 import os
-from torch.utils.data import DataLoader, ConcatDataset
-from transformers import PreTrainedTokenizerBase
+from typing import Dict, List, Set, Tuple
+
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
+from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.loggers.wandb import WandbLogger
-from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
-from src.data import TranslationDataset, BatchCollator, BatchCollatorCMLM
-from src.models import TransformerCore, CMLM
-from src.utils import MBART_LANG_MAP, compute_accumulation_steps
-from typing import Dict, List, Set, Tuple
+from torch.utils.data import DataLoader, ConcatDataset
+from transformers import PreTrainedTokenizerBase
+
+from src.data.batch_samplers import HeterogeneousSampler, HomogeneousSampler
+from src.data.collators import BatchCollator, BatchCollatorCMLM
+from src.data.datasets import TranslationDataset
+from src.models.cmlm.cmlm import CMLM
+from src.models.core.transformer_core import TransformerCore
+from src.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
 
 
 class MultilingualTrainer:
@@ -20,14 +25,37 @@ class MultilingualTrainer:
                  val_every_n_steps: int = 10000,
                  log_every_n_steps: int = 500,
                  ckpt_every_n_steps: int = 10000,
+                 dataloader_num_workers: int = 8,
                  log_directory: str = "",
+                 batch_type: str = "heterogeneous",
                  use_wandb: bool = True) -> None:
+        """
+        A custom trainer that wraps the pytorch lightning's trainer.
+        :param tokenizer: the tokenizer that will be used by the translation datasets.
+        :param train_steps: the number of training updates that the trainer will perform (default=100000).
+        :param val_every_n_steps: how often to check the validation set (default=10000).
+        :param log_every_n_steps: how often to log the metrics (default=500).
+        :param ckpt_every_n_steps: how often to set a checkpoint of the model under training (default=10000).
+        :param dataloader_num_workers: the number of workers used by both the train and validation dataloaders
+            (default=8).
+        :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
+            directory (default="").
+        :param batch_type: the type of batch sampler used by the train dataloader, can be either "heterogeneous" (each
+            batch will have one single translation direction) or "homogeneous" (each batch will contain more than
+            one translation direction) (default="heterogeneous").
+        :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
+        """
         self.tokenizer = tokenizer
         self.train_steps = train_steps
         self.val_every_n_steps = val_every_n_steps
         self.log_every_n_steps = log_every_n_steps
         self.ckpt_every_n_steps = ckpt_every_n_steps
+        self.num_workers = dataloader_num_workers
         self.log_directory = log_directory
+        if batch_type not in ["heterogeneous", "homogeneous"]:
+            raise ValueError("The batch type should be \"heterogeneous\" or \"homogeneous\"")
+
+        self.batch_type = batch_type
         self.use_wandb = use_wandb
 
     @staticmethod
@@ -55,12 +83,17 @@ class MultilingualTrainer:
                             val_bsz: int = 128) -> Tuple[DataLoader, Dict[str, DataLoader]]:
         # Train dataloader
         train_dataset = ConcatDataset(train_datasets)
+        if self.batch_type == "heterogeneous":
+            batch_sampler = HeterogeneousSampler(train_dataset, train_bsz, True)
+        else:
+            batch_sampler = HomogeneousSampler(train_dataset, train_bsz, True)
+
         if isinstance(model, CMLM):
             batch_collator_train = BatchCollatorCMLM(self.tokenizer.pad_token_id, self.tokenizer.mask_token_id, True)
         else:
             batch_collator_train = BatchCollator(shift_lang_token=True, pad_token_id=self.tokenizer.pad_token_id)
 
-        train_dataloader = DataLoader(train_dataset, batch_size=train_bsz, shuffle=True, num_workers=8,
+        train_dataloader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=self.num_workers,
                                       collate_fn=batch_collator_train, pin_memory=True)
 
         # Validation dataloaders (one for each translation direction)
@@ -73,7 +106,7 @@ class MultilingualTrainer:
             else:
                 batch_collator_val = BatchCollator(shift_lang_token=True, pad_token_id=self.tokenizer.pad_token_id)
 
-            val_dataloaders[f"{src_lang}_{tgt_lang}"] = DataLoader(dataset, val_bsz, num_workers=8,
+            val_dataloaders[f"{src_lang}_{tgt_lang}"] = DataLoader(dataset, val_bsz, num_workers=self.num_workers,
                                                                    collate_fn=batch_collator_val, pin_memory=True)
 
         return train_dataloader, val_dataloaders
@@ -123,7 +156,8 @@ class MultilingualTrainer:
             logger_version = self.__compute_logger_version(model, nmt_directions, lang_pairs)
 
         if self.use_wandb:
-            logger = WandbLogger(logger_version, self.log_directory, project="ContinualNAT", version=logger_version)
+            logger = WandbLogger(logger_version, self.log_directory + "/logs", project="ContinualNAT",
+                                 version=logger_version)
         else:
             logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
 

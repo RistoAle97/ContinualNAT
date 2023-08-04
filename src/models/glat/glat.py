@@ -1,12 +1,15 @@
+from typing import Tuple
+
 import torch
 from torch import nn
 from torch.functional import F
-from src.models.core import TransformerNATCore
-from src.models.glat import GLATConfig
+
+from src.models.core.transformer_nat_core import TransformerNATCore
+from src.models.glat.config_glat import GLATConfig
 from src.models.glat.glat_utils import LambdaScheduler
-from src.modules import DecoderLayerNAT, DecoderNAT
-from src.utils import init_bert_weights, create_masks
-from typing import Tuple
+from src.modules.layers_nat import DecoderLayerNAT, DecoderNAT
+from src.utils.masks import create_masks
+from src.utils.models import init_bert_weights
 
 
 class GLAT(TransformerNATCore):

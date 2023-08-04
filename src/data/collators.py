@@ -1,8 +1,9 @@
-import torch
-import random
-import numpy as np
-from src.utils import shift_lang_token_right
 from typing import Dict, List, Union
+
+import numpy as np
+import torch
+
+from src.utils.utils import shift_lang_token_right
 
 
 class BatchCollator:
@@ -132,13 +133,14 @@ class BatchCollatorCMLM(BatchCollator):
         if self.train:
             # At training time we mask out a number of tokens in [1, seq_len - n_special_tokens] from the decoder inputs
             labels = labels.new(batch_size, seq_len).fill_(self.pad_token_id)
+            np_generator = np.random.default_rng()
             for i, max_tokens_to_mask in enumerate(n_maskable_tokens):
                 if max_tokens_to_mask > 0:
                     # Sample the number of tokens to mask with a uniform distribution
-                    sample_size = np.random.randint(min_masks, max_tokens_to_mask + 1)
+                    sample_size = np_generator.integers(min_masks, max_tokens_to_mask + 1)
 
                     # Sample the idxs to mask
-                    masks = random.sample(maskable_tokens_idxs[i], sample_size)
+                    masks = np_generator.choice(maskable_tokens_idxs[i], sample_size, replace=False)
 
                     # Mask the decoder inputs
                     labels[i, masks] = decoder_input_ids[i, masks]

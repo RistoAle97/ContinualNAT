@@ -1,6 +1,8 @@
-import torch
 import copy
+
+import torch
 from torch import nn
+
 from src.modules.transformer_layers import MultiHeadAttention, FeedForwardLayer
 from src.modules.connections import ResidualConnection, HighwayConnection
 from src.modules.positional_encoding import PositionalEncoding

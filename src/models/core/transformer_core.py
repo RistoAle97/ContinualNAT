@@ -1,15 +1,18 @@
+from typing import Tuple, Union
+
 import torch
+from lightning import LightningModule
 from torch import nn
 from torch.optim import Optimizer, AdamW
 from torchmetrics import MeanMetric
 from torchmetrics.text import SacreBLEUScore
-from lightning import LightningModule
 from transformers import PreTrainedTokenizerBase, get_scheduler
-from src.data import TranslationDataset, IterableTranslationDataset
-from src.models.core import CoreConfig
-from src.modules import PositionalEncoding, TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
+
+from src.data.datasets import TranslationDataset, IterableTranslationDataset
+from src.models.core.config_core import CoreConfig
+from src.modules.positional_encoding import PositionalEncoding
+from src.modules.transformer_layers import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
     TransformerDecoder
-from typing import Tuple, Union
 
 
 class TransformerCore(LightningModule):
