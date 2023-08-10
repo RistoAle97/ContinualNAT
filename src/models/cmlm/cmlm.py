@@ -19,6 +19,12 @@ class CMLM(TransformerNATCore):
         and uses an iterative decoding strategy called "mask-predict" during inference.
         """
         super().__init__(config)
+
+        # Some common NAT parameters are not used by the CMLM model
+        del self.decoder_inputs_copy
+        del self.tensor_to_copy
+        del self.tau
+
         # Token ids
         self.mask_token_id = config.mask_token_id
 
@@ -62,48 +68,24 @@ class CMLM(TransformerNATCore):
                              "such token to predict the target lengths.")
 
         # Embeddings and positional encoding
-        src_embeddings = self.embedding(src_input)  # (bsz, seq_len, d_model)
-        tgt_embeddings = self.embedding(tgt_input)  # (bsz, seq_len, d_model)
+        src_embeddings = self.embedding(src_input)  # (bsz, src_len, d_model)
+        tgt_embeddings = self.embedding(tgt_input)  # (bsz, src_len, d_model)
         src_embeddings = self.positional_encoder(src_embeddings * self.embedding_scale)
         tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
 
-        # Encoder and decoder
-        e_output = self.encoder(src_embeddings, e_mask)
-        pooler_inputs = {"e_output": e_output}
-        if self.length_token_id is not None:
-            # Do not use the encodings of the <length> token inside the decoder
-            e_output = e_output[:, 1:]
-            e_mask = e_mask[:, :, 1:]
-        else:
-            # Use the encoder mask in the MeanPooler if no <length> token is defined
-            pooler_inputs["e_mask"] = e_mask
+        # Encoder
+        e_output = self.encoder(src_embeddings, e_mask)  # (bsz, src_len, d_model)
 
+        # Pooling for target lengths
+        pooler_inputs, e_output, e_mask = self._define_pooler_inputs(e_output, e_mask)
         predicted_lengths = self.pooler(**pooler_inputs)  # (bsz, pooler_size)
-        d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)
+
+        # Decoder
+        d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)  # (bsz, tgt_len, d_model)
 
         # Linear output
-        output = self.linear_output(d_output)  # (bsz, seq_len, vocab_size)
+        output = self.linear_output(d_output)  # (bsz, tgt_len, vocab_size)
         return output, predicted_lengths
-
-    def compute_loss(self,
-                     logits: torch.Tensor,
-                     labels: torch.Tensor,
-                     lengths_logits: torch.Tensor,
-                     target_lengths: torch.Tensor) -> Tuple[torch.Tensor, float, float]:
-        # Logits loss
-        logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)
-        labels = labels.contiguous().view(-1)  # (bsz * seq_len)
-        logits_loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id,
-                                      label_smoothing=self.label_smoothing)
-
-        # Length loss
-        lengths_logits = lengths_logits.contiguous().view(-1, lengths_logits.size(-1))
-        target_lengths = target_lengths.contiguous().view(-1)
-        lengths_loss = F.cross_entropy(lengths_logits, target_lengths)
-
-        # Combine the losses
-        loss = logits_loss + lengths_loss
-        return loss, logits_loss.item(), lengths_loss.item()
 
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]

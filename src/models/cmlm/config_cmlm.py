@@ -50,5 +50,5 @@ class CMLMConfig(NATCoreConfig):
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
-                         eos_token_id, pad_token_id, length_token_id, label_smoothing, None, pooler_size)
+                         eos_token_id, pad_token_id, length_token_id, label_smoothing, pooler_size=pooler_size)
         self.mask_token_id = mask_token_id

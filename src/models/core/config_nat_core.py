@@ -21,8 +21,10 @@ class NATCoreConfig(CoreConfig):
                  pad_token_id: int = 1,
                  length_token_id: int = None,
                  label_smoothing: float = 0.0,
-                 src_embedding_copy: str = None,
-                 pooler_size: int = 256) -> None:
+                 decoder_inputs_copy: str = None,
+                 tensor_to_copy: str = "e_output",
+                 pooler_size: int = 256,
+                 tau: float = 0.3) -> None:
         """
         Configuration class for the GLAT model.
         :param vocab_size: shared vocabulary size.
@@ -44,17 +46,25 @@ class NATCoreConfig(CoreConfig):
         :param pad_token_id: the pad token id (default=1).
         :param length_token_id: the length token id, akin to a cls token (default=4).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
-        :param src_embedding_copy: the type of copy to apply to the source embedding, possible values: uniform, soft and
+        :param decoder_inputs_copy: the type of copy to apply to the source embedding, possible values: uniform, soft and
             None (default=None).
+        :param tensor_to_copy: the tensor to copy during as the decoder input, can be either "src_embeddings" or
+            "e_output". If decoder_inputs_copy is None then this parameter will have no effect (default="e_output").
         :param pooler_size: the pooler layer dimension (default=256).
+        :param tau: the tau value for the soft-copy mechanism (default=0.3).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
                          eos_token_id, pad_token_id, label_smoothing)
         self.length_token_id = length_token_id
-        if src_embedding_copy not in ["uniform", "soft", None]:
+        if decoder_inputs_copy not in ["uniform", "soft", None]:
             raise ValueError("The source embeddings copy can only be performed with one of the following mode: uniform,"
                              "soft or None.")
 
-        self.src_embedding_copy = src_embedding_copy
+        self.decoder_inputs_copy = decoder_inputs_copy
+        if tensor_to_copy not in ["src_embeddings", "e_output"]:
+            raise ValueError("The tensor to copy must one of between the source embeddings and the encoder output.")
+
+        self.tensor_to_copy = tensor_to_copy
         self.pooler_size = pooler_size
+        self.tau = tau

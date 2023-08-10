@@ -1,3 +1,5 @@
+from typing import Dict, Tuple
+
 import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
@@ -17,8 +19,10 @@ class TransformerNATCore(TransformerCore):
         super().__init__(config)
         # Parameters
         self.length_token_id = config.length_token_id
-        self.src_embedding_copy = config.src_embedding_copy
+        self.decoder_inputs_copy = config.decoder_inputs_copy
+        self.tensor_to_copy = config.tensor_to_copy
         self.pooler_size = config.pooler_size
+        self.tau = config.tau
 
         # Pooler layer after the encoder to predict the target sentences' lengths
         if self.length_token_id is not None:
@@ -29,32 +33,48 @@ class TransformerNATCore(TransformerCore):
         # Length loss
         self.train_metrics["lengths_loss"] = MeanMetric()
 
-    def __uniform_copy(self, src_embeddings: torch.Tensor, e_mask: torch.Tensor, d_mask: torch.Tensor) -> torch.Tensor:
+    def _define_pooler_inputs(self,
+                              e_output: torch.Tensor,
+                              e_mask: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
+        pooler_inputs = {"e_output": e_output}
+        if self.length_token_id is not None:
+            # Do not use the encodings of the <length> token inside the decoder
+            e_output = e_output[:, 1:]
+            e_mask = e_mask[:, :, 1:]
+        else:
+            # Use the encoder mask in the MeanPooler if no <length> token is defined
+            pooler_inputs["e_mask"] = e_mask
+
+        return pooler_inputs, e_output, e_mask
+
+    def __uniform_copy(self,
+                       tensor_to_copy: torch.Tensor,
+                       src_lengths: torch.Tensor,
+                       tgt_lengths: torch.tensor,
+                       d_mask: torch.Tensor) -> torch.Tensor:
         """
         The uniform copy mechanism from Gu et al. https://arxiv.org/pdf/1711.02281.pdf, it copies the encoder's output
         as the decoder input based on the source and target lengths.
-        :param src_embeddings: the source embeddings.
-        :param e_mask: the encoder mask.
+        :param tensor_to_copy: the source embeddings or the encoder's output.
+        :param src_lengths: the source sentences lengths taking into consideration the special tokens of shape (bsz, 1).
+        :param tgt_lengths: the target sentences lengths taking into consideration the special tokens of shape (bsz, 1).
         :param d_mask: the decoder mask.
         :return: the decoder input ids.
         """
-        src_lengths = e_mask.sum(dim=-1).view(-1)
-        tgt_lengths = d_mask.sum(dim=-1)[:, 0]
         max_tgt_len = tgt_lengths.max()
-        steps = (src_lengths.float() - 1) / (tgt_lengths.float() - 1)  # step-size of shape (batch_size)
+        steps = (src_lengths.float() - 1) / (tgt_lengths.float() - 1)  # step-size of shape (bsz)
         index_t = torch.arange(max_tgt_len, device=tgt_lengths.device).float()  # indexes of shape (max_tgt_len)
-        index_t = steps[:, None] * index_t[None, :]  # (batch_size, max_tgt_len)
-        index_t = torch.round(index_t).long().detach()
+        index_t = steps[:, None] * index_t[None, :]  # (bsz, max_tgt_len)
+        index_t = torch.round(index_t.squeeze(1)).long().detach()
         mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :], 0).to(tgt_lengths.device)
         mapped_inputs = mapped_inputs.unsqueeze(-1)
-        embeddings_copy = torch.gather(src_embeddings, 1, mapped_inputs.expand(*mapped_inputs.size(), self.d_model))
+        embeddings_copy = torch.gather(tensor_to_copy, 1, mapped_inputs.expand(*mapped_inputs.size(), self.d_model))
         return embeddings_copy
 
-    @staticmethod
-    def __soft_copy(src_lengths: torch.tensor,
-                    tgt_lengths: torch.Tensor,
-                    e_output: torch.Tensor,
-                    tau: float = 0.3) -> torch.Tensor:
+    def __soft_copy(self,
+                    tensor_to_copy: torch.Tensor,
+                    src_lengths: torch.tensor,
+                    tgt_lengths: torch.Tensor) -> torch.Tensor:
         max_src_length = src_lengths.max().unsqueeze(-1)
         max_tgt_length = tgt_lengths.max().unsqueeze(-1)
         index_s = torch.arange(max_src_length[-1], device=src_lengths.device).expand(
@@ -64,22 +84,20 @@ class TransformerNATCore(TransformerCore):
         diff = -(index_t[:, None] - index_s[None, :]).abs()  # (max_tgt_length, max_src_length)
         diff = diff.unsqueeze(0).expand(tgt_lengths.size(0), *diff.size())  # (bsz, max_tgt_length, max_src_length)
         mask = (src_lengths[:, None] - 1 - index_s[None, :]).lt(0).float().squeeze(1)  # (bsz, max_src_length)
-        logits = (diff / tau - 1e-9 * mask[:, None, :])
+        logits = (diff / self.tau - 1e-9 * mask[:, None, :])
         probs = logits.softmax(-1)  # (bsz, max_tgt_length, max_src_length)
-        embeddings_copy = torch.bmm(probs, e_output)  # (bsz, max_tgt_length, d_model)
+        embeddings_copy = torch.bmm(probs, tensor_to_copy)  # (bsz, max_tgt_length, d_model)
         return embeddings_copy
 
     def _copy_embeddings(self,
-                         src_embeddings: torch.Tensor,
-                         e_mask: torch.Tensor,
+                         tensor_to_copy: torch.Tensor,
                          d_mask: torch.Tensor,
                          src_lengths: torch.Tensor,
-                         tgt_lengths: torch.Tensor,
-                         tau: float = 0.3) -> torch.Tensor:
-        if self.src_embedding_copy == "uniform":
-            return self.__uniform_copy(src_embeddings, e_mask, d_mask)
+                         tgt_lengths: torch.Tensor) -> torch.Tensor:
+        if self.decoder_inputs_copy == "uniform":
+            return self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths, d_mask)
         else:
-            return self.__soft_copy(src_lengths, tgt_lengths, src_embeddings, tau)
+            return self.__soft_copy(tensor_to_copy, src_lengths, tgt_lengths)
 
     def _check_length_token(self, input_ids: torch.Tensor) -> bool:
         if self.length_token_id is None:
@@ -109,3 +127,23 @@ class TransformerNATCore(TransformerCore):
         lengths_logits = F.log_softmax(lengths_logits, dim=-1)  # (bsz, pooler_size)
         lengths = lengths_logits.topk(n_lengths, dim=-1)[1]  # (bsz, n_lengths)
         return lengths
+
+    def compute_loss(self,
+                     logits: torch.Tensor,
+                     labels: torch.Tensor,
+                     lengths_logits: torch.Tensor,
+                     target_lengths: torch.Tensor) -> Tuple[torch.Tensor, float, float]:
+        # Logits loss
+        logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)
+        labels = labels.contiguous().view(-1)  # (bsz * seq_len)
+        logits_loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id,
+                                      label_smoothing=self.label_smoothing)
+
+        # Length loss
+        lengths_logits = lengths_logits.contiguous().view(-1, lengths_logits.size(-1))
+        target_lengths = target_lengths.contiguous().view(-1)
+        lengths_loss = F.cross_entropy(lengths_logits, target_lengths)
+
+        # Combine the losses
+        loss = logits_loss + lengths_loss
+        return loss, logits_loss.item(), lengths_loss.item()
