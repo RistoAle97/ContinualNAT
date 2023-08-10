@@ -24,6 +24,8 @@ class BatchCollator:
             (default=False).
         :param return_special_masks: whether to return the special tokens mask for the both input ids and labels
             (default=False).
+        :param return_lengths: whether to return the source and target lengths, keep in mind that they do not take into
+            account special tokens.
         :param pad_token_id: the pad token id (default=1).
         """
         self.is_mlm = is_mlm
@@ -88,7 +90,7 @@ class BatchCollator:
         src_lengths = []
         tgt_lengths = []
         if self.return_lengths:
-            src_lengths = torch.sum(input_ids.ne(1), dim=-1).unsqueeze(-1)  # (bsz, 1)
+            src_lengths = torch.sum(input_ids_special_mask.ne(1), dim=-1).unsqueeze(-1)  # (bsz, 1)
             tgt_lengths = torch.sum(labels_special_mask.ne(1), dim=-1).unsqueeze(-1)  # (bsz, 1)
 
         return {"input_ids": input_ids, "labels": labels, "decoder_input_ids": decoder_input_ids,
