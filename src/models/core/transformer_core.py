@@ -6,7 +6,7 @@ from torch import nn
 from torch.optim import Optimizer, AdamW
 from torchmetrics import MeanMetric
 from torchmetrics.text import SacreBLEUScore
-from transformers import PreTrainedTokenizerBase, get_scheduler
+from transformers import MBartTokenizer, MBartTokenizerFast, get_scheduler
 
 from src.data.datasets import TranslationDataset, IterableTranslationDataset
 from src.models.core.config_core import CoreConfig
@@ -112,7 +112,7 @@ class TransformerCore(LightningModule):
         """
         raise NotImplementedError
 
-    def _val_tokenizer_tgtlang(self, dataloader_idx) -> Tuple[PreTrainedTokenizerBase, str, str]:
+    def _val_tokenizer_tgtlang(self, dataloader_idx) -> Tuple[Union[MBartTokenizer, MBartTokenizerFast], str, str]:
         # Use the tokenizer from the dataloader's dataset
         langs_dataloader = list(self.trainer.val_dataloaders.items())[dataloader_idx]
         lang_pair, dataloader = langs_dataloader
