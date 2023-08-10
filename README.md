@@ -1,7 +1,7 @@
 <div align="center">
 
 # ContinualNAT
-**Master Degree thesis on Continual Learning for multilingual non-autoregressive Neural Machine Translation (NAT).**
+**M.Sc. thesis on Continual Learning for multilingual non-autoregressive Neural Machine Translation (NAT).**
 
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)]()
 [![Jupyter](https://img.shields.io/badge/Jupyter-F37626?style=for-the-badge&logo=jupyter&logoColor=white)]()
@@ -45,6 +45,12 @@ Then, install all the requirements
 pip install -r requirements.txt
 ```
 
+You can take a look at `train.py` to get an understanding of how to work with this repository, modify what you need and use
+```bash
+python train.py
+```
+to train one of the available models.
+
 ---
 
 ## :card_file_box: Setting and datasets
@@ -59,6 +65,8 @@ pip install -r requirements.txt
   - _newstest2014_ for $en \Leftrightarrow de$ and $en \Leftrightarrow fr$.
 
 The validation and test sets are in a [personal public repository](https://huggingface.co/datasets/thesistranslation/wmt14) on the Huggingface hub.
+
+---
 
 ## :robot: Models
 The NAT models' names are taken from the following [survey](https://arxiv.org/pdf/2204.09269.pdf).
