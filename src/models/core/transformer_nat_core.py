@@ -68,7 +68,8 @@ class TransformerNATCore(TransformerCore):
         index_t = torch.round(index_t.squeeze(1)).long().detach()
         mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :], 0).to(tgt_lengths.device)
         mapped_inputs = mapped_inputs.unsqueeze(-1)
-        embeddings_copy = torch.gather(tensor_to_copy, 1, mapped_inputs.expand(*mapped_inputs.size(), self.d_model))
+        embeddings_copy = torch.gather(tensor_to_copy, 1,
+                                       mapped_inputs.expand(*mapped_inputs.size()[:-1], self.d_model))
         return embeddings_copy
 
     def __soft_copy(self,
