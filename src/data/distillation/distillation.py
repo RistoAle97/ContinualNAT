@@ -22,6 +22,7 @@ def distill_dataset(teacher: Union[PreTrainedModel, TransformerCore, str],
                     device: torch.device,
                     beam_size: int,
                     bsz: int = 32,
+                    save_dir: str = None,
                     prog_bar: bool = True) -> None:
     """
     Apply sequence-level knowledge distillation on a Hugginface dataset.
@@ -36,6 +37,8 @@ def distill_dataset(teacher: Union[PreTrainedModel, TransformerCore, str],
     :param device: the device on which to run the distillation.
     :param beam_size: the beam size used by the model during decoding.
     :param bsz: batch size used during the distillation (dfefault=32).
+    :param save_dir: the directory in which to save the distilled dataset's files, if None then the files will be saved
+        in the current directory (default=None).
     :param prog_bar: whether to show the progrees bar during the distillation (default=True).
     """
     if isinstance(teacher, str):
@@ -45,9 +48,9 @@ def distill_dataset(teacher: Union[PreTrainedModel, TransformerCore, str],
 
     max_length = tokenizer.model_max_length
     dataloader = DataLoader(dataset, batch_size=bsz, pin_memory=True)
-
-    src_distill_path = f"distilled_{dataset_name}.{src_lang}_{tgt_lang}.{src_lang}"
-    tgt_distill_path = f"distilled_{dataset_name}.{src_lang}_{tgt_lang}.{tgt_lang}"
+    save_dir = "" if save_dir is None else save_dir
+    src_distill_path = f"{save_dir}/distilled_{dataset_name}.{src_lang}_{tgt_lang}.{src_lang}"
+    tgt_distill_path = f"{save_dir}/distilled_{dataset_name}.{src_lang}_{tgt_lang}.{tgt_lang}"
     dataloader = tqdm(dataloader, desc=f"Distilling {src_lang}->{tgt_lang} dataset") if prog_bar else dataloader
     with open(src_distill_path, "w") as src_datafile, open(tgt_distill_path, "w") as tgt_datafile:
         for batch in dataloader:
