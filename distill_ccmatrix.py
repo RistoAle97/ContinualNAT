@@ -1,3 +1,5 @@
+import argparse
+
 import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer, MarianTokenizer
@@ -5,16 +7,39 @@ from transformers import AutoTokenizer, MarianTokenizer
 from src.data import distill_dataset, push_distilled_dataset_to_hub
 
 
+def parse_arguments(known=False):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--src", type=str, help="The source language")
+    parser.add_argument("--tgt", type=str, help="The target language")
+    opt = parser.parse_known_args()[0] if known else parser.parse_args()
+    return opt
+
+
 if __name__ == "__main__":
+    # Parse command line arguments
+    opt_parser = parse_arguments()
+    src_lang = opt_parser.src
+    tgt_lang = opt_parser.tgt
+
+    # Define device, directory where the datasets are and will be stored and the repository id
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    ccmatrix_to_distill = load_dataset("yhavinga/ccmatrix", "de-en", split="train[:1000000]",
-                                       cache_dir="/disk1/a.ristori/datasets/ccmatrix", verification_mode="no_checks")
-    marian_tokenizer: MarianTokenizer = AutoTokenizer.from_pretrained("Helsinki-NLP/opus-mt-en-de")
-    distill_dataset("ct2-opus-mt-en-de", marian_tokenizer, ccmatrix_to_distill, "ccmatrix", "en", "de", device, 4, 4096,
-                    save_dir="/disk1/a.ristori/datasets/distillation")
-    push_distilled_dataset_to_hub("/disk1/a.ristori/datasets/distilled_ccmatrix_to_push",
-                                  "thesistranslation/distilled_ccmatrix_en_de", "en", "de",
-                                  "/disk1/a.ristori/datasets/distillation/distilled_ccmatrix.en_de")
-    distilled_ccmatrix = load_dataset("thesistranslation/distilled_ccmatrix_en_de",
-                                      cache_dir="/disk1/a.ristori/datasets/distilled_ccmatrix",
+    datasets_dir = "/disk1/a.ristori/datasets/"
+    repo_id = f"thesistranslation/distilled-ccmatrix-{src_lang}-{tgt_lang}"
+    lang_pair = f"{src_lang}-{tgt_lang}" if tgt_lang == "en" else f"{tgt_lang}-{src_lang}"
+
+    # Load the CCMatrix dataset from the Huggingface hub
+    ccmatrix_to_distill = load_dataset("yhavinga/ccmatrix", lang_pair, split="train[:30000000]",
+                                       cache_dir=f"{datasets_dir}ccmatrix", verification_mode="no_checks")
+
+    # Load the Marian-MT tokenizer
+    marian_tokenizer: MarianTokenizer = AutoTokenizer.from_pretrained(f"Helsinki-NLP/opus-mt-{src_lang}-{tgt_lang}")
+
+    # Distill the dataset and push it to the Huggingface hub
+    distill_dataset(f"ct2-opus-mt-{src_lang}-{tgt_lang}", marian_tokenizer, ccmatrix_to_distill, "ccmatrix", src_lang,
+                    tgt_lang, device, 4, 4096, save_dir=f"{datasets_dir}distillation")
+    push_distilled_dataset_to_hub(f"{datasets_dir}distilled_ccmatrix_to_push", repo_id, src_lang, tgt_lang,
+                                  f"{datasets_dir}distillation/distilled_ccmatrix.{src_lang}_{tgt_lang}")
+
+    # Load the previously pushed dataset in order to test it
+    distilled_ccmatrix = load_dataset(repo_id, cache_dir=f"{datasets_dir}distilled_ccmatrix",
                                       verification_mode="no_checks")
