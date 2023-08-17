@@ -63,7 +63,7 @@ class TransformerCore(LightningModule):
         self.linear_output.weight = self.embedding.weight
 
         # Optimizer and learning rate scheduler
-        self.optimizer = AdamW(self.parameters(), lr=5e-4)
+        self.optimizer = AdamW(self.parameters(), lr=5e-4, eps=1e-6)
         self.lr_scheduler = {"name": "cosine", "num_warmup_steps": 0}
 
         # Label smoothing value
