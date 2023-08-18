@@ -34,27 +34,6 @@ class CMLM(TransformerNATCore):
         # Train and validation losses
         self.train_metrics["mlm_loss"] = MeanMetric()
 
-    def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
-        if not self._check_length_token(e_input):
-            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs"
-                             "such token to predict the target lengths.")
-
-        e_output = super().encode(e_input, e_mask)
-        return e_output
-
-    def decode(self,
-               tgt_input: torch.Tensor,
-               e_output: torch.Tensor,
-               d_mask: torch.Tensor = None,
-               e_mask: torch.Tensor = None) -> torch.Tensor:
-        if self.length_token_id is not None:
-            # Do not use the encodings of the <length> token inside the decoder
-            e_output = e_output[:, 1:]
-            e_mask = e_mask[:, :, 1:]
-
-        d_output = super().decode(tgt_input, e_output, d_mask, e_mask)
-        return d_output
-
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
