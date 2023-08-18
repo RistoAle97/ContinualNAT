@@ -66,7 +66,7 @@ class TransformerNATCore(TransformerCore):
         index_t = torch.arange(max_tgt_len, device=tgt_lengths.device).float()  # indexes of shape (max_tgt_len)
         index_t = steps[:, None] * index_t[None, :]  # (bsz, max_tgt_len)
         index_t = torch.round(index_t.squeeze(1)).long().detach()
-        mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :], 0).to(tgt_lengths.device)
+        mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :max_tgt_len], 0).to(tgt_lengths.device)
         mapped_inputs = mapped_inputs.unsqueeze(-1)
         embeddings_copy = torch.gather(tensor_to_copy, 1,
                                        mapped_inputs.expand(*mapped_inputs.size()[:-1], self.d_model))
