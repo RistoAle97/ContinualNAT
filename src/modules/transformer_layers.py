@@ -121,28 +121,29 @@ class TransformerEncoderLayer(nn.Module):
         :param dropout_ff: the dropout value for the feed-forward sublayer (default=0.0).
         :param activation_ff: the activation function for the feed-forward sub-layer, can be either ReLU or GeLU
             (default="relu").
-        :param layer_norm_eps: :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
         """
         super().__init__()
-        # Self-attention sublayer
-        self.sa_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.sa = MultiHeadAttention(d_model, n_heads, dropout_mha)
-        self.sa_dropout = nn.Dropout(dropout)
+        # Multi-head attention sublayer
+        self.mha_norm = nn.LayerNorm(d_model, layer_norm_eps)
+        self.mha = MultiHeadAttention(d_model, n_heads, dropout_mha)
+        self.mha_dropout = nn.Dropout(dropout)
 
         # Feed-forward sublayer
         self.ff_norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.ff = FeedForwardLayer(d_model, dim_ff, dropout_ff, activation_ff)
         self.ff_dropout = nn.Dropout(dropout)
 
-    def forward(self,
-                src_embeddings: torch.Tensor,
-                e_mask: torch.Tensor = None) -> torch.Tensor:
-        sa_out = self.sa_norm(src_embeddings)
-        sa_out = self.sa(sa_out, sa_out, sa_out, e_mask)
-        sa_out = src_embeddings + self.sa_dropout(sa_out)
-        ff_out = self.ff_norm(sa_out)
+    def forward(self, src_embeddings: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
+        # Multi-head attention sublayer
+        mha_out = self.mha_norm(src_embeddings)
+        mha_out = self.mha(mha_out, mha_out, mha_out, e_mask)
+        mha_out = src_embeddings + self.mha_dropout(mha_out)
+
+        # Feed-forward sublayer
+        ff_out = self.ff_norm(mha_out)
         ff_out = self.ff(ff_out)
-        out = sa_out + self.ff_dropout(ff_out)
+        out = mha_out + self.ff_dropout(ff_out)
         return out
 
 
@@ -162,9 +163,7 @@ class TransformerEncoder(nn.Module):
         self.layers = nn.ModuleList([copy.deepcopy(encoder_layer) for _ in range(num_layers)])
         self.norm = norm
 
-    def forward(self,
-                src_embeddings: torch.Tensor,
-                e_mask: torch.Tensor = None) -> torch.Tensor:
+    def forward(self, src_embeddings: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
         output = src_embeddings
         for encoder_layer in self.layers:
             output = encoder_layer(output, e_mask)
@@ -185,7 +184,8 @@ class TransformerDecoderLayer(nn.Module):
                  dropout_mha: float = 0.0,
                  dropout_ff: float = 0.0,
                  activation_ff: str = "relu",
-                 layer_norm_eps: float = 1e-6) -> None:
+                 layer_norm_eps: float = 1e-6,
+                 use_pos_att: bool = False) -> None:
         """
         The transformer decoder layer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). The layer
         is made up of two multi-head attention sublayers (self-attention and encoder-decoder cross-attention) followed
@@ -199,18 +199,27 @@ class TransformerDecoderLayer(nn.Module):
         :param dropout_ff: the dropout value for the feed-forward sublayer (default=0.0).
         :param activation_ff: the activation function for the feed-forward sub-layer, can be either ReLU or GeLU
             (default="relu").
-        :param layer_norm_eps: :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param layer_norm_eps: the eps value in the layer normalization (default=1e-6).
+        :param use_pos_att: whether to use a positional attention sublayer between the multi-head and cross
+            attentions sublayers (default=False).
         """
         super().__init__()
-        # Self-attention sublayer
-        self.sa_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.sa = MultiHeadAttention(d_model, n_heads, dropout_mha)
-        self.sa_dropout = nn.Dropout(dropout)
-
-        # Encoder-decoder attention sublayer
+        # Multi-head attention sublayer
         self.mha_norm = nn.LayerNorm(d_model, layer_norm_eps)
         self.mha = MultiHeadAttention(d_model, n_heads, dropout_mha)
         self.mha_dropout = nn.Dropout(dropout)
+
+        # Positional attention sublayer
+        self._use_pos_att = use_pos_att
+        if self._use_pos_att:
+            self.pos_att_norm = nn.LayerNorm(d_model, layer_norm_eps)
+            self.pos_att = MultiHeadAttention(d_model, n_heads, dropout_mha)
+            self.pos_att_dropout = nn.Dropout(dropout)
+
+        # Cross-attention sublayer
+        self.ca_norm = nn.LayerNorm(d_model, layer_norm_eps)
+        self.ca = MultiHeadAttention(d_model, n_heads, dropout_mha)
+        self.ca_dropout = nn.Dropout(dropout)
 
         # Feed-forward sublayer
         self.ff_norm = nn.LayerNorm(d_model, layer_norm_eps)
@@ -222,15 +231,28 @@ class TransformerDecoderLayer(nn.Module):
                 e_output: torch.Tensor,
                 d_mask: torch.Tensor = None,
                 e_mask: torch.Tensor = None) -> torch.Tensor:
+        # Multi-head attention sublayer
         sa_out = self.sa_norm(tgt_embeddings)
         sa_out = self.sa(sa_out, sa_out, sa_out, d_mask)
         sa_out = tgt_embeddings + self.sa_dropout(sa_out)
-        mha_out = self.mha_norm(sa_out)
-        mha_out = self.mha(mha_out, e_output, e_output, e_mask)
-        mha_out = sa_out + self.mha_dropout(mha_out)
-        ff_out = self.ff_norm(mha_out)
+
+        # Positional attention sublayer
+        if self._use_pos_att:
+            pos_att_out = self.pos_att_norm(sa_out)
+            pos_att_out = self.pos_att(pos_att_out, pos_att_out, sa_out, d_mask)
+            pos_att_out = self.pos_att_dropout(pos_att_out)
+        else:
+            pos_att_out = sa_out
+
+        # Cross-attention sublayer
+        ca_out = self.ca_norm(pos_att_out)
+        ca_out = self.ca(ca_out, e_output, e_output, e_mask)
+        ca_out = pos_att_out + self.mha_dropout(ca_out)
+
+        # Feed-forward sublayer
+        ff_out = self.ff_norm(ca_out)
         ff_out = self.ff(ff_out)
-        out = mha_out + self.ff_dropout(ff_out)
+        out = ca_out + self.ff_dropout(ff_out)
         return out
 
 

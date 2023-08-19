@@ -5,7 +5,7 @@ from torch import nn
 
 from src.models.core.transformer_core import TransformerCore
 from src.models.ftnat.config_ftnat import FTNATConfig
-from src.modules.layers_nat import DecoderLayerNAT, DecoderNAT
+from src.modules.transformer_layers import TransformerDecoderLayer, TransformerDecoder
 from src.modules.pooling import Fertility
 
 
@@ -24,10 +24,10 @@ class FTNAT(TransformerCore):
         self.fertility = Fertility(self.d_model, self.max_fertilities)
 
         # Decoder
-        decoder_layer = DecoderLayerNAT(self.d_model, self.n_heads, self.dim_ff, self.dropout,
-                                        self.layer_norm_eps, True)
+        decoder_layer = TransformerDecoderLayer(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.dropout_mha,
+                                                self.dropout_ff, self.activation_ff, self.layer_norm_eps, True)
         norm = nn.LayerNorm(self.d_model, self.layer_norm_eps)
-        self.decoder = DecoderNAT(decoder_layer, self.num_decoder_layers, norm)
+        self.decoder = TransformerDecoder(decoder_layer, self.num_decoder_layers, norm)
 
     @staticmethod
     def copy_fertilities(src_input: torch.Tensor, fertilities: torch.Tensor) -> torch.Tensor:
