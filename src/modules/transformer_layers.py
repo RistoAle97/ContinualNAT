@@ -125,9 +125,9 @@ class TransformerEncoderLayer(nn.Module):
         """
         super().__init__()
         # Self-attention sublayer
-        self.mha_norm = nn.LayerNorm(d_model, layer_norm_eps)
-        self.mha = MultiHeadAttention(d_model, n_heads, dropout_mha)
-        self.mha_dropout = nn.Dropout(dropout)
+        self.sa_norm = nn.LayerNorm(d_model, layer_norm_eps)
+        self.sa = MultiHeadAttention(d_model, n_heads, dropout_mha)
+        self.sa_dropout = nn.Dropout(dropout)
 
         # Feed-forward sublayer
         self.ff_norm = nn.LayerNorm(d_model, layer_norm_eps)
@@ -135,14 +135,14 @@ class TransformerEncoderLayer(nn.Module):
         self.ff_dropout = nn.Dropout(dropout)
 
     def forward(self,
-                src_input: torch.Tensor,
-                src_mask: torch.Tensor = None) -> torch.Tensor:
-        mha_out = self.mha_norm(src_input)
-        mha_out = self.mha.forward(mha_out, mha_out, mha_out, src_mask)
-        mha_out = src_input + self.mha_dropout(mha_out)
-        ff_out = self.ff_norm(mha_out)
+                src_embeddings: torch.Tensor,
+                e_mask: torch.Tensor = None) -> torch.Tensor:
+        sa_out = self.sa_norm(src_embeddings)
+        sa_out = self.sa(sa_out, sa_out, sa_out, e_mask)
+        sa_out = src_embeddings + self.sa_dropout(sa_out)
+        ff_out = self.ff_norm(sa_out)
         ff_out = self.ff(ff_out)
-        out = mha_out + self.ff_dropout(ff_out)
+        out = sa_out + self.ff_dropout(ff_out)
         return out
 
 
@@ -163,11 +163,11 @@ class TransformerEncoder(nn.Module):
         self.norm = norm
 
     def forward(self,
-                src_input: torch.Tensor,
-                src_mask: torch.Tensor = None) -> torch.Tensor:
-        output = src_input
+                src_embeddings: torch.Tensor,
+                e_mask: torch.Tensor = None) -> torch.Tensor:
+        output = src_embeddings
         for encoder_layer in self.layers:
-            output = encoder_layer(output, src_mask)
+            output = encoder_layer(output, e_mask)
 
         if self.norm is not None:
             output = self.norm(output)
@@ -218,13 +218,13 @@ class TransformerDecoderLayer(nn.Module):
         self.ff_dropout = nn.Dropout(dropout)
 
     def forward(self,
-                tgt_input: torch.Tensor,
+                tgt_embeddings: torch.Tensor,
                 e_output: torch.Tensor,
                 d_mask: torch.Tensor = None,
                 e_mask: torch.Tensor = None) -> torch.Tensor:
-        sa_out = self.sa_norm(tgt_input)
+        sa_out = self.sa_norm(tgt_embeddings)
         sa_out = self.sa(sa_out, sa_out, sa_out, d_mask)
-        sa_out = tgt_input + self.sa_dropout(sa_out)
+        sa_out = tgt_embeddings + self.sa_dropout(sa_out)
         mha_out = self.mha_norm(sa_out)
         mha_out = self.mha(mha_out, e_output, e_output, e_mask)
         mha_out = sa_out + self.mha_dropout(mha_out)
@@ -251,13 +251,13 @@ class TransformerDecoder(nn.Module):
         self.norm = norm
 
     def forward(self,
-                tgt_input: torch.Tensor,
+                tgt_embeddings: torch.Tensor,
                 e_output: torch.Tensor,
                 d_mask: torch.Tensor = None,
                 e_mask: torch.Tensor = None) -> torch.Tensor:
-        output = tgt_input
-        for encoder_layer in self.layers:
-            output = encoder_layer(output, e_output, d_mask, e_mask)
+        output = tgt_embeddings
+        for decoder_layer in self.layers:
+            output = decoder_layer(output, e_output, d_mask, e_mask)
 
         if self.norm is not None:
             output = self.norm(output)
