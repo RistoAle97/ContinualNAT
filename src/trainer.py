@@ -13,6 +13,7 @@ from src.data.batch_samplers import HeterogeneousSampler, HomogeneousSampler
 from src.data.collators import BatchCollator, BatchCollatorCMLM
 from src.data.datasets import TranslationDataset
 from src.models.cmlm.cmlm import CMLM
+from src.models.glat.glat import GLAT
 from src.models.core.transformer_core import TransformerCore
 from src.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
 
@@ -88,10 +89,21 @@ class MultilingualTrainer:
         else:
             batch_sampler = HomogeneousSampler(train_dataset, train_bsz, True)
 
+        if isinstance(model, GLAT):
+            is_mlm = True
+            shift_lang_token = False
+            return_lengths = True
+        else:
+            is_mlm = False
+            shift_lang_token = True
+            return_lengths = False
+
         if isinstance(model, CMLM):
             batch_collator_train = BatchCollatorCMLM(self.tokenizer.pad_token_id, self.tokenizer.mask_token_id, True)
         else:
-            batch_collator_train = BatchCollator(shift_lang_token=True, pad_token_id=self.tokenizer.pad_token_id)
+            batch_collator_train = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token,
+                                                 pad_token_id=self.tokenizer.pad_token_id,
+                                                 return_lengths=return_lengths)
 
         train_dataloader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=self.num_workers,
                                       collate_fn=batch_collator_train, pin_memory=True)
@@ -104,7 +116,9 @@ class MultilingualTrainer:
             if isinstance(model, CMLM):
                 batch_collator_val = BatchCollatorCMLM(self.tokenizer.pad_token_id, self.tokenizer.mask_token_id)
             else:
-                batch_collator_val = BatchCollator(shift_lang_token=True, pad_token_id=self.tokenizer.pad_token_id)
+                batch_collator_val = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token,
+                                                   return_lengths=return_lengths,
+                                                   pad_token_id=self.tokenizer.pad_token_id)
 
             val_dataloaders[f"{src_lang}_{tgt_lang}"] = DataLoader(dataset, val_bsz, num_workers=self.num_workers,
                                                                    collate_fn=batch_collator_val, pin_memory=True)
