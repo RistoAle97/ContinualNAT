@@ -30,7 +30,7 @@ if __name__ == "__main__":
     mask_token_id = tokenizer.mask_token_id
     print(f"Using {tokenizer.__class__.__name__} with vocab size: {len(tokenizer)}")
 
-    # Load the datasets from the huggingface hub
+    # Load the datasets used as validation and test sets from the huggingface hub
     wmt_en_de = load_dataset("thesistranslation/wmt14", "de-en", cache_dir="/disk1/a.ristori/datasets/wmt14",
                              verification_mode="no_checks")
     wmt_en_fr = load_dataset("thesistranslation/wmt14", "fr-en", cache_dir="/disk1/a.ristori/datasets/wmt14",
@@ -38,27 +38,20 @@ if __name__ == "__main__":
     wmt_en_es = load_dataset("thesistranslation/wmt14", "es-en", cache_dir="/disk1/a.ristori/datasets/wmt14",
                              verification_mode="no_checks")
     wmt_datasets = {"en-de": wmt_en_de, "en-fr": wmt_en_fr, "en-es": wmt_en_es}
-    distilled_ccmatrix_en_de = load_dataset("thesistranslation/distilled-ccmatrix-en-de", split="train",
-                                            cache_dir="/disk1/a.ristori/datasets/distilled_ccmatrix",
-                                            verification_mode="no_checks")
-    distilled_ccmatrix_datasets = {"en-de": distilled_ccmatrix_en_de}
-    '''ccmatrix_en_fr = load_dataset("yhavinga/ccmatrix", "en-fr", cache_dir="/disk1/a.ristori/datasets/ccmatrix",
-                                  verification_mode="no_checks")
-    ccmatrix_en_es = load_dataset("yhavinga/ccmatrix", "en-es", cache_dir="/disk1/a.ristori/datasets/ccmatrix",
-                                  verification_mode="no_checks")'''
 
-    # Model
+    # Build the model
     '''model_config = CMLMConfig(len(tokenizer), bos_token_id=bos_token_id, eos_token_id=eos_token_id,
                               pad_token_id=pad_token_id, mask_token_id=mask_token_id, length_token_id=None,
                               pooler_size=256)
-    model = CMLM(model_config)
+    model = CMLM(model_config)'''
     model_config = TransformerConfig(len(tokenizer), bos_token_id=bos_token_id, eos_token_id=eos_token_id,
                                      pad_token_id=pad_token_id)
-    model = Transformer(model_config)'''
+    model = Transformer(model_config)
+    '''
     model_config = GLATConfig(len(tokenizer), bos_token_id=bos_token_id, eos_token_id=eos_token_id,
                               pad_token_id=pad_token_id, length_token_id=None, decoder_inputs_copy="soft",
                               pooler_size=256)
-    model = GLAT(model_config)
+    model = GLAT(model_config)'''
 
     # Check whether the model is using the length token
     use_cls_token = False
@@ -66,18 +59,20 @@ if __name__ == "__main__":
         use_cls_token = True
 
     # Build the train, validation and test datasets
-    translation_directions = ["en-de"]  # , "en-de", "en-fr", "fr-en", "en-es", "es-en"]
     train_datasets = []
     val_datasets = []
     test_datasets = []
+    translation_directions = ["en-de"]  # , "en-de", "en-fr", "fr-en", "en-es", "es-en"]
     for lang_pair in translation_directions:
         src_lang, tgt_lang = lang_pair.split("-")
         lang_pair_key = lang_pair if src_lang == "en" else f"{tgt_lang}-{src_lang}"
         dataset_duplicates = duplicates[lang_pair_key]
         wmt_dataset = wmt_datasets[lang_pair_key]
-        distilled_ccmatrix = distilled_ccmatrix_datasets[lang_pair]
-        train_dataset = TranslationDataset(src_lang, tgt_lang, distilled_ccmatrix, tokenizer, max_length=32,
-                                           use_cls_token=use_cls_token, skip_idxs=en_de_duplicates,
+        distilled_ccmatrix = load_dataset(f"thesistranslation/distilled-ccmatrix-{src_lang}-{tgt_lang}",
+                                          split="train", cache_dir="/disk1/a.ristori/datasets/distilled_ccmatrix",
+                                          verification_mode="no_checks")
+        train_dataset = TranslationDataset(src_lang, tgt_lang, distilled_ccmatrix, tokenizer, max_length=128,
+                                           use_cls_token=use_cls_token, skip_idxs=dataset_duplicates,
                                            fill_to_max_length=False)
         val_dataset = TranslationDataset(src_lang, tgt_lang, wmt_dataset["validation"], tokenizer, max_length=128,
                                          use_cls_token=use_cls_token)
@@ -89,12 +84,12 @@ if __name__ == "__main__":
 
     # Set up the trainer
     trainer = MultilingualTrainer(tokenizer=tokenizer, train_steps=300000, val_every_n_steps=10000,
-                                  log_every_n_steps=500, ckpt_every_n_steps=10000, dataloader_num_workers=0,
+                                  log_every_n_steps=500, ckpt_every_n_steps=10000, dataloader_num_workers=8,
                                   log_directory="/disk1/a.ristori/", use_wandb=False)
 
     # Train the model
-    version = "GLAT_ccmatrix_distilled_en_de_new"
-    trainer.train(model, train_datasets, val_datasets, train_bsz=8, val_bsz=32, tokens_per_batch=128000,
+    version = "Transformer_ccmatrix_distilled_en_de"
+    trainer.train(model, train_datasets, val_datasets, train_bsz=512, val_bsz=32, tokens_per_batch=128000,
                   logger_version=version)
 
     # Save the model
