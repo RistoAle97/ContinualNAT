@@ -6,7 +6,7 @@ from torchmetrics import MeanMetric
 
 from src.models.core.transformer_nat_core import TransformerNATCore
 from src.models.cmlm.config_cmlm import CMLMConfig
-from src.utils.masks import create_masks
+from src.utils.masks import create_masks, create_encoder_mask
 from src.utils.models import init_bert_weights
 
 
@@ -155,7 +155,7 @@ class CMLM(TransformerNATCore):
 
     def generate(self,
                  input_ids: torch.Tensor,
-                 tgt_lang_token_id: int = None,
+                 tgt_lang_token_id: int,
                  iterations: int = 10,
                  length_beam_size: int = 5) -> torch.Tensor:
         """
@@ -180,12 +180,15 @@ class CMLM(TransformerNATCore):
             raise ValueError("You are not using the <length> token at the start of the source sentences,"
                              "the model can not predict the target lengths.")
 
+        if tgt_lang_token_id is None:
+            raise ValueError("You should define the target language token id.")
+
         self.eval()
         device = next(self.parameters()).device
         batch_size = input_ids.shape[0]
 
         # Compute encodings
-        e_mask = input_ids.ne(self.pad_token_id).unsqueeze(1).to(device)
+        e_mask = create_encoder_mask(input_ids, self.pad_token_id)
         encodings = self.encode(input_ids, e_mask)
 
         # Predict the best length_beam_size lengths for each sentence
@@ -194,7 +197,7 @@ class CMLM(TransformerNATCore):
 
         # Compute the largest length and the number of non-pad tokens
         max_length = length_beams.max().item()
-        non_pad_tokens = max_length + 2 if tgt_lang_token_id is not None else max_length + 1
+        non_pad_tokens = max_length + 2
 
         # Build the length mask
         length_mask = torch.triu(input_ids.new(non_pad_tokens, non_pad_tokens).fill_(1).long(), 1)
@@ -206,19 +209,19 @@ class CMLM(TransformerNATCore):
         for i, lengths in enumerate(length_beams):
             lengths = lengths + torch.arange(0, length_beam_size * non_pad_tokens, non_pad_tokens).to(device)
 
-            # Add end of sequence token
+            # Add eos token
             tgt_tokens[i].view(-1)[lengths] = self.eos_token_id
 
             # Add target language token if passed
-            if tgt_lang_token_id is not None:
-                tgt_tokens[i].view(-1)[lengths + 1] = tgt_lang_token_id
+            tgt_tokens[i].view(-1)[lengths + 1] = tgt_lang_token_id
 
         tgt_tokens = tgt_tokens.view(batch_size * length_beam_size, non_pad_tokens)
 
         # Duplicate encoder's output (without taking into account the encodings of the <length> token) and padding mask
         # to match the number of length beams
-        duplicated_encodings = encodings[:, 1:].repeat_interleave(length_beam_size, dim=0)
-        duplicated_e_mask = e_mask[:, :, 1:].repeat_interleave(length_beam_size, dim=0)
+        start_token = 0 if self.length_token_id is None else 1
+        duplicated_encodings = encodings[:, start_token:].repeat_interleave(length_beam_size, dim=0)
+        duplicated_e_mask = e_mask[:, :, start_token:].repeat_interleave(length_beam_size, dim=0)
 
         # Mask-predict
         hyps, log_probabilities = self.__mask_predict(duplicated_encodings, duplicated_e_mask, tgt_tokens, iterations)
