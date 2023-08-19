@@ -56,7 +56,7 @@ to train one of the available models.
 ## :card_file_box: Setting and datasets
 - **Translation directions:** $en \Leftrightarrow de$, $en \Leftrightarrow fr$, $en \Leftrightarrow es$ (we opted for an english-centric setting). 
 - **Tokenizer training set:** [CC100](https://huggingface.co/datasets/cc100).
-- **Training set:** [CCMatrix](https://huggingface.co/datasets/yhavinga/ccmatrix).
+- **Training set:** a distilled version of [CCMatrix](https://huggingface.co/datasets/yhavinga/ccmatrix), where only the first 30m of sentence pairs are considered.
 - **Validation set:**
   - _newstest2012_ for $en \Leftrightarrow es$.
   - _newstest2013_ for $en \Leftrightarrow de$ and $en \Leftrightarrow fr$.
