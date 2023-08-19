@@ -1,9 +1,9 @@
-from torch import nn
+import torch
 
 
-class LambdaScheduler(nn.Module):
+class LambdaScheduler:
 
-    def __init__(self, start_ratio: float = 0.5, end_ratio: float = 0.3, start: int = 0, steps: int = 300000) -> None:
+    def __init__(self, start_ratio: float = 0.5, end_ratio: float = 0.2, start: int = 0, steps: int = 300000) -> None:
         """
         Scheduler for the lambda value used in the glancing strategy. Inspired from
         https://github.com/baoy-nlp/Latent-GLAT/blob/main/latent_glat/glat.py#L316.
@@ -15,16 +15,68 @@ class LambdaScheduler(nn.Module):
         super().__init__()
         self.start_ratio = start_ratio
         self.end_ratio = end_ratio
-        self.anneal_start = start
-        self.anneal_end = start + steps
+        self._anneal_start = start
+        self._anneal_end = start + steps
         self.anneal_steps = steps
-        self.step_ratio = (self.end_ratio - self.start_ratio) / self.anneal_steps
+        self._step_ratio = (self.end_ratio - self.start_ratio) / self.anneal_steps
 
-    def forward(self, step):
-        if step < self.anneal_start:
-            return self.start_ratio
-        elif step > self.anneal_end:
-            return self.end_ratio
+    def __call__(self, step: int) -> float:
+        if step < self._anneal_start:
+            ratio = self.start_ratio
+        elif step > self._anneal_end:
+            ratio = self.end_ratio
         else:
-            ratio = self.start_ratio + self.step_ratio * (step - self.anneal_start)
-            return ratio
+            ratio = self.start_ratio + self._step_ratio * (step - self._anneal_start)
+
+        return ratio
+
+
+class GlancingSampler:
+
+    def __init__(self, adaptive: bool = True, strategy: str = "uniform") -> None:
+        self.adaptive = adaptive
+        if strategy not in ["uniform", "schedule", None]:
+            raise ValueError("No correct sampling strategy was chosen, use one of \"uniform\", \"schedule\" or None.")
+
+        self.strategy = strategy
+
+    def __call__(self,
+                 labels: torch.Tensor,
+                 labels_mask: torch.Tensor,
+                 logits: torch.Tensor,
+                 predictions: torch.Tensor,
+                 ratio: float = 0.5) -> torch.Tensor:
+        """
+        Sampler for the glancing strategy emplyed by the GLAT model.
+        :param labels: the tokenized ground-truth target sentences.
+        :param labels_mask: the non-special tokens mask for the labels.
+        :param logits: the logits coming from a softmax function on the GLAT's outputs.
+        :param predictions: the predicted tokens by the model.
+        :param ratio: the glancing ratio, i.e. the ratio of predicted tokens that will be substituted by
+            the ground-truth tokens (default=0.5).
+        :return: a map of the glanced tokens (1 glanced, 0 otherwise).
+        """
+        # Number of positions to be replaced
+        if not self.adaptive:
+            n_positions = labels.size(-1) * ratio + 1
+        else:
+            distance = (predictions.ne(labels) * labels_mask).float().sum(dim=-1)
+            n_positions = (distance * ratio + 1).int()
+
+        score = labels.clone().float().uniform_()
+
+        # Sampling strategy
+        if self.strategy == "uniform":
+            score.masked_fill_(~labels_mask, 2.0)
+            rank = score.sort(dim=-1)[-1]
+            cutoff = torch.arange(rank.size(-1), device=rank.device).expand(*rank.size())
+            cutoff = torch.tensor(cutoff < n_positions[:, None]).long()
+            sample = cutoff.scatter(1, rank, cutoff)
+        elif self.strategy == "schedule":
+            prob = logits.softmax(dim=-1)
+            ref_score = prob.view(-1, labels.size(-1)).contiguous().gather(0, labels.view(-1, 1)).view(*labels.size())
+            sample = score.lt(ref_score) * labels_mask
+        else:
+            sample = torch.zeros_like(labels)
+
+        return sample
