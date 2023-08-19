@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader
 from transformers import MBartTokenizer, MBartTokenizerFast, PreTrainedTokenizer, PreTrainedTokenizerFast
 from tqdm.auto import tqdm
 
+from src.data.batch_collators import BatchCollator, BatchCollatorCMLM
 from src.data.datasets import TranslationDataset
-from src.data.collators import BatchCollator, BatchCollatorCMLM
 from src.models.cmlm.cmlm import CMLM
 from src.models.core.transformer_core import TransformerCore
 

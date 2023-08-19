@@ -9,8 +9,8 @@ from lightning.pytorch.loggers.wandb import WandbLogger
 from torch.utils.data import DataLoader, ConcatDataset
 from transformers import PreTrainedTokenizerBase
 
+from src.data.batch_collators import BatchCollator, BatchCollatorCMLM
 from src.data.batch_samplers import HeterogeneousSampler, HomogeneousSampler
-from src.data.collators import BatchCollator, BatchCollatorCMLM
 from src.data.datasets import TranslationDataset
 from src.models.cmlm.cmlm import CMLM
 from src.models.glat.glat import GLAT
