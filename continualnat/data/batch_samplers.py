@@ -1,12 +1,12 @@
-from typing import List, Union
+from typing import Iterator, List, Union
 
 import numpy as np
-from torch.utils.data import ConcatDataset, Dataset, RandomSampler, SequentialSampler
+from torch.utils.data import ConcatDataset, RandomSampler, SequentialSampler, Sampler
 
 from continualnat.data.datasets import TranslationDataset
 
 
-class BatchSamplerCore:
+class BatchSamplerCore(Sampler[List[int]]):
 
     def __init__(self,
                  datasets: Union[ConcatDataset, List[TranslationDataset]],
@@ -21,27 +21,29 @@ class BatchSamplerCore:
         :param sampling_strategy: the sampling strategy to apply on each dataset, can be either "random"
             or "sequential" (default="random").
         """
+        super().__init__(datasets)
         self.concat_dataset = datasets if isinstance(datasets, ConcatDataset) else ConcatDataset(datasets)
         if sampling_strategy not in ["random", "sequential"]:
             raise ValueError("The sampling strategy must be one of \"random\" and \"sequential\".")
         elif sampling_strategy == "random":
-            self.samplers = [iter(RandomSampler(dataset)) for dataset in self.concat_dataset.datasets]
+            self._iter_samplers = [iter(RandomSampler(dataset)) for dataset in self.concat_dataset.datasets]
         else:
-            self.samplers = [iter(SequentialSampler(dataset)) for dataset in self.concat_dataset.datasets]
+            self._iter_samplers = [iter(SequentialSampler(dataset)) for dataset in self.concat_dataset.datasets]
 
         self.bsz = bsz
         self.max_len = max([len(dataset) for dataset in self.concat_dataset.datasets])
         self.sampling_strategy = sampling_strategy
         self.drop_last = drop_last
 
-    def __len__(self) -> int:
-        n_batches = self.max_len / self.bsz * len(self.samplers)
+    def __len__(self):
         if self.drop_last:
-            return int(n_batches)
+            n_batches = self.max_len // self.bsz * len(self._iter_samplers)
         else:
-            return int(np.ceil(n_batches))
+            n_batches = (self.max_len + self.bsz - 1) // self.bsz * len(self._iter_samplers)
 
-    def __iter__(self):
+        return n_batches
+
+    def __iter__(self) -> Iterator[List[int]]:
         raise NotImplementedError
 
 
@@ -54,7 +56,7 @@ class HeterogeneousSampler(BatchSamplerCore):
                  sampling_strategy: str = "random",
                  weights: List[int] = None) -> None:
         """
-        Builds batches in a heterogeneous way, so that there will be different translation directions in the same batch.
+        Samples indices in a way that there will be different translation directions in the same batch.
         :param datasets: a list of TranslationDataset or a ConcatDataset.
         :param bsz: the batch size.
         :param drop_last: whether to drop the last batch if its length does not reach the batch size (default=False).
@@ -64,17 +66,19 @@ class HeterogeneousSampler(BatchSamplerCore):
             (1 / number of datasets), otherwise the values must sum up to 1.0 (default=None).
         """
         super().__init__(datasets, bsz, drop_last, sampling_strategy)
-        self.weights = weights if weights is not None else [1 / len(self.samplers)] * len(self.samplers)
+        self.weights = weights if weights is not None else [1 / len(self._iter_samplers)] * len(self._iter_samplers)
         if sum(self.weights) != 1.0:
             raise ValueError("The weights must sum to 1.")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[List[int]]:
         batch = []
         np_generator = np.random.default_rng()
-        for _ in range(self.max_len * len(self.samplers)):
-            sampler_idx = np_generator.choice(len(self.samplers), p=self.weights)
+        # Even though it is not entirely correct, we decided to leave the same number of iterations as the homogeneous
+        # sampler.
+        for _ in range(len(self) * self.bsz):
+            sampler_idx = np_generator.choice(len(self._iter_samplers), p=self.weights)
             try:
-                sample = next(self.samplers[sampler_idx])
+                sample = next(self._iter_samplers[sampler_idx])
             except StopIteration:
                 next_dataset = self.concat_dataset.datasets[sampler_idx]
                 if self.sampling_strategy == "random":
@@ -82,8 +86,8 @@ class HeterogeneousSampler(BatchSamplerCore):
                 else:
                     sampler = iter(SequentialSampler(next_dataset))
 
-                self.samplers[sampler_idx] = sampler
-                sample = next(self.samplers[sampler_idx])
+                self._iter_samplers[sampler_idx] = sampler
+                sample = next(self._iter_samplers[sampler_idx])
 
             if sampler_idx == 0:
                 start = 0
@@ -95,7 +99,7 @@ class HeterogeneousSampler(BatchSamplerCore):
                 yield batch
                 batch = []
 
-        if not self.drop_last:
+        if not self.drop_last and len(batch) != 0:
             yield batch
 
 
@@ -107,7 +111,7 @@ class HomogeneousSampler(BatchSamplerCore):
                  drop_last: bool = False,
                  sampling_strategy: str = "random") -> None:
         """
-        Builds batches in a homogeneous way, so that there will only a single translation direction in a batch.
+        Sample indices in a way that there will only a single translation direction in a batch.
         :param datasets: a list of TranslationDataset or a ConcatDataset.
         :param bsz: the batch size.
         :param drop_last: whether to drop the last batch if its length does not reach the batch size (default=False).
@@ -117,20 +121,22 @@ class HomogeneousSampler(BatchSamplerCore):
         super().__init__(datasets, bsz, drop_last, sampling_strategy)
         self._current_sampler_idx = 0
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[List[int]]:
         batch = []
-        for _ in range(self.max_len * len(self.samplers)):
+        for _ in range(len(self) * self.bsz):
             try:
-                sample = next(self.samplers[self._current_sampler_idx])
+                sample = next(self._iter_samplers[self._current_sampler_idx])
             except StopIteration:
-                next_dataset: Union[Dataset, List[Dataset]] = self.concat_dataset.datasets[self._current_sampler_idx]
+                dataset_to_oversample = self.concat_dataset.datasets[self._current_sampler_idx]
                 if self.sampling_strategy == "random":
-                    sampler = iter(RandomSampler(next_dataset))
+                    # noinspection PyTypeChecker
+                    sampler = iter(RandomSampler(dataset_to_oversample))
                 else:
-                    sampler = iter(SequentialSampler(next_dataset))
+                    # noinspection PyTypeChecker
+                    sampler = iter(SequentialSampler(dataset_to_oversample))
 
-                self.samplers[self._current_sampler_idx] = sampler
-                sample = next(self.samplers[self._current_sampler_idx])
+                self._iter_samplers[self._current_sampler_idx] = sampler
+                sample = next(self._iter_samplers[self._current_sampler_idx])
 
             if self._current_sampler_idx == 0:
                 start = 0
@@ -139,10 +145,10 @@ class HomogeneousSampler(BatchSamplerCore):
 
             batch.append(start + sample)
             if len(batch) == self.bsz:
-                self._current_sampler_idx = (self._current_sampler_idx + 1) % len(self.samplers)
+                self._current_sampler_idx = (self._current_sampler_idx + 1) % len(self._iter_samplers)
                 yield batch
                 batch = []
 
-        if not self.drop_last:
-            self._current_sampler_idx = (self._current_sampler_idx + 1) % len(self.samplers)
+        if not self.drop_last and len(batch) != 0:
+            self._current_sampler_idx = (self._current_sampler_idx + 1) % len(self._iter_samplers)
             yield batch
