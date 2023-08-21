@@ -232,17 +232,17 @@ class TransformerDecoderLayer(nn.Module):
                 d_mask: torch.Tensor = None,
                 e_mask: torch.Tensor = None) -> torch.Tensor:
         # Multi-head attention sublayer
-        sa_out = self.sa_norm(tgt_embeddings)
-        sa_out = self.sa(sa_out, sa_out, sa_out, d_mask)
-        sa_out = tgt_embeddings + self.sa_dropout(sa_out)
+        mha_out = self.mha_norm(tgt_embeddings)
+        mha_out = self.mha(mha_out, mha_out, mha_out, d_mask)
+        mha_out = tgt_embeddings + self.mha_dropout(mha_out)
 
         # Positional attention sublayer
         if self._use_pos_att:
-            pos_att_out = self.pos_att_norm(sa_out)
-            pos_att_out = self.pos_att(pos_att_out, pos_att_out, sa_out, d_mask)
+            pos_att_out = self.pos_att_norm(mha_out)
+            pos_att_out = self.pos_att(pos_att_out, pos_att_out, mha_out, d_mask)
             pos_att_out = self.pos_att_dropout(pos_att_out)
         else:
-            pos_att_out = sa_out
+            pos_att_out = mha_out
 
         # Cross-attention sublayer
         ca_out = self.ca_norm(pos_att_out)
