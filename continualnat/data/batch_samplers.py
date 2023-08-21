@@ -3,7 +3,7 @@ from typing import List, Union
 import numpy as np
 from torch.utils.data import ConcatDataset, RandomSampler, SequentialSampler
 
-from src.data.datasets import TranslationDataset
+from continualnat.data.datasets import TranslationDataset
 
 
 class BatchSamplerCore:

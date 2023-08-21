@@ -3,10 +3,10 @@ import math
 import torch
 from torch import nn
 
-from src.models.core.transformer_core import TransformerCore
-from src.models.ftnat.config_ftnat import FTNATConfig
-from src.modules.transformer_layers import TransformerDecoderLayer, TransformerDecoder
-from src.modules.pooling import Fertility
+from continualnat.models.core.transformer_core import TransformerCore
+from continualnat.models.ftnat.config_ftnat import FTNATConfig
+from continualnat.modules.transformer_layers import TransformerDecoderLayer, TransformerDecoder
+from continualnat.modules.pooling import Fertility
 
 
 class FTNAT(TransformerCore):

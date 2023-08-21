@@ -1,8 +1,8 @@
 import torch
 from torch.functional import F
 
-from src.models.core.transformer_core import TransformerCore
-from src.utils.masks import create_encoder_mask, create_decoder_mask
+from continualnat.models.core.transformer_core import TransformerCore
+from continualnat.utils.masks import create_encoder_mask, create_decoder_mask
 
 
 def greedy_decoding(model: TransformerCore,

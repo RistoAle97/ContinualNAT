@@ -1,7 +1,7 @@
-from src.models.core.config_nat_core import NATCoreConfig
+from continualnat.models.core.config_core import CoreConfig
 
 
-class GLATConfig(NATCoreConfig):
+class NATCoreConfig(CoreConfig):
 
     def __init__(self,
                  vocab_size: int,
@@ -47,8 +47,7 @@ class GLATConfig(NATCoreConfig):
         :param length_token_id: the length token id, akin to a cls token (default=4).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
         :param decoder_inputs_copy: the type of copy to apply to the source embedding, possible values: uniform, soft
-            and None, with the latter no copy mechanism will be applied and the decoder input ids will be used instead
-            (default=None).
+            and None (default=None).
         :param tensor_to_copy: the tensor to copy during as the decoder input, can be either "src_embeddings" or
             "e_output". If decoder_inputs_copy is None then this parameter will have no effect (default="e_output").
         :param pooler_size: the pooler layer dimension (default=256).
@@ -56,5 +55,16 @@ class GLATConfig(NATCoreConfig):
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
-                         eos_token_id, pad_token_id, length_token_id, label_smoothing, decoder_inputs_copy,
-                         tensor_to_copy, pooler_size, tau)
+                         eos_token_id, pad_token_id, label_smoothing)
+        self.length_token_id = length_token_id
+        if decoder_inputs_copy not in ["uniform", "soft", None]:
+            raise ValueError("The source embeddings copy can only be performed with one of the following mode: uniform,"
+                             "soft or None.")
+
+        self.decoder_inputs_copy = decoder_inputs_copy
+        if tensor_to_copy not in ["src_embeddings", "e_output"]:
+            raise ValueError("The tensor to copy must one of between the source embeddings and the encoder output.")
+
+        self.tensor_to_copy = tensor_to_copy
+        self.pooler_size = pooler_size
+        self.tau = tau

@@ -3,10 +3,10 @@ import yaml
 from datasets import load_dataset
 from transformers import MBartTokenizerFast
 
-from src.data import *
-from src.models import *
-from src.metrics import compute_sacrebleu
-from src import MultilingualTrainer
+from continualnat.data import *
+from continualnat.models import *
+from continualnat.metrics import compute_sacrebleu
+from continualnat import MultilingualTrainer
 
 
 if __name__ == "__main__":
@@ -62,12 +62,14 @@ if __name__ == "__main__":
     train_datasets = []
     val_datasets = []
     test_datasets = []
-    translation_directions = ["en-de"]  # , "en-de", "en-fr", "fr-en", "en-es", "es-en"]
+    translation_directions = ["en-fr"]  # , "en-de", "en-fr", "fr-en", "en-es", "es-en"]
     for lang_pair in translation_directions:
         src_lang, tgt_lang = lang_pair.split("-")
         lang_pair_key = lang_pair if src_lang == "en" else f"{tgt_lang}-{src_lang}"
         dataset_duplicates = duplicates[lang_pair_key]
         wmt_dataset = wmt_datasets[lang_pair_key]
+        # ccmatrix_en_fr = load_dataset("yhavinga/ccmatrix", "fr-en", split="train[:30000000]",
+        #                               cache_dir="/disk1/a.ristori/datasets/ccmatrix", verification_mode="no_checks")
         distilled_ccmatrix = load_dataset(f"thesistranslation/distilled-ccmatrix-{src_lang}-{tgt_lang}",
                                           split="train", cache_dir="/disk1/a.ristori/datasets/distilled_ccmatrix",
                                           verification_mode="no_checks")
@@ -83,12 +85,12 @@ if __name__ == "__main__":
         test_datasets.append(test_dataset)
 
     # Set up the trainer
-    trainer = MultilingualTrainer(tokenizer=tokenizer, train_steps=300000, val_every_n_steps=10000,
+    trainer = MultilingualTrainer(tokenizer=tokenizer, train_steps=200000, val_every_n_steps=10000,
                                   log_every_n_steps=500, ckpt_every_n_steps=10000, dataloader_num_workers=8,
-                                  log_directory="/disk1/a.ristori/", use_wandb=False)
+                                  log_directory="/disk1/a.ristori/", use_wandb=True)
 
     # Train the model
-    version = "Transformer_ccmatrix_distilled_en_de"
+    version = "Transformer_ccmatrix_distilled_en_fr"
     trainer.train(model, train_datasets, val_datasets, train_bsz=512, val_bsz=32, tokens_per_batch=128000,
                   logger_version=version)
 

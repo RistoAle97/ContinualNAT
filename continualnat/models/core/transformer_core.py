@@ -8,10 +8,10 @@ from torchmetrics import MeanMetric
 from torchmetrics.text import SacreBLEUScore
 from transformers import MBartTokenizer, MBartTokenizerFast, get_scheduler
 
-from src.data.datasets import TranslationDataset, IterableTranslationDataset
-from src.models.core.config_core import CoreConfig
-from src.modules.positional_encoding import PositionalEncoding
-from src.modules.transformer_layers import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
+from continualnat.data.datasets import TranslationDataset, IterableTranslationDataset
+from continualnat.models.core.config_core import CoreConfig
+from continualnat.modules.positional_encoding import PositionalEncoding
+from continualnat.modules.transformer_layers import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
     TransformerDecoder
 
 

@@ -1,11 +1,11 @@
 import torch
 from torch.functional import F
 
-from src.models.core.transformer_core import TransformerCore
-from src.models.transformer.config_transformer import TransformerConfig
-from src.inference.strategies import greedy_decoding, beam_decoding
-from src.utils.masks import create_masks
-from src.utils.models import init_bert_weights
+from continualnat.models.core.transformer_core import TransformerCore
+from continualnat.models.transformer.config_transformer import TransformerConfig
+from continualnat.inference.strategies import greedy_decoding, beam_decoding
+from continualnat.utils.masks import create_masks
+from continualnat.utils.models import init_bert_weights
 
 
 class Transformer(TransformerCore):

@@ -4,10 +4,10 @@ import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
 
-from src.models.core.transformer_nat_core import TransformerNATCore
-from src.models.cmlm.config_cmlm import CMLMConfig
-from src.utils.masks import create_masks, create_encoder_mask
-from src.utils.models import init_bert_weights
+from continualnat.models.core.transformer_nat_core import TransformerNATCore
+from continualnat.models.cmlm.config_cmlm import CMLMConfig
+from continualnat.utils.masks import create_masks, create_encoder_mask
+from continualnat.utils.models import init_bert_weights
 
 
 class CMLM(TransformerNATCore):

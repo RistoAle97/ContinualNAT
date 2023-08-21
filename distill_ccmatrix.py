@@ -4,7 +4,7 @@ import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer, MarianTokenizer
 
-from src.data import distill_dataset, push_distilled_dataset_to_hub
+from continualnat.data import distill_dataset, push_distilled_dataset_to_hub
 
 
 def parse_arguments(known=False):

@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm.auto import tqdm
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
-from src.models.core.transformer_core import TransformerCore
+from continualnat.models.core.transformer_core import TransformerCore
 
 
 def distill_dataset(teacher: Union[PreTrainedModel, TransformerCore, str],

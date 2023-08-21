@@ -1,7 +1,7 @@
-from src.models.core.config_core import CoreConfig
+from continualnat.models.core.transformer_nat_core import NATCoreConfig
 
 
-class FTNATConfig(CoreConfig):
+class CMLMConfig(NATCoreConfig):
 
     def __init__(self,
                  vocab_size: int,
@@ -19,9 +19,12 @@ class FTNATConfig(CoreConfig):
                  bos_token_id: int = 0,
                  eos_token_id: int = 2,
                  pad_token_id: int = 1,
-                 max_fertilities: int = 50) -> None:
+                 mask_token_id: int = 5,
+                 length_token_id: int = None,
+                 label_smoothing: float = 0.0,
+                 pooler_size: int = 256) -> None:
         """
-        Configuration class for the FT-NAT model.
+        Configuration class for the CMLM model.
         :param vocab_size: shared vocabulary size.
         :param d_model: embedding dimension (default=512).
         :param n_heads: the number of heads in the multi-attention mechanism (default=8).
@@ -39,9 +42,13 @@ class FTNATConfig(CoreConfig):
         :param bos_token_id: the start of sequence token id (default=0).
         :param eos_token_id: the end of sequence token id (default=2).
         :param pad_token_id: the pad token id (default=1).
-        :param max_fertilities: the maximum number of fertilities (default=50).
+        :param mask_token_id: the mask token id (default=5)
+        :param length_token_id: the length token id, akin to a cls token, if no length token is passed then a mean
+            pooling over the entire source tokens will be used for the length prediction (default=None).
+        :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
+        :param pooler_size: the pooler layer dimension (default=256).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
-                         eos_token_id, pad_token_id)
-        self.max_fertilities = max_fertilities
+                         eos_token_id, pad_token_id, length_token_id, label_smoothing, pooler_size=pooler_size)
+        self.mask_token_id = mask_token_id

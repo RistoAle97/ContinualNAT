@@ -3,7 +3,7 @@ from typing import Dict, List, Union
 import numpy as np
 import torch
 
-from src.utils.utils import shift_lang_token_right
+from continualnat.utils.utils import shift_lang_token_right
 
 
 class BatchCollator:

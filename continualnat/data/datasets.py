@@ -6,7 +6,7 @@ import torch
 from transformers import MBartTokenizer, MBartTokenizerFast
 from torch.utils.data import Dataset, IterableDataset
 
-from src.utils.utils import MBART_LANG_MAP
+from continualnat.utils.utils import MBART_LANG_MAP
 
 
 class TranslationDatasetCore:

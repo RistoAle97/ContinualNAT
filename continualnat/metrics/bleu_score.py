@@ -8,10 +8,10 @@ from torch.utils.data import DataLoader
 from transformers import MBartTokenizer, MBartTokenizerFast, PreTrainedTokenizer, PreTrainedTokenizerFast
 from tqdm.auto import tqdm
 
-from src.data.batch_collators import BatchCollator, BatchCollatorCMLM
-from src.data.datasets import TranslationDataset
-from src.models.cmlm.cmlm import CMLM
-from src.models.core.transformer_core import TransformerCore
+from continualnat.data.batch_collators import BatchCollator, BatchCollatorCMLM
+from continualnat.data.datasets import TranslationDataset
+from continualnat.models.cmlm.cmlm import CMLM
+from continualnat.models.core.transformer_core import TransformerCore
 
 TOKENIZERS = {"none", "zh", "13a", "intl", "char", "ja-mecab"}  # available tokenizers for the SacreBLEU computation
 

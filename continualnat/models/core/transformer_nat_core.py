@@ -4,9 +4,9 @@ import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
 
-from src.models.core.config_nat_core import NATCoreConfig
-from src.models.core.transformer_core import TransformerCore
-from src.modules.pooling import LengthPooler, MeanPooler
+from continualnat.models.core.config_nat_core import NATCoreConfig
+from continualnat.models.core.transformer_core import TransformerCore
+from continualnat.modules.pooling import LengthPooler, MeanPooler
 
 
 class TransformerNATCore(TransformerCore):

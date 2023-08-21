@@ -9,13 +9,13 @@ from lightning.pytorch.loggers.wandb import WandbLogger
 from torch.utils.data import DataLoader, ConcatDataset
 from transformers import PreTrainedTokenizerBase
 
-from src.data.batch_collators import BatchCollator, BatchCollatorCMLM
-from src.data.batch_samplers import HeterogeneousSampler, HomogeneousSampler
-from src.data.datasets import TranslationDataset
-from src.models.cmlm.cmlm import CMLM
-from src.models.glat.glat import GLAT
-from src.models.core.transformer_core import TransformerCore
-from src.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
+from continualnat.data.batch_collators import BatchCollator, BatchCollatorCMLM
+from continualnat.data.batch_samplers import HeterogeneousSampler, HomogeneousSampler
+from continualnat.data.datasets import TranslationDataset
+from continualnat.models.cmlm.cmlm import CMLM
+from continualnat.models.glat.glat import GLAT
+from continualnat.models.core.transformer_core import TransformerCore
+from continualnat.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
 
 
 class MultilingualTrainer:
