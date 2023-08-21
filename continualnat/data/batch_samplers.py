@@ -1,7 +1,7 @@
 from typing import List, Union
 
 import numpy as np
-from torch.utils.data import ConcatDataset, RandomSampler, SequentialSampler
+from torch.utils.data import ConcatDataset, Dataset, RandomSampler, SequentialSampler
 
 from continualnat.data.datasets import TranslationDataset
 
@@ -76,10 +76,11 @@ class HeterogeneousSampler(BatchSamplerCore):
             try:
                 sample = next(self.samplers[sampler_idx])
             except StopIteration:
+                next_dataset = self.concat_dataset.datasets[sampler_idx]
                 if self.sampling_strategy == "random":
-                    sampler = iter(RandomSampler(self.concat_dataset.datasets[sampler_idx]))
+                    sampler = iter(RandomSampler(next_dataset))
                 else:
-                    sampler = iter(SequentialSampler(self.concat_dataset.datasets[sampler_idx]))
+                    sampler = iter(SequentialSampler(next_dataset))
 
                 self.samplers[sampler_idx] = sampler
                 sample = next(self.samplers[sampler_idx])
@@ -122,10 +123,11 @@ class HomogeneousSampler(BatchSamplerCore):
             try:
                 sample = next(self.samplers[self._current_sampler_idx])
             except StopIteration:
+                next_dataset: Union[Dataset, List[Dataset]] = self.concat_dataset.datasets[self._current_sampler_idx]
                 if self.sampling_strategy == "random":
-                    sampler = iter(RandomSampler(self.concat_dataset.datasets[self._current_sampler_idx]))
+                    sampler = iter(RandomSampler(next_dataset))
                 else:
-                    sampler = iter(SequentialSampler(self.concat_dataset.datasets[self._current_sampler_idx]))
+                    sampler = iter(SequentialSampler(next_dataset))
 
                 self.samplers[self._current_sampler_idx] = sampler
                 sample = next(self.samplers[self._current_sampler_idx])
