@@ -9,7 +9,7 @@ from continualnat.data.datasets import TranslationDataset
 class BatchSamplerCore(Sampler[List[int]]):
 
     def __init__(self,
-                 datasets: Union[ConcatDataset, List[TranslationDataset]],
+                 datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
                  bsz: int,
                  drop_last: bool = False,
                  sampling_strategy: str = "random") -> None:
@@ -50,7 +50,7 @@ class BatchSamplerCore(Sampler[List[int]]):
 class HeterogeneousSampler(BatchSamplerCore):
 
     def __init__(self,
-                 datasets: Union[ConcatDataset, List[TranslationDataset]],
+                 datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
                  bsz: int,
                  drop_last: bool = False,
                  sampling_strategy: str = "random",
@@ -106,7 +106,7 @@ class HeterogeneousSampler(BatchSamplerCore):
 class HomogeneousSampler(BatchSamplerCore):
 
     def __init__(self,
-                 datasets: Union[ConcatDataset, List[TranslationDataset]],
+                 datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
                  bsz: int,
                  drop_last: bool = False,
                  sampling_strategy: str = "random") -> None:
