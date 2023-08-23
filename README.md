@@ -74,6 +74,5 @@ The NAT models' names are taken from the following [survey](https://arxiv.org/pd
 - [Transformer](https://arxiv.org/abs/1706.03762)
 
 ### NAR (non-autoregressive) models
-- [FT-NAT](https://arxiv.org/abs/1711.02281) (_WIP_)
 - [CMLM](https://arxiv.org/abs/1904.09324)
 - [GLAT](https://arxiv.org/abs/2008.07905) (_WIP_)
