@@ -101,6 +101,10 @@ class Buffer(Dataset):
         self._partition_size = 0
 
     def partition_sizes(self) -> Tuple[Dict[int, int], Dict[str, int]]:
+        """
+        Computes the partition sizes.
+        :return: a tuple containing the partition sizes and the size of each partion's datasets.
+        """
         partition_sizes = {}
         datasets_size = {}
         for i, exp in enumerate(self._exps):
