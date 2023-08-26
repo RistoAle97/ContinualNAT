@@ -1,8 +1,8 @@
 ctranslate2>=3.18.0
 datasets>=2.13.1
 evaluate>=0.4.0
+gradio>=3.40.1
 lightning>=2.0.2
-pandas>=1.5.3
 pyyaml>=6.0
 rich>=13.2.0
 sacrebleu>=2.3.1
