@@ -19,6 +19,7 @@ class LambdaScheduler:
         self._anneal_end = start + steps
         self.anneal_steps = steps
         self._step_ratio = (self.end_ratio - self.start_ratio) / self.anneal_steps
+        self.last_ratio = start_ratio
 
     def __call__(self, step: int) -> float:
         if step < self._anneal_start:
@@ -28,6 +29,7 @@ class LambdaScheduler:
         else:
             ratio = self.start_ratio + self._step_ratio * (step - self._anneal_start)
 
+        self.last_ratio = ratio
         return ratio
 
 
@@ -64,13 +66,12 @@ class GlancingSampler:
             n_positions = (distance * ratio + 1).int()
 
         score = labels.clone().float().uniform_()
-
         # Sampling strategy
         if self.strategy == "uniform":
             score.masked_fill_(~labels_mask, 2.0)
             rank = score.sort(dim=-1)[-1]
-            cutoff = torch.arange(rank.size(-1), device=rank.device).expand(*rank.size())
-            cutoff = torch.tensor(cutoff < n_positions[:, None]).long()
+            cutoff: torch.Tensor = torch.arange(rank.size(-1), device=rank.device).expand(*rank.size())
+            cutoff = (cutoff < n_positions[:, None]).long()
             sample = cutoff.scatter(1, rank, cutoff)
         elif self.strategy == "schedule":
             prob = logits.softmax(dim=-1)

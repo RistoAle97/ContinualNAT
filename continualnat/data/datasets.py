@@ -47,8 +47,8 @@ class TranslationDatasetCore:
 
         # Tokenizer
         self.tokenizer = tokenizer
-        self.tokenizer_state = {"truncation": True, "add_special_tokens": True, "max_length": max_length,
-                                "padding": "longest", "return_tensors": "pt"}
+        self.tokenizer_state = {"truncation": True, "add_special_tokens": True, "padding": "longest",
+                                "max_length": max_length, "return_tensors": "pt"}
         self.max_tokens = max_length
         self.use_cls_token = use_cls_token
 
