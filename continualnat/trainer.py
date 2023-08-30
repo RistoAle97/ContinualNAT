@@ -9,11 +9,10 @@ from lightning.pytorch.loggers.wandb import WandbLogger
 from torch.utils.data import DataLoader, ConcatDataset
 from transformers import PreTrainedTokenizerBase
 
-from continualnat.data.batch_collators import BatchCollator, BatchCollatorCMLM
+from continualnat.data.batch_collators import BatchCollator
 from continualnat.data.batch_samplers import HeterogeneousSampler, HomogeneousSampler
 from continualnat.data.datasets import TranslationDataset
 from continualnat.models.cmlm.cmlm import CMLM
-from continualnat.models.glat.glat import GLAT
 from continualnat.models.core.transformer_core import TransformerCore
 from continualnat.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
 
@@ -89,36 +88,33 @@ class MultilingualTrainer:
         else:
             batch_sampler = HomogeneousSampler(train_dataset, train_bsz, True)
 
-        if isinstance(model, GLAT):
+        if isinstance(model, CMLM):
             is_mlm = True
             shift_lang_token = False
             return_lengths = True
+            p_masking = "random" if not model.glat_training else 1.0
         else:
             is_mlm = False
             shift_lang_token = True
             return_lengths = False
+            p_masking = 0.0
 
-        if isinstance(model, CMLM):
-            batch_collator_train = BatchCollatorCMLM(self.tokenizer.pad_token_id, self.tokenizer.mask_token_id, True)
-        else:
-            batch_collator_train = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token,
-                                                 pad_token_id=self.tokenizer.pad_token_id,
-                                                 return_lengths=return_lengths)
+        batch_collator_train = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token,
+                                             return_lengths=return_lengths, pad_token_id=self.tokenizer.pad_token_id,
+                                             mask_token_id=self.tokenizer.mask_token_id, p_masking=p_masking)
 
         train_dataloader = DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=self.num_workers,
                                       collate_fn=batch_collator_train, pin_memory=True)
 
         # Validation dataloaders (one for each translation direction)
         val_dataloaders = {}
+        p_masking = 1.0 if isinstance(model, CMLM) else 0.0
         for dataset in val_datasets:
             src_lang = dataset.src_lang
             tgt_lang = dataset.tgt_lang
-            if isinstance(model, CMLM):
-                batch_collator_val = BatchCollatorCMLM(self.tokenizer.pad_token_id, self.tokenizer.mask_token_id)
-            else:
-                batch_collator_val = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token,
-                                                   return_lengths=return_lengths,
-                                                   pad_token_id=self.tokenizer.pad_token_id)
+            batch_collator_val = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token,
+                                               return_lengths=return_lengths, pad_token_id=self.tokenizer.pad_token_id,
+                                               mask_token_id=self.tokenizer.mask_token_id, p_masking=p_masking)
 
             val_dataloaders[f"{src_lang}_{tgt_lang}"] = DataLoader(dataset, val_bsz, num_workers=self.num_workers,
                                                                    collate_fn=batch_collator_val, pin_memory=True)
