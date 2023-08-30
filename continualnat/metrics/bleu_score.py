@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from transformers import MBartTokenizer, MBartTokenizerFast, PreTrainedTokenizer, PreTrainedTokenizerFast
 from tqdm.auto import tqdm
 
-from continualnat.data.batch_collators import BatchCollator, BatchCollatorCMLM
+from continualnat.data.batch_collators import BatchCollator
 from continualnat.data.datasets import TranslationDataset
 from continualnat.models.cmlm.cmlm import CMLM
 from continualnat.models.core.transformer_core import TransformerCore
@@ -46,11 +46,19 @@ def compute_sacrebleu(model: TransformerCore,
     scb = evaluate.load("sacrebleu")
     device = model.device
     if isinstance(model, CMLM):
-        batch_collator = BatchCollatorCMLM(model.pad_token_id, model.mask_token_id)
+        is_mlm = True
+        shift_lang_token = False
+        return_lengths = True
+        p_masking = 1.0
     else:
+        is_mlm = False
         shift_lang_token = True if isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast)) else False
-        batch_collator = BatchCollator(shift_lang_token=shift_lang_token, pad_token_id=model.pad_token_id)
+        return_lengths = False
+        p_masking = 0.0
 
+    batch_collator = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token, return_lengths=return_lengths,
+                                   pad_token_id=model.pad_token_id, mask_token_id=model.mask_token_id,
+                                   p_masking=p_masking)
     dataloader = DataLoader(dataset, batch_size=bsz, collate_fn=batch_collator)
     translations = []
     targets = []
