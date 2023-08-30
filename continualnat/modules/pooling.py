@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from torch.functional import F
 
 
 class Pooler(nn.Module):
