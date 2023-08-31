@@ -49,7 +49,7 @@ class GlancingSampler:
                  predictions: torch.Tensor,
                  ratio: float = 0.5) -> torch.Tensor:
         """
-        Sampler for the glancing strategy emplyed by the GLAT model.
+        Sampler for the glancing strategy employed by the GLAT training.
         :param labels: the tokenized ground-truth target sentences.
         :param labels_mask: the non-special tokens mask for the labels.
         :param logits: the logits coming from a softmax function on the GLAT's outputs.
@@ -60,15 +60,16 @@ class GlancingSampler:
         """
         # Number of positions to be replaced
         if not self.adaptive:
-            n_positions = labels.size(-1) * ratio + 1
+            n_positions = labels.size(-1) * ratio
         else:
             distance = (predictions.ne(labels) * labels_mask).float().sum(dim=-1)
-            n_positions = (distance * ratio + 1).int()
+            n_positions = (distance * ratio).int()
 
         score = labels.clone().float().uniform_()
+
         # Sampling strategy
         if self.strategy == "uniform":
-            score.masked_fill_(~labels_mask, 2.0)
+            score.masked_fill_(~labels_mask.bool(), 2.0)
             rank = score.sort(dim=-1)[-1]
             cutoff: torch.Tensor = torch.arange(rank.size(-1), device=rank.device).expand(*rank.size())
             cutoff = (cutoff < n_positions[:, None]).long()

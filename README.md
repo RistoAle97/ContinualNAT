@@ -75,4 +75,49 @@ The NAT models' names are taken from the following [survey](https://arxiv.org/pd
 
 ### NAR (non-autoregressive) models
 - [CMLM](https://arxiv.org/abs/1904.09324)
-- [GLAT](https://arxiv.org/abs/2008.07905)
+- CMLM with [GLAT](https://arxiv.org/abs/2008.07905) training.
+
+---
+
+## :camera: Visualize the results of CMLM
+If you have already trained a CMLM model, then you can visualize the steps of the _mask-predict_ algorithm in the following way
+```python
+import torch
+from transformers import MBartTokenizerFast
+from continualnat.models.cmlm import CMLMConfig, CMLM, tabulate_mask_predict_steps
+
+# Tokenizer and some useful tokens
+tokenizer = MBartTokenizerFast(tokenizer_file="tokenizers/sp_32k.json", model_max_length=1024, cls_token="<length>")
+bos_token_id = tokenizer.bos_token_id
+eos_token_id = tokenizer.eos_token_id
+pad_token_id = tokenizer.pad_token_id
+mask_token_id = tokenizer.mask_token_id
+
+# Load the model
+model_state_dict = torch.load("path/to/your/saved/model")
+model_config = CMLMConfig(len(tokenizer), bos_token_id=bos_token_id, eos_token_id=eos_token_id,
+                          pad_token_id=pad_token_id, mask_token_id=mask_token_id, length_token_id=None,
+                          pooler_size=256, glat_training=True)
+model = CMLM(model_config)
+model.load_state_dict(model_state_dict)
+
+# Translate the sentences
+src_sentences = ["What are you doing for the session?", "That was amazing, how did you do it?"]
+tokenized_sentences = tokenizer(src_sentences, truncation=True, padding="longest", return_tensors="pt")["input_ids"]
+iterations = 1 if model.glat_training else 10
+output = model.generate(tokenized_sentences, tokenizer.lang_code_to_id["de_DE"], iterations)
+translations_tokens, tokens_ids_at_each_step = output
+
+# Tabulate the tokens generated at each step by mask-predict
+tabulated_tokens_at_each_step = tabulate_mask_predict_steps(tokens_ids_at_each_step, tokenizer)
+
+# Let's show the mask-predict steps for the first sentence
+print(tabulated_tokens_at_each_step[0])
+```
+and then you will see something like this (the first column indicates the mask-predict step)
+```
+-  ------  -------  ------  ------  ------  --------  ------  ----  -----
+0  <mask>  <mask>   <mask>  <mask>  <mask>  <mask>    <mask>  </s>  de_DE
+1  ▁Was    ▁machen  ▁Sie    ▁für    ▁die    ▁Sitzung  ?       </s>  de_DE
+-  ------  -------  ------  ------  ------  --------  ------  ----  -----
+```

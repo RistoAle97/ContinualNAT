@@ -22,7 +22,8 @@ class CMLMConfig(NATCoreConfig):
                  mask_token_id: int = 5,
                  length_token_id: int = None,
                  label_smoothing: float = 0.0,
-                 pooler_size: int = 256) -> None:
+                 pooler_size: int = 256,
+                 glat_training: bool = False) -> None:
         """
         Configuration class for the CMLM model.
         :param vocab_size: shared vocabulary size.
@@ -47,8 +48,10 @@ class CMLMConfig(NATCoreConfig):
             pooling over the entire source tokens will be used for the length prediction (default=None).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
         :param pooler_size: the pooler layer dimension (default=256).
+        :param glat_training: whether to use glancing during training (default=False).
         """
         super().__init__(vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout,
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
                          eos_token_id, pad_token_id, length_token_id, label_smoothing, pooler_size=pooler_size)
         self.mask_token_id = mask_token_id
+        self.glat_training = glat_training

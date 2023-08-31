@@ -11,8 +11,12 @@ from transformers import MBartTokenizer, MBartTokenizerFast, get_scheduler
 from continualnat.data.datasets import TranslationDataset, IterableTranslationDataset
 from continualnat.models.core.config_core import CoreConfig
 from continualnat.modules.positional_encoding import PositionalEncoding
-from continualnat.modules.transformer_layers import TransformerEncoderLayer, TransformerEncoder, TransformerDecoderLayer,\
+from continualnat.modules.transformer_layers import (
+    TransformerEncoderLayer,
+    TransformerEncoder,
+    TransformerDecoderLayer,
     TransformerDecoder
+)
 
 
 class TransformerCore(LightningModule):

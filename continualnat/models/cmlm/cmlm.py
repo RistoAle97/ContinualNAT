@@ -9,6 +9,8 @@ from continualnat.models.cmlm.config_cmlm import CMLMConfig
 from continualnat.utils.masks import create_masks, create_encoder_mask
 from continualnat.utils.models import init_bert_weights
 
+from continualnat.models.glat import LambdaScheduler, GlancingSampler
+
 
 class CMLM(TransformerNATCore):
 
@@ -25,6 +27,12 @@ class CMLM(TransformerNATCore):
         del self.tensor_to_copy
         del self.tau
 
+        # Scheduler and sampler used by the glancing strategy
+        self.glat_training = config.glat_training
+        if self.glat_training:
+            self.lambda_scheduler = LambdaScheduler()
+            self.glancing_sampler = GlancingSampler()
+
         # Token ids
         self.mask_token_id = config.mask_token_id
 
@@ -32,13 +40,14 @@ class CMLM(TransformerNATCore):
         self.apply(init_bert_weights)
 
         # Train and validation losses
-        self.train_metrics["mlm_loss"] = MeanMetric()
+        self._training_loss = "glat_loss" if self.glat_training else "mlm_loss"
+        self.train_metrics[self._training_loss] = MeanMetric()
 
     def forward(self,
                 src_input: torch.Tensor,
                 tgt_input: torch.Tensor,
                 e_mask: torch.Tensor = None,
-                d_mask: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor]:
+                d_mask: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
         """
@@ -64,26 +73,67 @@ class CMLM(TransformerNATCore):
 
         # Linear output
         output = self.linear_output(d_output)  # (bsz, tgt_len, vocab_size)
-        return output, predicted_lengths
+        return output, predicted_lengths, e_output, d_output
+
+    def on_train_start(self) -> None:
+        super().on_train_start()
+        if self.glat_training:
+            self.lambda_scheduler.anneal_steps = self.trainer.estimated_stepping_batches
+
+    def __glancing_strategy(self,
+                            labels: torch.Tensor,
+                            labels_non_special_mask: torch.tensor,
+                            decoder_input_ids: torch.Tensor,
+                            logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        # Compute the glancing ratio
+        glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
+
+        # Sample the tokens by building a glacing mask (1 if the token is glanced, O otherwise)
+        predictions = logits.argmax(dim=-1)  # compute predictions
+        glancing_mask = self.glancing_sampler(labels, labels_non_special_mask, logits, predictions, glancing_ratio)
+
+        # The non glanced tokens should be masked, except for the eos, pad and language tokens
+        glanced_decoder_input_ids = glancing_mask * labels + (1 - glancing_mask) * self.mask_token_id
+        glanced_decoder_input_ids = (labels_non_special_mask * glanced_decoder_input_ids +
+                                     (1 - labels_non_special_mask) * decoder_input_ids)
+
+        # Modify the labels such that they take into account the glanced positions
+        labels.masked_fill_(glancing_mask.bool() | ~labels_non_special_mask.bool(), self.pad_token_id)
+        return glanced_decoder_input_ids, labels
 
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
         labels = batch["labels"]
         decoder_input_ids = batch["decoder_input_ids"]
+        labels_special_mask = batch["labels_special_mask"]
         tgt_lengths = batch["tgt_lengths"]
 
         # Create masks
         e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, None)
 
         # Compute loss
-        logits, length_logits = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
+        logits, length_logits, e_output, _ = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
+        if self.glat_training:
+            glanced_decoder_input_ids, labels = self.__glancing_strategy(labels, 1 - labels_special_mask,
+                                                                         decoder_input_ids, logits)
+
+            # Compute the new logits
+            logits = self.decode(glanced_decoder_input_ids, e_output, d_mask, e_mask)
+
         loss, logits_loss, lengths_loss = self.compute_loss(logits, labels, length_logits, tgt_lengths)
 
         # Update train metrics
         self.train_metrics["train_loss"].update(loss.item())
-        self.train_metrics["mlm_loss"].update(logits_loss)
+        self.train_metrics[self._training_loss].update(logits_loss)
         self.train_metrics["lengths_loss"].update(lengths_loss)
         return loss
+
+    def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
+        super().on_train_batch_end(outputs, batch, batch_idx)
+        batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
+        if ((batch_idx == 0 and self.trainer.current_epoch == 0) or
+                (batch_idx + 1) * (self.trainer.current_epoch + 1) % batches == 0):
+            self.log("Lambda schedule", self.lambda_scheduler.last_ratio)
 
     def validation_step(self, batch, batch_idx, dataloader_idx: int = 0):
         input_ids = batch["input_ids"]
@@ -91,7 +141,8 @@ class CMLM(TransformerNATCore):
 
         # Compute translations
         tokenizer, lang_pair, tgt_lang = self._val_tokenizer_tgtlang(dataloader_idx)
-        translation = self.generate(input_ids, tokenizer.lang_code_to_id[tgt_lang])
+        iterations = 1 if self.glat_training else 10
+        translation = self.generate(input_ids, tokenizer.lang_code_to_id[tgt_lang], iterations)
         predictions = tokenizer.batch_decode(translation, skip_special_tokens=True)
 
         # Update the BLEU metric internal parameters
@@ -101,11 +152,14 @@ class CMLM(TransformerNATCore):
                        encodings: torch.Tensor,
                        e_mask: torch.Tensor,
                        tgt_input: torch.Tensor,
-                       iterations: int = 10) -> Tuple[torch.Tensor, torch.Tensor]:
+                       iterations: int = 10) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             # Parameters
             bsz, seq_len = tgt_input.size()
             device = next(self.parameters()).device
+
+            # Keep track of the tokens generated at each step
+            output_at_each_step = tgt_input.detach().clone()
 
             # Make the first prediction in a fully non-autoregressive way
             d_mask = tgt_input.ne(self.pad_token_id).unsqueeze(1).to(device)  # this mask will never change
@@ -124,6 +178,9 @@ class CMLM(TransformerNATCore):
             # choose them during mask-predict iterations
             tokens.view(-1)[non_maskable_tokens] = tgt_input.view(-1)[non_maskable_tokens]
             p_tokens.view(-1)[non_maskable_tokens] = 0
+
+            # Save the tokens generated from the full non-autoregressive step
+            output_at_each_step = torch.cat([output_at_each_step, tokens], dim=-1)
 
             # Mask-predict iterations
             for i in range(1, iterations):
@@ -149,15 +206,22 @@ class CMLM(TransformerNATCore):
                 p_tokens.view(-1)[masks.view(-1)] = new_p_tokens.view(-1)[masks.view(-1)]
                 tokens.view(-1)[masks.view(-1)] = new_tokens.view(-1)[masks.view(-1)]
 
+                # Save the tokens generated at the i-nth step
+                output_at_each_step = torch.cat([output_at_each_step, tokens], dim=-1)
+                output_at_each_step.append(tokens)
+
             # Sum the log probabilities of the tokens for each sentence
             log_p_tokens = p_tokens.sum(-1)
-            return tokens, log_p_tokens
+
+            # Modify the shape of the tensor containing the tokens for each step
+            output_at_each_step = output_at_each_step.view(bsz, iterations + 1, seq_len)
+            return tokens, log_p_tokens, output_at_each_step
 
     def generate(self,
                  input_ids: torch.Tensor,
                  tgt_lang_token_id: int,
                  iterations: int = 10,
-                 length_beam_size: int = 5) -> torch.Tensor:
+                 length_beam_size: int = 5) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.
@@ -224,17 +288,22 @@ class CMLM(TransformerNATCore):
         duplicated_e_mask = e_mask[:, :, start_token:].repeat_interleave(length_beam_size, dim=0)
 
         # Mask-predict
-        hyps, log_probabilities = self.__mask_predict(duplicated_encodings, duplicated_e_mask, tgt_tokens, iterations)
+        hyps, log_p, tokens_steps = self.__mask_predict(duplicated_encodings, duplicated_e_mask, tgt_tokens, iterations)
 
         # Reshape hypotheses and their log probabilities
         hyps = hyps.view(batch_size, length_beam_size, hyps.size(-1))
-        log_probabilities = log_probabilities.view(batch_size, length_beam_size)
+        log_p = log_p.view(batch_size, length_beam_size)
 
         # Compute the best lengths in terms of log probabilities
         tgt_lengths = (1 - length_mask).sum(-1)
-        avg_log_prob = log_probabilities / tgt_lengths.float()
+        avg_log_prob = log_p / tgt_lengths.float()
         best_lengths = avg_log_prob.max(-1)[1]
 
-        # Retrieve best hypotheses
+        # Compute the best hypotheses
         output = torch.stack([hyps[batch, length, :] for batch, length in enumerate(best_lengths)], dim=0)
-        return output
+
+        # Compute the tokens at each step for the best hypothesis
+        tokens_steps = tokens_steps.view(batch_size, length_beam_size, iterations + 1, non_pad_tokens)
+        tokens_steps = torch.stack([tokens_steps[batch, length, :] for batch, length in enumerate(best_lengths)], dim=0)
+
+        return output, tokens_steps

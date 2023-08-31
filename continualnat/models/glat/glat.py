@@ -164,10 +164,6 @@ class GLAT(TransformerNATCore):
         self.train_metrics["lengths_loss"].update(lengths_loss)
         return loss
 
-    def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
-        super().on_train_batch_end(outputs, batch, batch_idx)
-        self.log("Lambda schedule", self.lambda_scheduler.last_ratio)
-
     def validation_step(self, batch, batch_idx, dataloader_idx: int = 0):
         references = batch["references"]
         input_ids = batch["input_ids"]
