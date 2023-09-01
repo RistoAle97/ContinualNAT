@@ -208,7 +208,6 @@ class CMLM(TransformerNATCore):
 
                 # Save the tokens generated at the i-nth step
                 output_at_each_step = torch.cat([output_at_each_step, tokens], dim=-1)
-                output_at_each_step.append(tokens)
 
             # Sum the log probabilities of the tokens for each sentence
             log_p_tokens = p_tokens.sum(-1)
@@ -220,7 +219,7 @@ class CMLM(TransformerNATCore):
     def generate(self,
                  input_ids: torch.Tensor,
                  tgt_lang_token_id: int,
-                 iterations: int = 10,
+                 iterations: int = None,
                  length_beam_size: int = 5) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
@@ -229,12 +228,15 @@ class CMLM(TransformerNATCore):
         :param tgt_lang_token_id: the target language token id, if none is passed, then no token will be appended at the
             end of the target tokens (default=None).
         :param iterations: the number of iterations of the mask-predict. If its value is equal to 1, then the decoding
-            will be purely non-autoregressive (default=10).
+            will be purely non-autoregressive. If it is None than the value will be 1 if the model was trained with the
+            glancing strategy, 10 otherwise (default=None).
         :param length_beam_size: the number of top lengths to consider for each sentence, akin to the beam size of
             the beam search (default=5).
         :return: tokenized translation of source sentence.
         """
-        if iterations < 1:
+        if iterations is None:
+            iterations = 1 if self.glat_training else 10
+        elif iterations < 1:
             raise ValueError("The number of iterations of mask-predict must be at least 1.")
 
         if length_beam_size < 1:
