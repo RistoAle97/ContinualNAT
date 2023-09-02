@@ -141,8 +141,7 @@ class CMLM(TransformerNATCore):
 
         # Compute translations
         tokenizer, lang_pair, tgt_lang = self._val_tokenizer_tgtlang(dataloader_idx)
-        iterations = 1 if self.glat_training else 10
-        translation = self.generate(input_ids, tokenizer.lang_code_to_id[tgt_lang], iterations)
+        translation, _ = self.generate(input_ids, tokenizer.lang_code_to_id[tgt_lang])
         predictions = tokenizer.batch_decode(translation, skip_special_tokens=True)
 
         # Update the BLEU metric internal parameters

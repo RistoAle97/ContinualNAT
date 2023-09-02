@@ -65,9 +65,7 @@ def compute_sacrebleu(model: TransformerCore,
     dataloader = tqdm(dataloader) if prog_bar else dataloader
     for batch in dataloader:
         translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code])
-        if isinstance(model, CMLM):
-            translation, _ = translation
-
+        translation, _ = translation if isinstance(model, CMLM) else translation
         decoded_translation = tokenizer.batch_decode(translation, skip_special_tokens=True)
         translations.extend(decoded_translation)
         targets.extend(batch["references"])
