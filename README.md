@@ -1,7 +1,11 @@
 <div align="center">
 
 # ContinualNAT
+<img src="assets/unipiLogo.png" alt="Unipi Logo" width="230"/><br>
+
 **M.Sc. thesis on Continual Learning for multilingual non-autoregressive Neural Machine Translation (NAT).**
+
+---
 
 [![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)]()
 [![Jupyter](https://img.shields.io/badge/Jupyter-F37626?style=for-the-badge&logo=jupyter&logoColor=white)]()
@@ -75,12 +79,55 @@ The NAT models' names are taken from the following [survey](https://arxiv.org/pd
 
 ### NAR (non-autoregressive) models
 - [CMLM](https://arxiv.org/abs/1904.09324)
-- CMLM with [GLAT](https://arxiv.org/abs/2008.07905) training.
+- CMLM with [GLAT](https://arxiv.org/abs/2008.07905) training
 
----
+<details>
+<summary>Evaluating trained models</summary>
 
-## :bookmark_tabs: Visualize mask-predict steps
-If you have already trained a CMLM model you can visualize the steps of the _mask-predict_ algorithm in the following way
+```python
+import torch
+from datasets import load_dataset
+from transformers import MBartTokenizerFast
+
+from continualnat.data import TranslationDataset
+from continualnat.metrics import compute_sacrebleu
+from continualnat.models.cmlm import CMLMConfig, CMLM
+
+# Device
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# Tokenizer and some useful tokens
+tokenizer = MBartTokenizerFast(tokenizer_file="tokenizers/sp_32k.json", model_max_length=1024,
+                               cls_token="<length>")
+bos_token_id = tokenizer.bos_token_id
+eos_token_id = tokenizer.eos_token_id
+pad_token_id = tokenizer.pad_token_id
+mask_token_id = tokenizer.mask_token_id
+
+# Load the dataset
+wmt_en_de = load_dataset("thesistranslation/wmt14", "de-en",
+                         cache_dir="/disk1/a.ristori/datasets/wmt14",
+                         verification_mode="no_checks")
+wmt_en_de_test = TranslationDataset("en", "de", wmt_en_de["test"], tokenizer, max_length=128)
+
+# Load the model
+model_state_dict = torch.load("path/to/your/saved/model")
+model_config = CMLMConfig(len(tokenizer), bos_token_id=bos_token_id, eos_token_id=eos_token_id,
+                          pad_token_id=pad_token_id, mask_token_id=mask_token_id, length_token_id=None,
+                          pooler_size=256, glat_training=True)
+model = CMLM(model_config)
+model.load_state_dict(model_state_dict)
+model.to(device)
+
+# Compute BLEU score
+bleu_scores = compute_sacrebleu(model, wmt_en_de_test, tokenizer, metric_tokenize={"13a", "intl"})
+print(bleu_scores)
+```
+
+</details>
+<details>
+<summary>Visualize mask-predict steps</summary>
+
 ```python
 import torch
 from transformers import MBartTokenizerFast
@@ -105,8 +152,7 @@ model.load_state_dict(model_state_dict)
 # Translate the sentences
 src_sentences = ["What are you doing for the session?", "That was amazing, how did you do it?"]
 tokenized_sentences = tokenizer(src_sentences, truncation=True, padding="longest", return_tensors="pt")
-iterations = 1 if model.glat_training else 10
-output = model.generate(tokenized_sentences.input_ids, tokenizer.lang_code_to_id["de_DE"], iterations)
+output = model.generate(tokenized_sentences.input_ids, tokenizer.lang_code_to_id["de_DE"])
 translations_tokens, tokens_ids_at_each_step = output
 
 # Tabulate the tokens generated at each step by mask-predict
@@ -115,10 +161,12 @@ tabulated_tokens_at_each_step = tabulate_mask_predict_steps(tokens_ids_at_each_s
 # Let's show the mask-predict steps for the first sentence
 print(tabulated_tokens_at_each_step[0])
 ```
-and then you will see something like this (the first column indicates the mask-predict step)
+
 ```
--  ------  -------  ------  ------  ------  --------  ------  ----  -----
-0  <mask>  <mask>   <mask>  <mask>  <mask>  <mask>    <mask>  </s>  de_DE
-1  ▁Was    ▁machen  ▁Sie    ▁für    ▁die    ▁Sitzung  ?       </s>  de_DE
--  ------  -------  ------  ------  ------  --------  ------  ----  -----
+-  ------  --------  ------  ------  ------  ----------  ------  ----  -----
+0  <mask>  <mask>    <mask>  <mask>  <mask>  <mask>      <mask>  </s>  de_DE
+1  ▁Was    ▁machen   ▁Sie    ▁für    ▁die    ▁Sitzung   ?       </s>  de_DE
+-  ------  --------  ------  ------  ------  ----------  ------  ----  -----
 ```
+
+</details>
