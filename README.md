@@ -72,6 +72,29 @@ The validation and test sets are in a [personal public repository](https://huggi
 
 ---
 
+## :hammer_and_wrench: Distillation
+We employed the so-called [Sequence-Level Knowledge Distillation](https://arxiv.org/abs/1606.07947) to translate the first 30m of sentences in the target language from CCMatrix using an autoregressive teacher model. Such translations are then used as the tartget references when training the models.
+
+First, we converted the teacher models into [CTranslate2](https://github.com/OpenNMT/CTranslate2) format with
+```bash
+ct2-transformers-converter --model Helsinki-NLP/opus-mt-en-de --output_dir ct2-opus-mt-en-de
+```
+then, we used the following command to distill the datasets and upload them on the Huggingface hub
+```bash
+python distill_ccmatrix.py --src en --tgt de
+```
+Hereafter are all the teacher models and distilled dataset used for our experiments.
+| Translation Direction  | Teacher Model | Distilled Dataset |
+| :--------------: | :-----: | :-----------------: |
+| $en \Rightarrow de $ | [opus-mt-en-de](https://huggingface.co/Helsinki-NLP/opus-mt-en-de) | [distilled-ccmatrix-en-de](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-de) |
+| $de \Rightarrow en $ | [opus-mt-de-en](https://huggingface.co/Helsinki-NLP/opus-mt-de-en) | [distilled-ccmatrix-de-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-de-en) |
+| $en \Rightarrow fr $ | [opus-mt-en-fr](https://huggingface.co/Helsinki-NLP/opus-mt-en-fr) | [distilled-ccmatrix-en-fr](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-fr) |
+| $fr \Rightarrow en $ | [opus-mt-fr-en](https://huggingface.co/Helsinki-NLP/opus-mt-fr-en) | [distilled-ccmatrix-fr-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-fr-en) |
+| $en \Rightarrow es $ | [opus-mt-en-es](https://huggingface.co/Helsinki-NLP/opus-mt-en-es) | [distilled-ccmatrix-en-es](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-es) |
+| $es \Rightarrow en $ | [opus-mt-es-en](https://huggingface.co/Helsinki-NLP/opus-mt-es-en) | [distilled-ccmatrix-es-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-es-en) |
+
+---
+
 ## :robot: Models
 The NAT models' names are taken from the following [survey](https://arxiv.org/pdf/2204.09269.pdf).
 ### AR (autoregressive) models
