@@ -78,11 +78,16 @@ The NAT models' names are taken from the following [survey](https://arxiv.org/pd
 - [Transformer](https://arxiv.org/abs/1706.03762)
 
 ### NAR (non-autoregressive) models
+
+###### Semi-NAT
 - [CMLM](https://arxiv.org/abs/1904.09324)
+
+###### Fully-NAT
 - CMLM with [GLAT](https://arxiv.org/abs/2008.07905) training
 
+### Some small useful tutorials using trained models
 <details>
-<summary>Evaluating trained models</summary>
+<summary>Evaluation</summary>
 
 ```python
 import torch
@@ -130,7 +135,7 @@ print(bleu_scores)
 
 </details>
 <details>
-<summary>Visualize mask-predict steps</summary>
+<summary>Visualization of mask-predict steps</summary>
 
 ```python
 import torch
