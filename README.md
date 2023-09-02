@@ -124,6 +124,10 @@ bleu_scores = compute_sacrebleu(model, wmt_en_de_test, tokenizer, metric_tokeniz
 print(bleu_scores)
 ```
 
+```
+{'intl': 22.757592245926443, '13a': 22.19058951758056}
+```
+
 </details>
 <details>
 <summary>Visualize mask-predict steps</summary>
