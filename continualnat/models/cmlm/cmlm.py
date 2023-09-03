@@ -6,10 +6,9 @@ from torchmetrics import MeanMetric
 
 from continualnat.models.core.transformer_nat_core import TransformerNATCore
 from continualnat.models.cmlm.config_cmlm import CMLMConfig
+from continualnat.utils.glancing_utils import LambdaScheduler, GlancingSampler
 from continualnat.utils.masks import create_masks, create_encoder_mask
 from continualnat.utils.models import init_bert_weights
-
-from continualnat.models.glat import LambdaScheduler, GlancingSampler
 
 
 class CMLM(TransformerNATCore):
@@ -113,6 +112,8 @@ class CMLM(TransformerNATCore):
 
         # Compute loss
         logits, length_logits, e_output, _ = self(input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask)
+
+        # Employ glancing strategy
         if self.glat_training:
             glanced_decoder_input_ids, labels = self.__glancing_strategy(labels, 1 - labels_special_mask,
                                                                          decoder_input_ids, logits)
