@@ -130,10 +130,11 @@ class CMLM(TransformerNATCore):
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         super().on_train_batch_end(outputs, batch, batch_idx)
-        batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
-        if ((batch_idx == 0 and self.trainer.current_epoch == 0) or
-                (batch_idx + 1) * (self.trainer.current_epoch + 1) % batches == 0):
-            self.log("Lambda schedule", self.lambda_scheduler.last_ratio)
+        if self.glat_training:
+            batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
+            if ((batch_idx == 0 and self.trainer.current_epoch == 0) or
+                    (batch_idx + 1) * (self.trainer.current_epoch + 1) % batches == 0):
+                self.log("Lambda schedule", self.lambda_scheduler.last_ratio)
 
     def validation_step(self, batch, batch_idx, dataloader_idx: int = 0):
         input_ids = batch["input_ids"]

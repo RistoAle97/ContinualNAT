@@ -22,7 +22,7 @@ The Transformer architecture changed the world of Natural Language Processing an
 
 In order to reach the full potential of the Transformer architecture a new kind of non-autoregressive (NAR) models were introduced, but it turned out that their performances were (and still are) way behind their AR counterparts.
 
-Our purpose is to investigate the goodness of the one of the most famous NAR models in multilingual Neural Machine Translation (NMT) setting, while also testing their behaviour under a simple Continual Learning approach.
+Our purpose is to investigate the goodness of one of the most famous NAR models in multilingual Neural Machine Translation (NMT) setting, while also testing its behaviour under a simple Continual Learning approach.
 
 ---
 ## :beginner: How to start
