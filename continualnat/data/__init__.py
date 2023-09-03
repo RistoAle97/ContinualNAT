@@ -1,6 +1,6 @@
 from .batch_collators import BatchCollator
 from .batch_samplers import BatchSamplerCore, HeterogeneousSampler, HomogeneousSampler
-from .datasets import TranslationDatasetCore, TranslationDataset, IterableTranslationDataset
+from .datasets import TranslationDataset
 from .distillation import (
     DistilledDataset,
     DistilledDatasetConfig,

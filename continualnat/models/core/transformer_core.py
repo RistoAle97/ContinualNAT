@@ -8,7 +8,7 @@ from torchmetrics import MeanMetric
 from torchmetrics.text import SacreBLEUScore
 from transformers import MBartTokenizer, MBartTokenizerFast, get_scheduler
 
-from continualnat.data.datasets import TranslationDataset, IterableTranslationDataset
+from continualnat.data.datasets import TranslationDataset
 from continualnat.models.core.config_core import CoreConfig
 from continualnat.modules.positional_encoding import PositionalEncoding
 from continualnat.modules.transformer_layers import (
@@ -120,12 +120,11 @@ class TransformerCore(LightningModule):
         # Use the tokenizer from the dataloader's dataset
         langs_dataloader = list(self.trainer.val_dataloaders.items())[dataloader_idx]
         lang_pair, dataloader = langs_dataloader
-        if isinstance(dataloader.dataset, Union[TranslationDataset, IterableTranslationDataset]):
+        if isinstance(dataloader.dataset, TranslationDataset):
             tokenizer = dataloader.dataset.tokenizer
             tgt_lang_code = dataloader.dataset.tgt_lang_code
         else:
-            raise ValueError("You should use a TranslationDataset or IterableTranslationDataset as datasets for the"
-                             "dataloader.")
+            raise ValueError("You should use a TranslationDataset or as datasets for the dataloader.")
 
         # Compute translations
         return tokenizer, lang_pair, tgt_lang_code
