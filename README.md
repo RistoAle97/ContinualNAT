@@ -20,7 +20,7 @@
 ## :pushpin: Abstract
 The Transformer architecture changed the world of Natural Language Processing and Deep Learning in general by setting new state-of-the-art scores for many fields and, nowadays, it is the go-to solution when approaching a new problem, but it comes with a limitation: its inference speed. The Transformer uses the parallelizable mechanism of self-attention during training in order to avoid the typical recurrence of RNN, but the use of an autoregressive (AR) decoder limits its full potential at inference time: at each time-step, only one token is generated.
 
-In order to reach the full potential of the Transformer architecture a new kind of non-autoregressive (NAR) models were introduced , but it turned out that their performances were (and still are) way behind their AR counterparts.
+In order to reach the full potential of the Transformer architecture a new kind of non-autoregressive (NAR) models were introduced, but it turned out that their performances were (and still are) way behind their AR counterparts.
 
 Our purpose is to investigate the goodness of the one of the most famous NAR models in multilingual Neural Machine Translation (NMT) setting, while also testing their behaviour under a simple Continual Learning approach.
 
@@ -73,7 +73,7 @@ The validation and test sets are in a [personal public repository](https://huggi
 ---
 
 ## :hammer_and_wrench: Distillation
-We employed the so-called [Sequence-Level Knowledge Distillation](https://arxiv.org/abs/1606.07947) to translate the first 30m of sentences in the target language from CCMatrix using an autoregressive teacher model. Such translations are then used as the tartget references when training the models.
+We employed the so-called [Sequence-Level Knowledge Distillation](https://arxiv.org/abs/1606.07947) to translate the first 30m of sentences in the target language from CCMatrix using an autoregressive teacher model. Such translations are then used as the references when training the models.
 
 First, we converted the teacher models into [CTranslate2](https://github.com/OpenNMT/CTranslate2) format with
 ```bash
@@ -83,7 +83,7 @@ then, we used the following command to distill the datasets and upload them on t
 ```bash
 python distill_ccmatrix.py --src en --tgt de
 ```
-Hereafter are all the teacher models and distilled dataset used for our experiments.
+Hereafter are all the teacher models and distilled datasets used for our experiments.
 | Translation Direction  | Teacher Model | Distilled Dataset |
 | :--------------: | :-----: | :-----------------: |
 | $en \Rightarrow de $ | [opus-mt-en-de](https://huggingface.co/Helsinki-NLP/opus-mt-en-de) | [distilled-ccmatrix-en-de](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-de) |

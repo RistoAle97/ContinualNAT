@@ -1,5 +1,5 @@
 # Sentences that appear in the CCMatrix dataset that also occur in the respective test set. All the duplicated indexes were found
-# by using the dedup.py script inside the scripts directory.
+# by using the dedup.py script inside the scripts' directory.
 
 # Duplicated wmt14 english sentences found in the en-de ccmatrix dataset
 duplicates_en_de: [2801169, 3015352, 19775415, 20367662, 20785493, 23611708, 25969951,32771958, 33590564, 33799669,
