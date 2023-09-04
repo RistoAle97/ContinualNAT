@@ -20,6 +20,7 @@ def compute_sacrebleu(model: TransformerCore,
                       dataset: TranslationDataset,
                       tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast] = None,
                       bsz: int = 32,
+                      iterations: int = None,
                       prog_bar: bool = True,
                       metric_tokenize: Set[str] = None) -> Dict[str, float]:
     """
@@ -29,6 +30,7 @@ def compute_sacrebleu(model: TransformerCore,
     :param tokenizer: the tokenizer used by the model, if no tokenizer is passed, then the dataset's one will be
         used instead (default=None).
     :param bsz: the batch size (default=32).
+    :param iterations: the number of iterations of mask-predict, it's only applied if the model is CMLM (default=None).
     :param prog_bar: whether to show the progress bar (default=True).
     :param metric_tokenize: the tokenizers used by the SacreBLEU computation (default=None).
     :return: a Dict containing the SacreBLEU score for each tokenizer.
@@ -50,11 +52,13 @@ def compute_sacrebleu(model: TransformerCore,
         shift_lang_token = False
         return_lengths = True
         p_masking = 1.0
+        generation_kwargs = {"iterations": iterations}
     else:
         is_mlm = False
         shift_lang_token = True if isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast)) else False
         return_lengths = False
         p_masking = 0.0
+        generation_kwargs = {}
 
     batch_collator = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token, return_lengths=return_lengths,
                                    pad_token_id=model.pad_token_id, mask_token_id=model.mask_token_id,
@@ -64,7 +68,8 @@ def compute_sacrebleu(model: TransformerCore,
     targets = []
     dataloader = tqdm(dataloader) if prog_bar else dataloader
     for batch in dataloader:
-        translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code])
+        translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code],
+                                     **generation_kwargs)
         translation, _ = translation if isinstance(model, CMLM) else translation
         decoded_translation = tokenizer.batch_decode(translation, skip_special_tokens=True)
         translations.extend(decoded_translation)
