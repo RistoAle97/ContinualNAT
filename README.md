@@ -84,14 +84,15 @@ then, we used the following command to distill the datasets and upload them on t
 python distill_ccmatrix.py --src en --tgt de
 ```
 Hereafter are all the teacher models and distilled datasets used for our experiments.
-| Translation Direction  | Teacher Model | Distilled Dataset |
-| :--------------: | :-----: | :-----------------: |
-| $en \Rightarrow de $ | [opus-mt-en-de](https://huggingface.co/Helsinki-NLP/opus-mt-en-de) | [distilled-ccmatrix-en-de](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-de) |
-| $de \Rightarrow en $ | [opus-mt-de-en](https://huggingface.co/Helsinki-NLP/opus-mt-de-en) | [distilled-ccmatrix-de-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-de-en) |
-| $en \Rightarrow fr $ | [opus-mt-en-fr](https://huggingface.co/Helsinki-NLP/opus-mt-en-fr) | [distilled-ccmatrix-en-fr](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-fr) |
-| $fr \Rightarrow en $ | [opus-mt-fr-en](https://huggingface.co/Helsinki-NLP/opus-mt-fr-en) | [distilled-ccmatrix-fr-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-fr-en) |
-| $en \Rightarrow es $ | [opus-mt-en-es](https://huggingface.co/Helsinki-NLP/opus-mt-en-es) | [distilled-ccmatrix-en-es](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-es) |
-| $es \Rightarrow en $ | [opus-mt-es-en](https://huggingface.co/Helsinki-NLP/opus-mt-es-en) | [distilled-ccmatrix-es-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-es-en) |
+
+| Translation Direction |                           Teacher Model                            |                                           Distilled Dataset                                            |
+|:---------------------:|:------------------------------------------------------------------:|:------------------------------------------------------------------------------------------------------:|
+| $en \Rightarrow de $  | [opus-mt-en-de](https://huggingface.co/Helsinki-NLP/opus-mt-en-de) | [distilled-ccmatrix-en-de](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-de) |
+| $de \Rightarrow en $  | [opus-mt-de-en](https://huggingface.co/Helsinki-NLP/opus-mt-de-en) | [distilled-ccmatrix-de-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-de-en) |
+| $en \Rightarrow fr $  | [opus-mt-en-fr](https://huggingface.co/Helsinki-NLP/opus-mt-en-fr) | [distilled-ccmatrix-en-fr](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-fr) |
+| $fr \Rightarrow en $  | [opus-mt-fr-en](https://huggingface.co/Helsinki-NLP/opus-mt-fr-en) | [distilled-ccmatrix-fr-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-fr-en) |
+| $en \Rightarrow es $  | [opus-mt-en-es](https://huggingface.co/Helsinki-NLP/opus-mt-en-es) | [distilled-ccmatrix-en-es](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-en-es) |
+| $es \Rightarrow en $  | [opus-mt-es-en](https://huggingface.co/Helsinki-NLP/opus-mt-es-en) | [distilled-ccmatrix-es-en](https://huggingface.co/datasets/thesistranslation/distilled-ccmatrix-es-en) |
 
 ---
 

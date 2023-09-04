@@ -1,1 +1,1 @@
-from .trainer import MultilingualTrainer
+from .trainers import MultilingualTrainer, ContinualTrainer

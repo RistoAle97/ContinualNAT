@@ -1,4 +1,4 @@
-from glancing_utils import LambdaScheduler, GlancingSampler
+from .glancing_utils import LambdaScheduler, GlancingSampler
 from .masks import (
     generate_causal_mask,
     generate_causal_nat_mask,

@@ -70,7 +70,7 @@ class Transformer(TransformerCore):
         references = batch["references"]
 
         # Compute translations
-        tokenizer, lang_pair, tgt_lang = self._val_tokenizer_tgtlang(dataloader_idx)
+        tokenizer, lang_pair, tgt_lang = super()._val_tokenizer_tgtlang(dataloader_idx)
         translation = self.generate(input_ids, tokenizer.lang_code_to_id[tgt_lang], num_beams=1)
         predictions = tokenizer.batch_decode(translation, skip_special_tokens=True)
 
