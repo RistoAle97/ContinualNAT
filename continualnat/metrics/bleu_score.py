@@ -2,6 +2,7 @@ from typing import Dict, Set, Union
 
 import datasets
 import evaluate
+import sacrebleu
 import torch
 from ctranslate2 import Translator
 from torch.utils.data import DataLoader
@@ -13,7 +14,7 @@ from continualnat.data.datasets import TranslationDataset
 from continualnat.models.cmlm.cmlm import CMLM
 from continualnat.models.core.transformer_core import TransformerCore
 
-TOKENIZERS = {"none", "zh", "13a", "intl", "char", "ja-mecab"}  # available tokenizers for the SacreBLEU computation
+TOKENIZERS = {tokenizer for tokenizer in sacrebleu.BLEU.TOKENIZERS}
 
 
 def compute_sacrebleu(model: TransformerCore,
