@@ -189,7 +189,7 @@ output = model.generate(tokenized_sentences.input_ids, tokenizer.lang_code_to_id
 translations_tokens, tokens_ids_at_each_step = output
 
 # Tabulate the tokens generated at each step by mask-predict
-tabulated_tokens_at_each_step = tabulate_mask_predict_steps(tokens_ids_at_each_step, tokenizer)
+tabulated_tokens_at_each_step, _ = tabulate_mask_predict_steps(tokens_ids_at_each_step, tokenizer)
 
 # Let's show the mask-predict steps for the first sentence
 print(tabulated_tokens_at_each_step[0])

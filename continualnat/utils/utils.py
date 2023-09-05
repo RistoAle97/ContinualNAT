@@ -1,4 +1,5 @@
 import math
+from typing import List
 
 import matplotlib as plt
 import numpy as np
@@ -82,3 +83,20 @@ def plot_lr_scheduler(lr_scheduler: LambdaLR, num_steps: int = 100000) -> None:
     plt.legend(["Eta"], fontsize=14)
     plt.grid()
     plt.show()
+
+
+def compute_repeated_tokens(translations_tokens: List[str]) -> float:
+    """
+    Compute the percentage of repeated tokens for a generated translation.
+    :param translations_tokens: a list of tokens that should not have any special token in order to have a correct
+        estimate.
+    :return: the percentage of repeated tokens.
+    """
+    repeated_tokens = 0
+    for i, token in enumerate(translations_tokens):
+        if i == 0:
+            continue
+        elif token == translations_tokens[i - 1]:
+            repeated_tokens += 1
+
+    return repeated_tokens / len(translations_tokens)
