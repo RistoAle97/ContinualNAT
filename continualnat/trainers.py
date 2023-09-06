@@ -27,7 +27,6 @@ class TrainerCore:
                  train_steps: int = 100000,
                  val_every_n_steps: int = 10000,
                  log_every_n_steps: int = 500,
-                 ckpt_every_n_steps: int = 10000,
                  dataloader_num_workers: int = 8,
                  log_directory: str = "",
                  batch_type: str = "heterogeneous",
@@ -38,7 +37,6 @@ class TrainerCore:
         :param train_steps: the number of training updates that the trainer will perform (default=100000).
         :param val_every_n_steps: how often to check the validation set (default=10000).
         :param log_every_n_steps: how often to log the metrics (default=500).
-        :param ckpt_every_n_steps: how often to set a checkpoint of the model under training (default=10000).
         :param dataloader_num_workers: the number of workers used by both the train and validation dataloaders
             (default=8).
         :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
@@ -52,7 +50,6 @@ class TrainerCore:
         self.train_steps = train_steps
         self.val_every_n_steps = val_every_n_steps
         self.log_every_n_steps = log_every_n_steps
-        self.ckpt_every_n_steps = ckpt_every_n_steps
         self.num_workers = dataloader_num_workers
         self.log_directory = log_directory
         if batch_type not in ["heterogeneous", "homogeneous"]:
@@ -117,7 +114,6 @@ class MultilingualTrainer(TrainerCore):
                  train_steps: int = 100000,
                  val_every_n_steps: int = 10000,
                  log_every_n_steps: int = 500,
-                 ckpt_every_n_steps: int = 10000,
                  dataloader_num_workers: int = 8,
                  log_directory: str = "",
                  batch_type: str = "heterogeneous",
@@ -128,7 +124,6 @@ class MultilingualTrainer(TrainerCore):
         :param train_steps: the number of training updates that the trainer will perform (default=100000).
         :param val_every_n_steps: how often to check the validation set (default=10000).
         :param log_every_n_steps: how often to log the metrics (default=500).
-        :param ckpt_every_n_steps: how often to set a checkpoint of the model under training (default=10000).
         :param dataloader_num_workers: the number of workers used by both the train and validation dataloaders
             (default=8).
         :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
@@ -138,8 +133,8 @@ class MultilingualTrainer(TrainerCore):
             one translation direction) (default="heterogeneous").
         :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
         """
-        super().__init__(tokenizer, train_steps, val_every_n_steps, log_every_n_steps, ckpt_every_n_steps,
-                         dataloader_num_workers, log_directory, batch_type, use_wandb)
+        super().__init__(tokenizer, train_steps, val_every_n_steps, log_every_n_steps, dataloader_num_workers,
+                         log_directory, batch_type, use_wandb)
 
     @staticmethod
     def __build_nmt_directions(train_datasets: List[TranslationDataset]) -> Tuple[Set[str], Set[Tuple[str, str]]]:
@@ -223,8 +218,7 @@ class MultilingualTrainer(TrainerCore):
         else:
             logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
 
-        checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max",
-                                     every_n_train_steps=self.ckpt_every_n_steps)
+        checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max", save_on_train_epoch_end=False)
         prog_bar_theme = RichProgressBarTheme(description="red", progress_bar="dark_blue",
                                               progress_bar_finished="dark_blue", progress_bar_pulse="dark_blue")
         prog_bar = RichProgressBar(theme=prog_bar_theme)
@@ -251,7 +245,6 @@ class ContinualTrainer(TrainerCore):
                  train_steps: int = 100000,
                  val_every_n_steps: int = 10000,
                  log_every_n_steps: int = 500,
-                 ckpt_every_n_steps: int = 10000,
                  dataloader_num_workers: int = 8,
                  log_directory: str = "",
                  exp_batch_type: str = "heterogeneous",
@@ -262,7 +255,6 @@ class ContinualTrainer(TrainerCore):
         :param train_steps: the number of training updates that the trainer will perform (default=100000).
         :param val_every_n_steps: how often to check the validation set (default=10000).
         :param log_every_n_steps: how often to log the metrics (default=500).
-        :param ckpt_every_n_steps: how often to set a checkpoint of the model under training (default=10000).
         :param dataloader_num_workers: the number of workers used by both the train and validation dataloaders
             (default=8).
         :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
@@ -272,8 +264,8 @@ class ContinualTrainer(TrainerCore):
             one translation direction) (default="heterogeneous").
         :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
         """
-        super().__init__(tokenizer, train_steps, val_every_n_steps, log_every_n_steps, ckpt_every_n_steps,
-                         dataloader_num_workers, log_directory, exp_batch_type, use_wandb)
+        super().__init__(tokenizer, train_steps, val_every_n_steps, log_every_n_steps, dataloader_num_workers,
+                         log_directory, exp_batch_type, use_wandb)
         self.exp_batch_type = self.batch_type
         del self.batch_type
         self.buffer = Buffer(buffer_size, keep_previous_examples)
@@ -335,8 +327,7 @@ class ContinualTrainer(TrainerCore):
             else:
                 logger_version = f"{logger_version}_exp{i}"
 
-            checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max",
-                                         every_n_train_steps=self.ckpt_every_n_steps)
+            checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max", save_on_train_epoch_end=False)
             prog_bar_theme = RichProgressBarTheme(description="red", progress_bar="dark_blue",
                                                   progress_bar_finished="dark_blue", progress_bar_pulse="dark_blue")
             prog_bar = RichProgressBar(theme=prog_bar_theme)
