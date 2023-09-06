@@ -96,6 +96,19 @@ Hereafter are all the teacher models and distilled datasets used for our experim
 
 ---
 
+## :label: Continual setting
+The models were trained on three subsequent experiences each made up of two translation directions involving a language pair. At the end of each experience, a fixed-size buffer is filled with random samples following a simple reservoir sampling approach.
+
+<div align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/continual_setting_dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/continual_setting_light.svg">
+  <img alt="Continual setting" src="assets/continual_setting_dark.svg">
+</picture>
+</div>
+
+---
+
 ## :robot: Models
 The NAT models' names are taken from the following [survey](https://arxiv.org/pdf/2204.09269.pdf).
 ### AR (autoregressive) models
