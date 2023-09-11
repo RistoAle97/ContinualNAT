@@ -216,3 +216,8 @@ print(tabulated_tokens_at_each_step[0])
 ```
 
 </details>
+
+---
+
+## :memo: License
+This project is [MIT licensed](https://github.com/RistoAle97/ContinualNAT/blob/main/LICENSE).
