@@ -115,3 +115,14 @@ class Buffer(Dataset):
                 datasets_size[f"{i}_{src_lang}_{tgt_lang}"] = len(dataset)
 
         return partition_sizes, datasets_size
+
+    def list_datasets(self) -> List[TranslationDataset]:
+        """
+        List all the datasets coming from the buffer's experiences.
+        :return: a list containing all the datasets used by the buffer's experiences.
+        """
+        buffer_datasets = []
+        for exp in self._exps:
+            buffer_datasets.extend(exp)
+
+        return buffer_datasets

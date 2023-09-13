@@ -3,7 +3,7 @@ from typing import Dict, List, Set, Tuple, Union
 
 import torch
 from lightning import Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar, EarlyStopping
 from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
 from lightning.pytorch.loggers import TensorBoardLogger
 from lightning.pytorch.loggers.wandb import WandbLogger
@@ -29,7 +29,7 @@ class TrainerCore:
                  log_every_n_steps: int = 500,
                  dataloader_num_workers: int = 8,
                  log_directory: str = "",
-                 batch_type: str = "heterogeneous",
+                 batch_type: str = None,
                  use_wandb: bool = True) -> None:
         """
         A base for all the custom trainers that wrap the pytorch lightning's trainer.
@@ -41,9 +41,10 @@ class TrainerCore:
             (default=8).
         :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
             directory (default="").
-        :param batch_type: the type of batch sampler used by the train dataloader, can be either "heterogeneous" (each
-            batch will have one single translation direction) or "homogeneous" (each batch will contain more than
-            one translation direction) (default="heterogeneous").
+        :param batch_type: the type of batch sampler used by the train dataloader. It can be None (the training datasets
+            will be simply concatenated into one and shuffled), "heterogeneous" (each batch will have one single
+            translation direction) or "homogeneous" (each batch will contain more than one translation direction). The
+            None value is useful in a scenario where all the datasets have the same size (default=None).
         :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
         """
         self.tokenizer = tokenizer
@@ -52,18 +53,19 @@ class TrainerCore:
         self.log_every_n_steps = log_every_n_steps
         self.num_workers = dataloader_num_workers
         self.log_directory = log_directory
-        if batch_type not in ["heterogeneous", "homogeneous"]:
+        if batch_type not in [None, "heterogeneous", "homogeneous"]:
             raise ValueError("The batch type should be \"heterogeneous\" or \"homogeneous\"")
 
         self.batch_type = batch_type
         self.use_wandb = use_wandb
 
-    def _build_dataloaders_base_(self,
-                                 model: TransformerCore,
-                                 train_dataset: ConcatDataset[TranslationDataset],
-                                 train_batch_sampler: Union[BatchSamplerCore, ExperienceReplaySampler],
-                                 val_datasets: List[TranslationDataset],
-                                 val_bsz: int = 1280) -> Tuple[DataLoader, Dict[str, DataLoader]]:
+    def _build_dataloaders_base(self,
+                                model: TransformerCore,
+                                train_dataset: ConcatDataset[TranslationDataset],
+                                train_batch_sampler: Union[BatchSamplerCore, ExperienceReplaySampler],
+                                val_datasets: List[TranslationDataset],
+                                train_bsz: int = 128,
+                                val_bsz: int = 128) -> Tuple[DataLoader, Dict[str, DataLoader]]:
         if isinstance(model, CMLM):
             is_mlm = True
             shift_lang_token = False
@@ -79,8 +81,14 @@ class TrainerCore:
                                              return_lengths=return_lengths, pad_token_id=self.tokenizer.pad_token_id,
                                              mask_token_id=self.tokenizer.mask_token_id, p_masking=p_masking)
 
-        train_dataloader = DataLoader(train_dataset, batch_sampler=train_batch_sampler, num_workers=self.num_workers,
-                                      collate_fn=batch_collator_train, pin_memory=True)
+        if self.batch_type is not None:
+            train_dataloader = DataLoader(train_dataset, batch_sampler=train_batch_sampler,
+                                          num_workers=self.num_workers, collate_fn=batch_collator_train,
+                                          pin_memory=True)
+        else:
+            train_dataloader = DataLoader(train_dataset, batch_size=train_bsz, shuffle=True,
+                                          num_workers=self.num_workers, collate_fn=batch_collator_train,
+                                          pin_memory=True)
 
         # Validation dataloaders (one for each translation direction)
         val_dataloaders = {}
@@ -116,7 +124,7 @@ class MultilingualTrainer(TrainerCore):
                  log_every_n_steps: int = 500,
                  dataloader_num_workers: int = 8,
                  log_directory: str = "",
-                 batch_type: str = "heterogeneous",
+                 batch_type: str = None,
                  use_wandb: bool = True) -> None:
         """
         A custom trainer that wraps the pytorch lightning's trainer used for, but not only, multilingual training.
@@ -128,9 +136,10 @@ class MultilingualTrainer(TrainerCore):
             (default=8).
         :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
             directory (default="").
-        :param batch_type: the type of batch sampler used by the train dataloader, can be either "heterogeneous" (each
-            batch will have one single translation direction) or "homogeneous" (each batch will contain more than
-            one translation direction) (default="heterogeneous").
+        :param batch_type: the type of batch sampler used by the train dataloader. It can be None (the training datasets
+            will be simply concatenated into one and shuffled), "heterogeneous" (each batch will have one single
+            translation direction) or "homogeneous" (each batch will contain more than one translation direction). The
+            None value is useful in a scenario where all the datasets have the same size (default=None).
         :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
         """
         super().__init__(tokenizer, train_steps, val_every_n_steps, log_every_n_steps, dataloader_num_workers,
@@ -163,10 +172,12 @@ class MultilingualTrainer(TrainerCore):
         train_dataset = ConcatDataset(train_datasets)
         if self.batch_type == "heterogeneous":
             batch_sampler = HeterogeneousSampler(train_dataset, train_bsz, True)
-        else:
+        elif self.batch_type == "homogeneous":
             batch_sampler = HomogeneousSampler(train_dataset, train_bsz, True)
+        else:
+            batch_sampler = None
 
-        return super()._build_dataloaders_base_(model, train_dataset, batch_sampler, val_datasets, val_bsz)
+        return super()._build_dataloaders_base(model, train_dataset, batch_sampler, val_datasets, train_bsz, val_bsz)
 
     @staticmethod
     def __compute_logger_version(model: TransformerCore,
@@ -195,7 +206,24 @@ class MultilingualTrainer(TrainerCore):
               train_bsz: int = 128,
               val_bsz: int = 128,
               tokens_per_batch: int = None,
-              logger_version: str = None) -> None:
+              logger_version: str = None,
+              early_stopping: bool = False,
+              patience: int = 5) -> None:
+        """
+        Trains and validates the model given a list of training and validation datasets.
+        :param model: the model to train.
+        :param train_datasets: a list containing all the datasets used during training.
+        :param val_datasets: a list containing all the datasets used during validation.
+        :param train_bsz: the train batch size (default=128).
+        :param val_bsz: the validation batch size (default=128).
+        :param tokens_per_batch: the approximated number of tokens that each batch should contain. If None, then no
+            accmulation steps will be performed (default=None).
+        :param logger_version: the version used by the logger. If None, then its value will be modelclass_type_seq
+            (default=None).
+        :param early_stopping: whether to use early stopping if the mean BLEU does not improve for a fixed number
+            of validation epochs (default=False).
+        :param patience: the patience parameter used by the early stopping callback (default=5).
+        """
         # Build translation directions and unique lang pairs
         nmt_directions, lang_pairs = self.__build_nmt_directions(train_datasets)
 
@@ -208,7 +236,7 @@ class MultilingualTrainer(TrainerCore):
         tokens_per_batch = tokens_per_batch if tokens_per_batch is not None else train_bsz * max_length
         accumulation_steps = compute_accumulation_steps(train_bsz, max_length, tokens_per_batch)
 
-        # Logger and other train callbacks
+        # Logger
         if logger_version is None:
             logger_version = self.__compute_logger_version(model, nmt_directions, lang_pairs)
 
@@ -218,14 +246,22 @@ class MultilingualTrainer(TrainerCore):
         else:
             logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
 
+        # Model checkpointing
         checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max", save_on_train_epoch_end=False)
+
+        # Progress bar
         prog_bar_theme = RichProgressBarTheme(description="red", progress_bar="dark_blue",
                                               progress_bar_finished="dark_blue", progress_bar_pulse="dark_blue")
         prog_bar = RichProgressBar(theme=prog_bar_theme)
 
-        # noinspection DuplicatedCode
+        # Learning rate monitor
         lr_monitor = LearningRateMonitor(logging_interval='step')
         trainer_callbacks = [checkpoint, lr_monitor, prog_bar]
+
+        # Early stopping
+        if early_stopping:
+            early_stopping = EarlyStopping("mean_BLEU", patience=patience, mode="max")
+            trainer_callbacks.append(early_stopping)
 
         # Train the model
         trainer = Trainer(devices=1, precision="16-mixed", logger=logger, max_steps=self.train_steps,
@@ -247,7 +283,8 @@ class ContinualTrainer(TrainerCore):
                  log_every_n_steps: int = 500,
                  dataloader_num_workers: int = 8,
                  log_directory: str = "",
-                 exp_batch_type: str = "heterogeneous",
+                 exp_batch_type: str = None,
+                 buffer_batch_size: float = None,
                  use_wandb: bool = True) -> None:
         """
         A custom trainer that wraps the pytorch lightning's trainer.
@@ -259,16 +296,26 @@ class ContinualTrainer(TrainerCore):
             (default=8).
         :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
             directory (default="").
-        :param exp_batch_type: the type of batch sampler used by the experiences, can be either "heterogeneous" (each
-            batch will have one single translation direction) or "homogeneous" (each batch will contain more than
-            one translation direction) (default="heterogeneous").
+        :param exp_batch_type: the type of batch sampler used by the experiences. It can be None (the training datasets
+            will be simply concatenated into one and shuffled), "heterogeneous" (each batch will have one single
+            translation direction) or "homogeneous" (each batch will contain more than one translation direction). The
+            None value is useful in a scenario where all the datasets have the same size (default=None).
+        :param buffer_batch_size: the percentage of examples inside a batch that should come from the buffer. If None
+            then no sampler will be used and the buffer will be simply concatenated to the current experience
+            (default=None).
         :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
         """
         super().__init__(tokenizer, train_steps, val_every_n_steps, log_every_n_steps, dataloader_num_workers,
                          log_directory, exp_batch_type, use_wandb)
         self.exp_batch_type = self.batch_type
         del self.batch_type
+
+        # Buffer
         self.buffer = Buffer(buffer_size, keep_previous_examples)
+        if buffer_batch_size is not None and not 0.0 < buffer_batch_size <= 1.0:
+            raise ValueError("The percentage of examples coming from the buffer should be in (0.0, 1.0].")
+
+        self.buffer_batch_size = buffer_batch_size
 
     def __build_dataloaders(self,
                             model: TransformerCore,
@@ -277,19 +324,35 @@ class ContinualTrainer(TrainerCore):
                             val_datasets: List[TranslationDataset],
                             train_bsz: int = 128,
                             val_bsz: int = 128) -> Tuple[DataLoader, Dict[str, DataLoader]]:
-        train_dataset = ConcatDataset(exp_datasets)
-        if self.exp_batch_type == "heterogeneous":
-            exp_sampler = HeterogeneousSampler(train_dataset, train_bsz // 2, True)
-        else:
-            exp_sampler = HomogeneousSampler(train_dataset, train_bsz // 2, True)
+        if self.buffer_batch_size is not None:
+            train_dataset = ConcatDataset(exp_datasets)
+            exp_batch_examples = train_bsz * (1.0 - self.buffer_batch_size)
+            mem_batch_examples = train_bsz - exp_batch_examples
 
-        if exp_idx != 0:
-            mem_sampler = BatchSampler(RandomSampler(self.buffer), train_bsz // 2, True)
-            batch_sampler = ExperienceReplaySampler(exp_sampler, mem_sampler)
-        else:
-            batch_sampler = exp_sampler
+            # Experience batch sampler
+            if self.exp_batch_type == "heterogeneous":
+                exp_sampler = HeterogeneousSampler(train_dataset, exp_batch_examples, True)
+            elif self.exp_batch_type == "homogeneous":
+                exp_sampler = HomogeneousSampler(train_dataset, exp_batch_examples, True)
+            else:
+                exp_sampler = RandomSampler(train_dataset)
 
-        return super()._build_dataloaders_base_(model, train_dataset, batch_sampler, val_datasets, val_bsz)
+            # Memory batch sampler
+            if exp_idx != 0 and self.buffer_batch_size is not None:
+                mem_sampler = BatchSampler(RandomSampler(self.buffer), mem_batch_examples, True)
+                batch_sampler = ExperienceReplaySampler(exp_sampler, mem_sampler)
+            else:
+                batch_sampler = exp_sampler
+
+        else:
+            # If the percentage of examples coming from the buffer is None, then we concatenate the buffer's datasets
+            # with the current experience and no batch sampler will be employed, doesn't matter which batch type
+            # is used.
+            batch_sampler = None
+            exp_datasets.extend(self.buffer.list_datasets())
+            train_dataset = ConcatDataset(exp_datasets)
+
+        return super()._build_dataloaders_base(model, train_dataset, batch_sampler, val_datasets, val_bsz)
 
     def __compute_logger_version(self, model, exp_idx) -> str:
         logger_version = f"{model.__class__.__name__}"
@@ -309,6 +372,19 @@ class ContinualTrainer(TrainerCore):
               tokens_per_batch: int | None = None,
               logger_version: str | None = None,
               save_model_each_exp: bool = False) -> None:
+        """
+        Trains the models given a list of training datasets while validating its performances.
+        :param model: the model to train.
+        :param exps: a list containing all the experiences used during training.
+        :param val_datasets: a list containing all the datasets used during validation.
+        :param train_bsz: the train batch size (default=128).
+        :param val_bsz: the validation batch size (default=128).
+        :param tokens_per_batch: the approximated number of tokens that each batch should contain. If None, then no
+            accmulation steps will be performed (default=None).
+        :param logger_version: the version used by the logger. If None, then its value will be modelclass_seq
+            (default=None).
+        :param save_model_each_exp: whether to save the model at the end of each experience (default=False).
+        """
         for i, exp in enumerate(exps):
             current_exp = [exp] if isinstance(exp, TranslationDataset) else exp
 
@@ -337,7 +413,6 @@ class ContinualTrainer(TrainerCore):
             else:
                 logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
 
-            # noinspection DuplicatedCode
             lr_monitor = LearningRateMonitor(logging_interval='step')
             trainer_callbacks = [checkpoint, lr_monitor, prog_bar]
 
