@@ -71,23 +71,28 @@ class TransformerNATCore(TransformerCore):
     def __uniform_copy(self,
                        tensor_to_copy: torch.Tensor,
                        src_lengths: torch.Tensor,
-                       tgt_lengths: torch.tensor,
-                       d_mask: torch.Tensor) -> torch.Tensor:
+                       tgt_lengths: torch.tensor) -> torch.Tensor:
         """
-        The uniform copy mechanism from Gu et al. https://arxiv.org/pdf/1711.02281.pdf, it copies the encoder's output
-        as the decoder input based on the source and target lengths.
-        :param tensor_to_copy: the source embeddings or the encoder's output.
+        The uniform copy mechanism from Gu et al. https://arxiv.org/pdf/1711.02281.pdf, it copies the source embeddings
+        or encoder output as the decoder input based on the source and target lengths.
+        :param tensor_to_copy: the source embeddings or the encoder output.
         :param src_lengths: the source sentences lengths taking into consideration the special tokens of shape (bsz, 1).
         :param tgt_lengths: the target sentences lengths taking into consideration the special tokens of shape (bsz, 1).
-        :param d_mask: the decoder mask.
         :return: the decoder input ids.
         """
         max_tgt_len = tgt_lengths.max()
+        bsz = tensor_to_copy.size(0)
+        mask = torch.ones(bsz, max_tgt_len)
+        for i, current_length in enumerate(tgt_lengths):
+            mask[i, current_length:] -= 1
+
+        mask = mask.bool()
         steps = (src_lengths.float() - 1) / (tgt_lengths.float() - 1)  # step-size of shape (bsz)
         index_t = torch.arange(max_tgt_len, device=tgt_lengths.device).float()  # indexes of shape (max_tgt_len)
         index_t = steps[:, None] * index_t[None, :]  # (bsz, max_tgt_len)
         index_t = torch.round(index_t.squeeze(1)).long().detach()
-        mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :max_tgt_len], 0).to(tgt_lengths.device)
+        # mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :max_tgt_len], 0).to(tgt_lengths.device)
+        mapped_inputs = index_t.masked_fill(mask, 0).to(tgt_lengths.device)
         mapped_inputs = mapped_inputs.unsqueeze(-1)
         embeddings_copy = torch.gather(tensor_to_copy, 1,
                                        mapped_inputs.expand(*mapped_inputs.size()[:-1], self.d_model))
@@ -97,6 +102,15 @@ class TransformerNATCore(TransformerCore):
                     tensor_to_copy: torch.Tensor,
                     src_lengths: torch.tensor,
                     tgt_lengths: torch.Tensor) -> torch.Tensor:
+        """
+        The soft copy mechanism from Wei et al. https://aclanthology.org/P19-1125.pdf, it copies the source embeddings
+        or encoder output on an attention-based mechanism. Based on
+        https://github.com/baoy-nlp/Latent-GLAT/blob/main/nat/vanilla_nat.py#L26.
+        :param tensor_to_copy: the source embeddings or the encoder output.
+        :param src_lengths: the source sentences lengths taking into consideration the special tokens of shape (bsz, 1).
+        :param tgt_lengths: the target sentences lengths taking into consideration the special tokens of shape (bsz, 1).
+        :return: the decoder input ids.
+        """
         max_src_length = src_lengths.max().unsqueeze(-1)
         max_tgt_length = tgt_lengths.max().unsqueeze(-1)
         index_s = torch.arange(max_src_length[-1], device=src_lengths.device).expand(
@@ -106,18 +120,17 @@ class TransformerNATCore(TransformerCore):
         diff = -(index_t[:, None] - index_s[None, :]).abs()  # (max_tgt_length, max_src_length)
         diff = diff.unsqueeze(0).expand(tgt_lengths.size(0), *diff.size())  # (bsz, max_tgt_length, max_src_length)
         mask = (src_lengths[:, None] - 1 - index_s[None, :]).lt(0).float().squeeze(1)  # (bsz, max_src_length)
-        logits = (diff / self.tau - 1e-9 * mask[:, None, :])
+        logits = (diff / self.tau - 1e9 * mask[:, None, :])
         probs = logits.softmax(-1)  # (bsz, max_tgt_length, max_src_length)
         embeddings_copy = torch.bmm(probs, tensor_to_copy)  # (bsz, max_tgt_length, d_model)
         return embeddings_copy
 
     def _copy_embeddings(self,
                          tensor_to_copy: torch.Tensor,
-                         d_mask: torch.Tensor,
                          src_lengths: torch.Tensor,
                          tgt_lengths: torch.Tensor) -> torch.Tensor:
         if self.decoder_inputs_copy == "uniform":
-            return self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths, d_mask)
+            return self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths)
         else:
             return self.__soft_copy(tensor_to_copy, src_lengths, tgt_lengths)
 
