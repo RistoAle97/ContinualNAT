@@ -19,7 +19,7 @@ class TransformerNATCore(TransformerCore):
         super().__init__(config)
         # Parameters
         self.length_token_id = config.length_token_id
-        self.decoder_inputs_copy = config.decoder_inputs_copy
+        self.map_copy = config.map_copy
         self.tensor_to_copy = config.tensor_to_copy
         self.pooler_size = config.pooler_size
         self.tau = config.tau
@@ -92,7 +92,7 @@ class TransformerNATCore(TransformerCore):
         index_t = steps[:, None] * index_t[None, :]  # (bsz, max_tgt_len)
         index_t = torch.round(index_t.squeeze(1)).long().detach()
         # mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :max_tgt_len], 0).to(tgt_lengths.device)
-        mapped_inputs = index_t.masked_fill(mask, 0).to(tgt_lengths.device)
+        mapped_inputs = index_t.masked_fill(~mask, 0).to(tgt_lengths.device)
         mapped_inputs = mapped_inputs.unsqueeze(-1)
         embeddings_copy = torch.gather(tensor_to_copy, 1,
                                        mapped_inputs.expand(*mapped_inputs.size()[:-1], self.d_model))
@@ -129,7 +129,7 @@ class TransformerNATCore(TransformerCore):
                          tensor_to_copy: torch.Tensor,
                          src_lengths: torch.Tensor,
                          tgt_lengths: torch.Tensor) -> torch.Tensor:
-        if self.decoder_inputs_copy == "uniform":
+        if self.map_copy == "uniform":
             return self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths)
         else:
             return self.__soft_copy(tensor_to_copy, src_lengths, tgt_lengths)

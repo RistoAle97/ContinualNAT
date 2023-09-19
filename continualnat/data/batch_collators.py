@@ -19,7 +19,7 @@ class BatchCollator:
         """
         Standard collator, its work consists in batching the source and target sentences and creating
         the decoder inputs.
-        :param is_mlm: whether the collator is used for a masked language model (MLM), if False then we're dealing with
+        :param is_mlm: whether the collator is used for a masked language model (MLM). If False, then we're dealing with
             a causal model and the labels must be shifted to the right in order to create the decoder inputs
             (default=False).
         :param shift_lang_token: whether to move the lang token at the beginning of the source sentences

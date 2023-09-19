@@ -21,7 +21,7 @@ class NATCoreConfig(CoreConfig):
                  pad_token_id: int = 1,
                  length_token_id: int = None,
                  label_smoothing: float = 0.0,
-                 decoder_inputs_copy: str = "uniform",
+                 map_copy: str = "uniform",
                  tensor_to_copy: str = "e_output",
                  pooler_size: int = 256,
                  tau: float = 0.3) -> None:
@@ -46,7 +46,7 @@ class NATCoreConfig(CoreConfig):
         :param pad_token_id: the pad token id (default=1).
         :param length_token_id: the length token id, akin to a cls token (default=4).
         :param label_smoothing: the label smoothing value for the cross-entropy loss (default=0.0).
-        :param decoder_inputs_copy: the type of copy to apply to the source embedding, possible values: uniform, soft
+        :param map_copy: the type of copy mechanism to apply, possible values: uniform, soft
             (default="uniform").
         :param tensor_to_copy: the tensor to copy during as the decoder input, can be either "src_embeddings" or
             "e_output" (default="e_output").
@@ -57,10 +57,10 @@ class NATCoreConfig(CoreConfig):
                          dropout_mha, dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id,
                          eos_token_id, pad_token_id, label_smoothing)
         self.length_token_id = length_token_id
-        if decoder_inputs_copy not in ["uniform", "soft"]:
+        if map_copy not in ["uniform", "soft"]:
             raise ValueError("The copy mechanism can only be performed in a uniform or soft way.")
 
-        self.decoder_inputs_copy = decoder_inputs_copy
+        self.map_copy = map_copy
         if tensor_to_copy not in ["src_embeddings", "e_output"]:
             raise ValueError("The tensor to copy must be one of between the source embeddings and the encoder output.")
 

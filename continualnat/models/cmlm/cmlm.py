@@ -22,7 +22,7 @@ class CMLM(TransformerNATCore):
         super().__init__(config)
 
         # Some common NAT parameters are not used by the CMLM model
-        del self.decoder_inputs_copy
+        del self.map_copy
         del self.tensor_to_copy
         del self.tau
 
