@@ -11,16 +11,18 @@ from continualnat.utils.utils import MBART_LANG_MAP
 
 class TranslationDataset(Dataset):
 
-    def __init__(self,
-                 src_lang: str,
-                 tgt_lang: str,
-                 dataset: datasets.Dataset,
-                 tokenizer: Union[MBartTokenizer, MBartTokenizerFast],
-                 max_length: Union[int, None] = None,
-                 use_cls_token: bool = False,
-                 skip_idxs: Set[int] = None,
-                 fill_to_max_length: bool = False,
-                 lang_tokens_only_encoder: bool = False) -> None:
+    def __init__(
+        self,
+        src_lang: str,
+        tgt_lang: str,
+        dataset: datasets.Dataset,
+        tokenizer: Union[MBartTokenizer, MBartTokenizerFast],
+        max_length: Union[int, None] = None,
+        use_cls_token: bool = False,
+        skip_idxs: Set[int] = None,
+        fill_to_max_length: bool = False,
+        lang_tokens_only_encoder: bool = False,
+    ) -> None:
         """
         Translation dataset defined by source and target languages.
         :param src_lang: the source language.
@@ -55,8 +57,13 @@ class TranslationDataset(Dataset):
 
         # Tokenizer
         self.tokenizer = tokenizer
-        self.tokenizer_state_src = {"truncation": True, "add_special_tokens": True, "padding": "longest",
-                                    "max_length": max_length, "return_tensors": "pt"}
+        self.tokenizer_state_src = {
+            "truncation": True,
+            "add_special_tokens": True,
+            "padding": "longest",
+            "max_length": max_length,
+            "return_tensors": "pt",
+        }
         self.tokenizer_state_tgt = self.tokenizer_state_src.copy()
         self.max_tokens = max_length
         self.use_cls_token = use_cls_token
@@ -138,17 +145,23 @@ class TranslationDataset(Dataset):
                     tgt_seq_len = concat_tgt_seq_len
 
             # Concat the input ids and labels to their respective language token
-            src_lang_token = torch.tensor([self.tokenizer.eos_token_id,
-                                           self.tokenizer.lang_code_to_id[self.src_lang_code]]).unsqueeze(0)
-            tgt_lang_token = torch.tensor([self.tokenizer.eos_token_id,
-                                           self.tokenizer.lang_code_to_id[self.tgt_lang_code]]).unsqueeze(0)
+            src_lang_token = torch.tensor(
+                [self.tokenizer.eos_token_id, self.tokenizer.lang_code_to_id[self.src_lang_code]]
+            ).unsqueeze(0)
+            tgt_lang_token = torch.tensor(
+                [self.tokenizer.eos_token_id, self.tokenizer.lang_code_to_id[self.tgt_lang_code]]
+            ).unsqueeze(0)
             input_ids = torch.cat([input_ids, src_lang_token], dim=-1)
             labels = torch.cat([labels, tgt_lang_token], dim=-1)
 
         if self.lang_tokens_only_encoder:
-            src_lang_token = torch.tensor([self.tokenizer.eos_token_id,
-                                           self.tokenizer.lang_code_to_id[self.src_lang_code],
-                                           self.tokenizer.lang_code_to_id[self.tgt_lang_code]]).unsqueeze(0)
+            src_lang_token = torch.tensor(
+                [
+                    self.tokenizer.eos_token_id,
+                    self.tokenizer.lang_code_to_id[self.src_lang_code],
+                    self.tokenizer.lang_code_to_id[self.tgt_lang_code]
+                ]
+            ).unsqueeze(0)
             tgt_lang_token = torch.tensor([self.tokenizer.eos_token_id]).unsqueeze(0)
             input_ids = torch.cat([input_ids, src_lang_token], dim=-1)
             labels = torch.cat([labels, tgt_lang_token], dim=-1)
@@ -159,5 +172,10 @@ class TranslationDataset(Dataset):
         labels_special_mask = self.tokenizer.get_special_tokens_mask(labels[0], already_has_special_tokens=True)
 
         labels_special_mask = torch.tensor(labels_special_mask).unsqueeze(0)
-        return {"input_ids": input_ids, "labels": labels, "reference": reference,
-                "input_ids_special_mask": input_ids_special_mask, "labels_special_mask": labels_special_mask}
+        return {
+            "input_ids": input_ids,
+            "labels": labels,
+            "reference": reference,
+            "input_ids_special_mask": input_ids_special_mask,
+            "labels_special_mask": labels_special_mask,
+        }

@@ -17,10 +17,13 @@ class DistilledDataset(datasets.GeneratorBasedBuilder):
 
     def __init__(self, src_lang: str, tgt_lang: str, path_name: str, *args, **kwargs):
         self.path_name = path_name
-        self.BUILDER_CONFIGS = [DistilledDatasetConfig(name=f"{src_lang}-{tgt_lang}",
-                                                       description=f"Translating from {src_lang} to {tgt_lang} or"
-                                                                   f"viceversa",
-                                                       version=datasets.Version("1.0.0", ""))]
+        self.BUILDER_CONFIGS = [
+            DistilledDatasetConfig(
+                name=f"{src_lang}-{tgt_lang}",
+                description=f"Translating from {src_lang} to {tgt_lang} or viceversa",
+                version=datasets.Version("1.0.0", ""),
+            )
+        ]
         if "max_train_samples" in kwargs and kwargs.get("cache_dir", None) is None:
             kwargs["cache_dir"] = os.path.join(
                 str(HF_DATASETS_CACHE),
@@ -44,9 +47,12 @@ class DistilledDataset(datasets.GeneratorBasedBuilder):
         )
 
     def _split_generators(self, dl_manager: datasets.DownloadManager):
-        return [datasets.SplitGenerator(name=datasets.Split.TRAIN,
-                                        gen_kwargs={"datapath": self.path_name,
-                                                    "max_samples": self.max_samples["train"]})]
+        return [
+            datasets.SplitGenerator(
+                name=datasets.Split.TRAIN,
+                gen_kwargs={"datapath": self.path_name, "max_samples": self.max_samples["train"]}
+            )
+        ]
 
     def _generate_examples(self, datapath, max_samples):
         src_path = f"{datapath}.{self.config.src_lang}"
@@ -60,8 +66,9 @@ class DistilledDataset(datasets.GeneratorBasedBuilder):
                     sentence_counter,
                     {
                         "id": sentence_counter,
-                        "translation": {self.config.src_lang: src_sentence.strip(),
-                                        self.config.tgt_lang: tgt_sentence.strip()}
+                        "translation": {
+                            self.config.src_lang: src_sentence.strip(),
+                            self.config.tgt_lang: tgt_sentence.strip()}
                     }
                 )
                 yield sample

@@ -8,14 +8,16 @@ from continualnat.utils.utils import shift_lang_token_right
 
 class BatchCollator:
 
-    def __init__(self,
-                 is_mlm: bool = False,
-                 shift_lang_token: bool = False,
-                 return_special_masks: bool = False,
-                 return_lengths: bool = False,
-                 pad_token_id: int = 1,
-                 mask_token_id: int = 5,
-                 p_masking: Union[float, str] = 0.0) -> None:
+    def __init__(
+        self,
+        is_mlm: bool = False,
+        shift_lang_token: bool = False,
+        return_special_masks: bool = False,
+        return_lengths: bool = False,
+        pad_token_id: int = 1,
+        mask_token_id: int = 5,
+        p_masking: Union[float, str] = 0.0,
+    ) -> None:
         """
         Standard collator, its work consists in batching the source and target sentences and creating
         the decoder inputs.
@@ -58,10 +60,12 @@ class BatchCollator:
 
         self.p_masking = p_masking
 
-    def __mask_decoder_input_ids(self,
-                                 labels: torch.Tensor,
-                                 decoder_input_ids: torch.Tensor,
-                                 labels_special_mask: torch.Tensor) -> Dict[str, torch.Tensor]:
+    def __mask_decoder_input_ids(
+        self,
+        labels: torch.Tensor,
+        decoder_input_ids: torch.Tensor,
+        labels_special_mask: torch.Tensor,
+    ) -> Dict[str, torch.Tensor]:
         batch_size, seq_len = labels.size()
 
         # Compute the number of special tokens for each sentence
@@ -124,10 +128,14 @@ class BatchCollator:
             labels_special_masks.append(sentence_pair["labels_special_mask"])
 
         # Pad the tensors and batchify them
-        input_ids = [torch.cat([src, src.new(1, src_max_length - src.size(-1)).fill_(self.pad_token_id)], dim=-1)
-                     for src in src_tokenized_sentences]
-        labels = [torch.cat([tgt, tgt.new(1, tgt_max_length - tgt.size(-1)).fill_(self.pad_token_id)], dim=-1)
-                  for tgt in tgt_tokenized_sentences]
+        input_ids = [
+            torch.cat([src, src.new(1, src_max_length - src.size(-1)).fill_(self.pad_token_id)], dim=-1)
+            for src in src_tokenized_sentences
+        ]
+        labels = [
+            torch.cat([tgt, tgt.new(1, tgt_max_length - tgt.size(-1)).fill_(self.pad_token_id)], dim=-1)
+            for tgt in tgt_tokenized_sentences
+        ]
         input_ids = torch.stack(input_ids, dim=0).squeeze(1)  # (bsz, src_max_length)
         labels = torch.stack(labels, dim=0).squeeze(1)  # (bsz, tgt_max_length)
 
@@ -148,11 +156,18 @@ class BatchCollator:
         input_ids_special_mask = None
         labels_special_mask = None
         if self.return_special_masks or self.return_lengths:
-            input_ids_special_mask = [torch.cat([mask, mask.new(1, src_max_length - mask.size(-1)).fill_(1)], dim=-1)
-                                      for mask in input_ids_special_masks]
+            # Special mask for the input ids (encoder inputs)
+            input_ids_special_mask = [
+                torch.cat([mask, mask.new(1, src_max_length - mask.size(-1)).fill_(1)], dim=-1)
+                for mask in input_ids_special_masks
+            ]
             input_ids_special_mask = torch.stack(input_ids_special_mask, dim=0).squeeze(1)  # (bsz, src_max_length)
-            labels_special_mask = [torch.cat([mask, mask.new(1, tgt_max_length - mask.size(-1)).fill_(1)], dim=-1)
-                                   for mask in labels_special_masks]
+
+            # Special mask for the labels
+            labels_special_mask = [
+                torch.cat([mask, mask.new(1, tgt_max_length - mask.size(-1)).fill_(1)], dim=-1)
+                for mask in labels_special_masks
+            ]
             labels_special_mask = torch.stack(labels_special_mask, dim=0).squeeze(1)  # (bsz, tgt_max_length)
 
             # Pad the special tokens since they should not be predicted by masked language models
@@ -172,6 +187,13 @@ class BatchCollator:
             labels = masked_target["labels"]
             decoder_input_ids = masked_target["decoder_input_ids"]
 
-        return {"input_ids": input_ids, "labels": labels, "decoder_input_ids": decoder_input_ids,
-                "input_ids_special_mask": input_ids_special_mask, "labels_special_mask": labels_special_mask,
-                "references": references, "src_lengths": src_lengths, "tgt_lengths": tgt_lengths}
+        return {
+            "input_ids": input_ids,
+            "labels": labels,
+            "decoder_input_ids": decoder_input_ids,
+            "input_ids_special_mask": input_ids_special_mask,
+            "labels_special_mask": labels_special_mask,
+            "references": references,
+            "src_lengths": src_lengths,
+            "tgt_lengths": tgt_lengths,
+        }

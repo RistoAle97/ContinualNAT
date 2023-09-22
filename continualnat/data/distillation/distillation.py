@@ -13,17 +13,19 @@ from transformers import PreTrainedModel, PreTrainedTokenizer
 from continualnat.models.core.transformer_core import TransformerCore
 
 
-def distill_dataset(teacher: Union[PreTrainedModel, TransformerCore, str],
-                    tokenizer: PreTrainedTokenizer,
-                    dataset: datasets.Dataset,
-                    dataset_name: str,
-                    src_lang: str,
-                    tgt_lang: str,
-                    device: torch.device,
-                    beam_size: int,
-                    bsz: int = 32,
-                    save_dir: str = None,
-                    prog_bar: bool = True) -> None:
+def distill_dataset(
+    teacher: Union[PreTrainedModel, TransformerCore, str],
+    tokenizer: PreTrainedTokenizer,
+    dataset: datasets.Dataset,
+    dataset_name: str,
+    src_lang: str,
+    tgt_lang: str,
+    device: torch.device,
+    beam_size: int,
+    bsz: int = 32,
+    save_dir: str = None,
+    prog_bar: bool = True,
+) -> None:
     """
     Apply sequence-level knowledge distillation on a Hugginface dataset.
     :param teacher: the model used to distill the dataset. If a string is passed, then a converted ctranslate model
@@ -63,16 +65,24 @@ def distill_dataset(teacher: Union[PreTrainedModel, TransformerCore, str],
 
             if translator is None:
                 # Use the CTranslate2 translator
-                input_ids = tokenizer(sentences_to_distill, truncation=True, max_length=max_length, padding="longest",
-                                      return_tensors="pt")["input_ids"]
+                input_ids = tokenizer(
+                    sentences_to_distill,
+                    truncation=True,
+                    max_length=max_length,
+                    padding="longest",
+                    return_tensors="pt",
+                )["input_ids"]
                 translation_ids = teacher.generate(input_ids.to(device), max_new_tokens=max_length)
                 decoded_translation = tokenizer.batch_decode(translation_ids, skip_special_tokens=True)
             else:
                 # Use the generate from Huggingface's Transformers or from this package
                 input_ids = tokenizer(sentences_to_distill, truncation=True, max_length=max_length)["input_ids"]
                 input_tokens = [tokenizer.convert_ids_to_tokens(src_ids) for src_ids in input_ids]
-                generated_translation = translator.translate_batch(input_tokens, beam_size=beam_size,
-                                                                   max_decoding_length=max_length)
+                generated_translation = translator.translate_batch(
+                    input_tokens,
+                    beam_size=beam_size,
+                    max_decoding_length=max_length,
+                )
                 translation_tokens = [generated_tokens.hypotheses[0] for generated_tokens in generated_translation]
                 translation_ids = [tokenizer.convert_tokens_to_ids(tgt_tokens) for tgt_tokens in translation_tokens]
                 decoded_translation = tokenizer.batch_decode(translation_ids, skip_special_tokens=True)
@@ -95,11 +105,13 @@ def compress_datasets(archive_path: str, src_path: str, tgt_path: str) -> None:
         compressed_files.add(tgt_path)
 
 
-def push_distilled_dataset_to_hub(cache_dir: str,
-                                  repo_id: str,
-                                  src_lang: str,
-                                  tgt_lang: str,
-                                  path_name: str) -> None:
+def push_distilled_dataset_to_hub(
+    cache_dir: str,
+    repo_id: str,
+    src_lang: str,
+    tgt_lang: str,
+    path_name: str,
+) -> None:
     """
     Push a distilled dataset to the Huggingface Hub, you need to be logged via the CLI (or any other way) in order to
     use this method.
