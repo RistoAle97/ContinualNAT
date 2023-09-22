@@ -29,7 +29,7 @@ class CMLM(TransformerNATCore):
         # Scheduler and sampler used by the glancing strategy
         self.glat_training = config.glat_training
         if self.glat_training:
-            self.lambda_scheduler = LambdaScheduler()
+            self.lambda_scheduler = None
             self.glancing_sampler = GlancingSampler()
 
         # Token ids
@@ -77,7 +77,7 @@ class CMLM(TransformerNATCore):
     def on_train_start(self) -> None:
         super().on_train_start()
         if self.glat_training:
-            self.lambda_scheduler.anneal_steps = self.trainer.estimated_stepping_batches
+            self.lambda_scheduler = LambdaScheduler(steps=self.trainer.estimated_stepping_batches)
 
     def __glancing_strategy(self,
                             labels: torch.Tensor,
@@ -132,9 +132,10 @@ class CMLM(TransformerNATCore):
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
         super().on_train_batch_end(outputs, batch, batch_idx)
         if self.glat_training:
-            batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
-            if ((batch_idx == 0 and self.trainer.current_epoch == 0) or
-                    (batch_idx + 1) * (self.trainer.current_epoch + 1) % batches == 0):
+            if self.batches_seen == 1:
+                lambda_metric = {"Lambda schedule": self.lambda_scheduler.start_ratio}
+                self.logger.log_metrics(lambda_metric, 0)
+            elif self.batches_seen % self.log_every_n_batches == 0:
                 self.log("Lambda schedule", self.lambda_scheduler.last_ratio)
 
     def validation_step(self, batch, batch_idx, dataloader_idx: int = 0):

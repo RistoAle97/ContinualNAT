@@ -73,6 +73,10 @@ class TransformerCore(LightningModule):
         # Label smoothing value
         self.label_smoothing = config.label_smoothing
 
+        # Keep track of the batches seen by the model during training
+        self.batches_seen = 0
+        self.log_every_n_batches = 0  # this will be initialized at the start of the training
+
         # Train loss and validation mean BLEU for logging purposes
         self.train_metrics = {"train_loss": MeanMetric()}
         self.val_metrics = {"mean_BLEU": MeanMetric()}
@@ -131,6 +135,8 @@ class TransformerCore(LightningModule):
 
     def on_train_start(self) -> None:
         self.train_metrics = {metric_name: MeanMetric() for metric_name in self.train_metrics.keys()}
+        self.batches_seen = 0
+        self.log_every_n_batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
 
     def on_validation_start(self) -> None:
         langs_dataloaders = list(self.trainer.val_dataloaders.items())
@@ -140,12 +146,12 @@ class TransformerCore(LightningModule):
                 self.val_metrics[metric_name] = SacreBLEUScore()
 
     def on_train_batch_end(self, outputs, batch, batch_idx) -> None:
-        batches = self.trainer.log_every_n_steps * self.trainer.accumulate_grad_batches
-        if batch_idx == 0 and self.trainer.current_epoch == 0:
+        self.batches_seen += 1
+        if self.batches_seen == 1:
             # First batch seen during training
             metrics_to_log = {metric_name: value.compute() for metric_name, value in self.train_metrics.items()}
             self.logger.log_metrics(metrics_to_log, 0)
-        if (batch_idx + 1) * (self.trainer.current_epoch + 1) % batches == 0:
+        elif self.batches_seen % self.log_every_n_batches == 0:
             # Log every n optimizer steps
             metrics_to_log = {metric_name: metric.compute() for metric_name, metric in self.train_metrics.items()}
             self.log_dict(metrics_to_log, prog_bar=True)
