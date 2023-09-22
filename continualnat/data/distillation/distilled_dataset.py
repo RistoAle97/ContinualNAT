@@ -24,7 +24,7 @@ class DistilledDataset(datasets.GeneratorBasedBuilder):
         if "max_train_samples" in kwargs and kwargs.get("cache_dir", None) is None:
             kwargs["cache_dir"] = os.path.join(
                 str(HF_DATASETS_CACHE),
-                "trainsamples_{}".format(kwargs["max_train_samples"]),
+                f"trainsamples_{kwargs['max_train_samples']}",
             )
 
         self.max_samples = {"train": kwargs.get("max_train_samples", 2 ** 64)}

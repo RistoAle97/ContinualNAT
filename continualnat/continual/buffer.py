@@ -42,15 +42,15 @@ class Buffer(Dataset):
         idx_dataset = idx % len(chosen_dataset)
         return chosen_dataset.__getitem__(idx_dataset)
 
-    def add_experience(self, exp: Union[TranslationDataset, List[TranslationDataset]]) -> None:
+    def add_experience(self, new_exp: Union[TranslationDataset, List[TranslationDataset]]) -> None:
         """
         Add an experience to the buffer by adding a new partition inside of it. Keep in mind that the examples entering
         the byffer are random and that a resizing of all the previous partitions will be applied so that they will have
         approximately the same size.
-        :param exp: the experience from which to draw the new examples.
+        :param new_exp: the experience from which to draw the new examples.
         """
         # Put all the previous and current experiences together
-        current_exp: List[TranslationDataset] = [exp] if isinstance(exp, TranslationDataset) else exp
+        current_exp: List[TranslationDataset] = [new_exp] if isinstance(new_exp, TranslationDataset) else new_exp
         exps: List[List[TranslationDataset]] = self._exps + [current_exp]
 
         # Compute the new partition size and the exceeding number of examples
@@ -108,7 +108,7 @@ class Buffer(Dataset):
         partition_sizes = {}
         datasets_size = {}
         for i, exp in enumerate(self._exps):
-            partition_sizes[i] = sum([len(dataset) for dataset in exp])
+            partition_sizes[i] = sum(len(dataset) for dataset in exp)
             for dataset in exp:
                 src_lang = dataset.src_lang
                 tgt_lang = dataset.tgt_lang

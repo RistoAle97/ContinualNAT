@@ -130,9 +130,11 @@ class TransformerNATCore(TransformerCore):
                          src_lengths: torch.Tensor,
                          tgt_lengths: torch.Tensor) -> torch.Tensor:
         if self.map_copy == "uniform":
-            return self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths)
+            copied_tensor = self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths)
         else:
-            return self.__soft_copy(tensor_to_copy, src_lengths, tgt_lengths)
+            copied_tensor = self.__soft_copy(tensor_to_copy, src_lengths, tgt_lengths)
+
+        return copied_tensor
 
     def _check_length_token(self, input_ids: torch.Tensor) -> bool:
         if self.length_token_id is None:

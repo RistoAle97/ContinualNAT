@@ -25,7 +25,8 @@ class BatchSamplerCore(Sampler[List[int]]):
         self.concat_dataset = datasets if isinstance(datasets, ConcatDataset) else ConcatDataset(datasets)
         if sampling_strategy not in ["random", "sequential"]:
             raise ValueError("The sampling strategy must be one of \"random\" and \"sequential\".")
-        elif sampling_strategy == "random":
+
+        if sampling_strategy == "random":
             self._iter_samplers = [iter(RandomSampler(dataset)) for dataset in self.concat_dataset.datasets]
         else:
             self._iter_samplers = [iter(SequentialSampler(dataset)) for dataset in self.concat_dataset.datasets]

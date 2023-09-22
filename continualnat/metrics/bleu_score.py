@@ -15,7 +15,7 @@ from continualnat.models.cmlm.cmlm import CMLM
 from continualnat.models.core.transformer_core import TransformerCore
 from continualnat.models.glat.glat import GLAT
 
-TOKENIZERS = {tokenizer for tokenizer in sacrebleu.BLEU.TOKENIZERS}
+TOKENIZERS = set(tokenizer for tokenizer in sacrebleu.BLEU.TOKENIZERS)
 
 
 def compute_sacrebleu(model: TransformerCore,
@@ -61,7 +61,7 @@ def compute_sacrebleu(model: TransformerCore,
             generation_kwargs = {}
     else:
         is_mlm = False
-        shift_lang_token = True if isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast)) else False
+        shift_lang_token = isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast))
         return_lengths = False
         p_masking = 0.0
         generation_kwargs = {}

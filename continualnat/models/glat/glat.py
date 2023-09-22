@@ -50,7 +50,8 @@ class GLAT(TransformerNATCore):
         # Compute the source and target lengths if both are not passed
         if (src_lengths is None) ^ (tgt_lengths is None):
             raise ValueError("One between the source and target lengths is None while the other is defined.")
-        elif src_lengths is None:
+
+        if src_lengths is None:
             src_lengths = e_mask.sum(dim=-1)
             src_lengths -= 2 if self.length_token_id is None else 3
             tgt_lengths = d_mask.sum(dim=-1)[:, 0].unsqueeze(-1) - 2
@@ -254,9 +255,6 @@ class GLAT(TransformerNATCore):
 
         # Insert pad tokens to the masked positions and insert zeros to the respective log probabilities
         d_pad_mask = torch.clone(~d_mask[:, 0, :])
-        '''for i, tgt_length in enumerate(tgt_lengths):
-            translation_tokens[i, tgt_length - 1] = self.pad_token_id
-            log_probabilities[i, tgt_length - 1] = 0.0'''
 
         translation_tokens.masked_fill_(d_pad_mask, self.pad_token_id)
         log_probabilities.masked_fill_(d_pad_mask, 0.0)

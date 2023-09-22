@@ -52,7 +52,8 @@ def distill_dataset(teacher: Union[PreTrainedModel, TransformerCore, str],
     src_distill_path = f"{save_dir}/distilled_{dataset_name}.{src_lang}_{tgt_lang}.{src_lang}"
     tgt_distill_path = f"{save_dir}/distilled_{dataset_name}.{src_lang}_{tgt_lang}.{tgt_lang}"
     dataloader = tqdm(dataloader, desc=f"Distilling {src_lang}->{tgt_lang} dataset") if prog_bar else dataloader
-    with open(src_distill_path, "w") as src_datafile, open(tgt_distill_path, "w") as tgt_datafile:
+    with (open(src_distill_path, "w", encoding="utf-8") as src_datafile,
+          open(tgt_distill_path, "w", encoding="utf-8") as tgt_datafile):
         for batch in dataloader:
             sentences_to_distill = batch["translation"][src_lang]
             if tgt_lang == "de" and translator is not None:

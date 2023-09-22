@@ -44,7 +44,7 @@ class BatchCollator:
             if not 0 <= p_masking <= 1:
                 raise ValueError("The masking probability must be a float between 0 and 1.")
 
-            self.p_masking_is_defined = True if p_masking > 0.0 else False
+            self.p_masking_is_defined = p_masking > 0.0
             if mask_token_id is None:
                 raise ValueError("You defined a value for p_masking but you have passed None as mask token id.")
 

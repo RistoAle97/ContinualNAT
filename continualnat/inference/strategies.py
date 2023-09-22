@@ -264,12 +264,13 @@ class BeamHypotheses:
         """
         if len(self) < self.num_beams:
             return False
-        elif self.early_stopping:
-            return True
-        else:
-            if self.length_penalty > 0.0:
-                highest_possible_score = best_sum_log_p / (self.max_length ** self.length_penalty)
-            else:
-                highest_possible_score = best_sum_log_p / (cur_len ** self.length_penalty)
 
-            return self.worst_score >= highest_possible_score
+        if self.early_stopping:
+            return True
+
+        if self.length_penalty > 0.0:
+            highest_possible_score = best_sum_log_p / (self.max_length ** self.length_penalty)
+        else:
+            highest_possible_score = best_sum_log_p / (cur_len ** self.length_penalty)
+
+        return self.worst_score >= highest_possible_score

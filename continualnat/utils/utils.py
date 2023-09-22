@@ -96,7 +96,8 @@ def compute_repeated_tokens(translations_tokens: List[str]) -> Tuple[int, float]
     for i, token in enumerate(translations_tokens):
         if i == 0:
             continue
-        elif token == translations_tokens[i - 1]:
+
+        if token == translations_tokens[i - 1]:
             repeated_tokens += 1
 
     return repeated_tokens, repeated_tokens / len(translations_tokens)

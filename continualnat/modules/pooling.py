@@ -6,7 +6,7 @@ class Pooler(nn.Module):
 
     def __init__(self, d_model: int = 512, pooler_size: int = 256) -> None:
         """
-        Simple class for all the pooler layers.
+        Simple base class for all the pooler layers.
         :param d_model: the model's embedding dimension (default=512).
         :param pooler_size: the pooler hidden dimension, be sure that this is at least equal or higher than the
             tokenizer's max_length (default=256).
