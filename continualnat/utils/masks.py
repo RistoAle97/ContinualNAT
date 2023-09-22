@@ -41,8 +41,8 @@ def create_decoder_mask(decoder_input_ids: torch.Tensor, pad_token_id: int, deco
     :param pad_token_id: the pad token id.
     :param decoder_mask: the type of mask for the decoder, if None only the padding mask for the decoder will be built.
         The possibile values are None (only padding), causal (the model will not attend on future positions) and
-        diagonal (the model will not attend on the current position). (default=None)
-    :return: the mask for the decoder of shape (bsz, seq_len, seq_len)
+        diagonal (the model will not attend on the current position) (default=None).
+    :return: the mask for the decoder of shape (bsz, seq_len, seq_len).
     """
     d_pad_mask = decoder_input_ids.ne(pad_token_id).unsqueeze(1).to(decoder_input_ids.device)
     if decoder_mask not in [None, "causal", "diagonal"]:
@@ -58,6 +58,25 @@ def create_decoder_mask(decoder_input_ids: torch.Tensor, pad_token_id: int, deco
 
     d_mask = d_pad_mask & nopeak_mask
     return d_mask  # (bsz, seq_len, seq_len)
+
+
+def create_padding_mask_from_lengths(lengths: torch.Tensor, is_decoder: bool = False) -> torch.Tensor:
+    """
+    Create the padding mask given the lengths.
+    :param lengths: a tensor containing the lengths, not cosindering the special tokens, of some tokenized sentences.
+        Its shape is (bsz, 1).
+    :param is_decoder: whether the padding mask should be used by the decoder or not. If True then the shape will be
+        (bsz, max_length, max_length) or (bsz, 1, max_length) otherwise (default=False).
+    :return: the padding mask.
+    """
+    bsz = lengths.size(0)
+    max_length = lengths.max()
+    idxs = torch.arange(max_length, device=lengths.device).long().unsqueeze(0).repeat(bsz, 1)
+    mask = idxs.less(lengths).unsqueeze(1)  # (bsz, 1, max_length)
+    if is_decoder:
+        mask = mask.repeat_interleave(max_length, dim=1)  # (bsz, max_length, max_length)
+
+    return mask
 
 
 def create_masks(input_ids: torch.Tensor,
