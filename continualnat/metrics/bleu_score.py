@@ -13,6 +13,7 @@ from continualnat.data.batch_collators import BatchCollator
 from continualnat.data.datasets import TranslationDataset
 from continualnat.models.cmlm.cmlm import CMLM
 from continualnat.models.core.transformer_core import TransformerCore
+from continualnat.models.glat.glat import GLAT
 
 TOKENIZERS = {tokenizer for tokenizer in sacrebleu.BLEU.TOKENIZERS}
 
@@ -48,12 +49,16 @@ def compute_sacrebleu(model: TransformerCore,
 
     scb = evaluate.load("sacrebleu")
     device = model.device
-    if isinstance(model, CMLM):
+    if isinstance(model, (CMLM, GLAT)):
         is_mlm = True
         shift_lang_token = False
         return_lengths = True
-        p_masking = 1.0
-        generation_kwargs = {"iterations": iterations}
+        if isinstance(model, CMLM):
+            p_masking = 1.0
+            generation_kwargs = {"iterations": iterations}
+        else:
+            p_masking = 0.0
+            generation_kwargs = {}
     else:
         is_mlm = False
         shift_lang_token = True if isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast)) else False
@@ -61,8 +66,9 @@ def compute_sacrebleu(model: TransformerCore,
         p_masking = 0.0
         generation_kwargs = {}
 
+    mask_token_id = model.mask_token_id if hasattr(model, "mask_token_id") else 5
     batch_collator = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token, return_lengths=return_lengths,
-                                   pad_token_id=model.pad_token_id, mask_token_id=model.mask_token_id,
+                                   pad_token_id=model.pad_token_id, mask_token_id=mask_token_id,
                                    p_masking=p_masking)
     dataloader = DataLoader(dataset, batch_size=bsz, collate_fn=batch_collator)
     translations = []
@@ -71,7 +77,10 @@ def compute_sacrebleu(model: TransformerCore,
     for batch in dataloader:
         translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code],
                                      **generation_kwargs)
-        translation, _ = translation if isinstance(model, CMLM) else translation
+        if isinstance(model, CMLM):
+            translation, _ = translation
+
+        # translation, _ = translation if isinstance(model, CMLM) else translation
         decoded_translation = tokenizer.batch_decode(translation, skip_special_tokens=True)
         translations.extend(decoded_translation)
         targets.extend(batch["references"])

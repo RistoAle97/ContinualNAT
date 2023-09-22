@@ -5,6 +5,7 @@ from .masks import (
     create_encoder_mask,
     create_decoder_mask,
     create_masks,
+    create_padding_mask_from_lengths,
     mask_batch
 )
 from .models import init_bert_weights, model_n_parameters, model_size

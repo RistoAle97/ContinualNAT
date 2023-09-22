@@ -16,6 +16,7 @@ from continualnat.data.batch_collators import BatchCollator
 from continualnat.data.batch_samplers import BatchSamplerCore, HeterogeneousSampler, HomogeneousSampler
 from continualnat.data.datasets import TranslationDataset
 from continualnat.models.cmlm.cmlm import CMLM
+from continualnat.models.glat.glat import GLAT
 from continualnat.models.core.transformer_core import TransformerCore
 from continualnat.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
 
@@ -66,11 +67,14 @@ class TrainerCore:
                                 val_datasets: List[TranslationDataset],
                                 train_bsz: int = 128,
                                 val_bsz: int = 128) -> Tuple[DataLoader, Dict[str, DataLoader]]:
-        if isinstance(model, CMLM):
+        if isinstance(model, (CMLM, GLAT)):
             is_mlm = True
             shift_lang_token = False
             return_lengths = True
-            p_masking = "random" if not model.glat_training else 1.0
+            if isinstance(model, CMLM):
+                p_masking = "random" if not model.glat_training else 1.0
+            else:
+                p_masking = 0.0
         else:
             is_mlm = False
             shift_lang_token = True
@@ -232,7 +236,7 @@ class MultilingualTrainer(TrainerCore):
                                                                      train_bsz, val_bsz)
 
         # Accumulation steps
-        max_length = train_datasets[0].tokenizer_state["max_length"]
+        max_length = train_datasets[0].max_length
         tokens_per_batch = tokens_per_batch if tokens_per_batch is not None else train_bsz * max_length
         accumulation_steps = compute_accumulation_steps(train_bsz, max_length, tokens_per_batch)
 
@@ -260,8 +264,8 @@ class MultilingualTrainer(TrainerCore):
 
         # Early stopping
         if early_stopping:
-            early_stopping = EarlyStopping("mean_BLEU", patience=patience, mode="max")
-            trainer_callbacks.append(early_stopping)
+            early_stopping_callback = EarlyStopping("mean_BLEU", patience=patience, mode="max")
+            trainer_callbacks.append(early_stopping_callback)
 
         # Train the model
         trainer = Trainer(devices=1, precision="16-mixed", logger=logger, max_steps=self.train_steps,
@@ -393,7 +397,7 @@ class ContinualTrainer(TrainerCore):
                                                                          val_bsz)
 
             # Accumulation steps
-            max_length = current_exp[0].tokenizer_state["max_length"]
+            max_length = current_exp[0].max_length
             tokens_per_batch = tokens_per_batch if tokens_per_batch is not None else train_bsz * max_length
             accumulation_steps = compute_accumulation_steps(train_bsz, max_length, tokens_per_batch)
 

@@ -87,7 +87,7 @@ class TransformerNATCore(TransformerCore):
             mask[i, current_length:] -= 1
 
         mask = mask.bool()
-        steps = (src_lengths.float() - 1) / (tgt_lengths.float() - 1)  # step-size of shape (bsz)
+        steps = (src_lengths.float() - 1) / (tgt_lengths.float() - 1 + 1e-4)  # step-size of shape (bsz)
         index_t = torch.arange(max_tgt_len, device=tgt_lengths.device).float()  # indexes of shape (max_tgt_len)
         index_t = steps[:, None] * index_t[None, :]  # (bsz, max_tgt_len)
         index_t = torch.round(index_t.squeeze(1)).long().detach()

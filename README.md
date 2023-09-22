@@ -120,7 +120,8 @@ The NAT models' names are taken from the following [survey](https://arxiv.org/pd
 - [CMLM](https://arxiv.org/abs/1904.09324)
 
 ###### Fully-NAT
-- CMLM with [GLAT](https://arxiv.org/abs/2008.07905) training
+- [GLAT](https://arxiv.org/abs/2008.07905)
+- CMLM with glancing
 
 ### Some small useful tutorials using trained models
 <details>
