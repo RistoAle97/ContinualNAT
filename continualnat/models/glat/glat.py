@@ -194,14 +194,14 @@ class GLAT(TransformerNATCore):
 
         self.eval()
         bsz = input_ids.shape[0]
-        # device = input_ids.device
+        device = input_ids.device
 
         # Compute lengths of the input ids
         src_lengths = torch.sum(input_ids.ne(self.pad_token_id), dim=-1)
         if tgt_lang_token_id not in input_ids[0]:
             # Need to put the target language token inside the input ids
             new_input_ids = []
-            tgt_lang_token = torch.tensor(tgt_lang_token_id).unsqueeze(0)
+            tgt_lang_token = torch.tensor(tgt_lang_token_id).unsqueeze(0).to(device)
             for i, tokenized_sentence in enumerate(input_ids):
                 new_tokenized_sentence = torch.cat([tokenized_sentence[:src_lengths[i]], tgt_lang_token,
                                                     tokenized_sentence[src_lengths[i]:]], dim=0)
