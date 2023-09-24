@@ -83,7 +83,7 @@ def create_masks(
     input_ids: torch.Tensor,
     decoder_input_ids: torch.Tensor,
     pad_token_id: int,
-    decoder_mask: str = None
+    decoder_mask: str = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Create masks for both encoder and decoder. The encoder's mask will prevent the module from attending on padding

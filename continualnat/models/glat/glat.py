@@ -40,7 +40,7 @@ class GLAT(TransformerNATCore):
         e_mask: torch.Tensor = None,
         d_mask: torch.Tensor = None,
         src_lengths: torch.Tensor = None,
-        tgt_lengths: torch.Tensor = None
+        tgt_lengths: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
@@ -96,7 +96,7 @@ class GLAT(TransformerNATCore):
         labels: torch.Tensor,
         labels_mask: torch.tensor,
         tgt_embeddings: torch.Tensor,
-        logits: torch.Tensor
+        logits: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Compute the glancing ratio
         glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
@@ -177,7 +177,7 @@ class GLAT(TransformerNATCore):
         self,
         input_ids: torch.Tensor,
         tgt_lang_token_id: int,
-        length_beam_size: int = 5
+        length_beam_size: int = 5,
     ) -> torch.Tensor:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.

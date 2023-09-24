@@ -48,7 +48,7 @@ class GlancingSampler:
         labels_mask: torch.Tensor,
         logits: torch.Tensor,
         predictions: torch.Tensor,
-        ratio: float = 0.5
+        ratio: float = 0.5,
     ) -> torch.Tensor:
         """
         Sampler for the glancing strategy employed by the GLAT training.

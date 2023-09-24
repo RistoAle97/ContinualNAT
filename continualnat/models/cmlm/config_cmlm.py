@@ -24,7 +24,7 @@ class CMLMConfig(NATCoreConfig):
         length_token_id: int = None,
         label_smoothing: float = 0.0,
         pooler_size: int = 256,
-        glat_training: bool = False
+        glat_training: bool = False,
     ) -> None:
         """
         Configuration class for the CMLM model.

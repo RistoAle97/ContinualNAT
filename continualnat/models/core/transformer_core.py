@@ -15,7 +15,7 @@ from continualnat.modules.transformer_layers import (
     TransformerEncoderLayer,
     TransformerEncoder,
     TransformerDecoderLayer,
-    TransformerDecoder
+    TransformerDecoder,
 )
 
 
@@ -98,7 +98,7 @@ class TransformerCore(LightningModule):
         tgt_input: torch.Tensor,
         e_output: torch.Tensor,
         d_mask: torch.Tensor = None,
-        e_mask: torch.Tensor = None
+        e_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         """
         Decodes the masked target sentence given the encodings of the source sentence.

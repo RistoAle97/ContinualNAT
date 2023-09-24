@@ -6,5 +6,5 @@ from .transformer_layers import (
     TransformerEncoderLayer,
     TransformerEncoder,
     TransformerDecoderLayer,
-    TransformerDecoder
+    TransformerDecoder,
 )

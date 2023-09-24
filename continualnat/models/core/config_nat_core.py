@@ -25,7 +25,7 @@ class NATCoreConfig(CoreConfig):
         map_copy: str = "uniform",
         tensor_to_copy: str = "e_output",
         pooler_size: int = 256,
-        tau: float = 0.3
+        tau: float = 0.3,
     ) -> None:
         """
         Configuration class for the GLAT model.

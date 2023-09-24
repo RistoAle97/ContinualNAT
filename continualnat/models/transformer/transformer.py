@@ -26,7 +26,7 @@ class Transformer(TransformerCore):
         src_input: torch.Tensor,
         tgt_input: torch.Tensor,
         e_mask: torch.Tensor = None,
-        d_mask: torch.Tensor = None
+        d_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         """
         Process masked source and target sequences.
@@ -84,7 +84,7 @@ class Transformer(TransformerCore):
         input_ids: torch.Tensor,
         decoder_start_token_id: int,
         max_new_tokens: int = 10,
-        num_beams: int = 5
+        num_beams: int = 5,
     ) -> torch.Tensor:
         """
         Generate tokens at inference time using greedy or beam search decoding.

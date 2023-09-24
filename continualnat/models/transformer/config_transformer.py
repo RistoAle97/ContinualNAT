@@ -20,7 +20,7 @@ class TransformerConfig(CoreConfig):
         bos_token_id: int = 0,
         eos_token_id: int = 2,
         pad_token_id: int = 1,
-        label_smoothing: float = 0.0
+        label_smoothing: float = 0.0,
     ) -> None:
         """
         Configuration class for the Transformer model.

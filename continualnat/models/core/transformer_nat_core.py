@@ -46,7 +46,7 @@ class TransformerNATCore(TransformerCore):
         tgt_input: torch.Tensor,
         e_output: torch.Tensor,
         d_mask: torch.Tensor = None,
-        e_mask: torch.Tensor = None
+        e_mask: torch.Tensor = Nonem
     ) -> torch.Tensor:
         if self.length_token_id is not None:
             # Do not use the encodings of the <length> token inside the decoder
@@ -76,7 +76,7 @@ class TransformerNATCore(TransformerCore):
         self,
         tensor_to_copy: torch.Tensor,
         src_lengths: torch.Tensor,
-        tgt_lengths: torch.Tensor
+        tgt_lengths: torch.Tensorm
     ) -> torch.Tensor:
         """
         The uniform copy mechanism from Gu et al. https://arxiv.org/pdf/1711.02281.pdf, it copies the source embeddings
@@ -108,7 +108,7 @@ class TransformerNATCore(TransformerCore):
         self,
         tensor_to_copy: torch.Tensor,
         src_lengths: torch.tensor,
-        tgt_lengths: torch.Tensor
+        tgt_lengths: torch.Tensor,
     ) -> torch.Tensor:
         """
         The soft copy mechanism from Wei et al. https://aclanthology.org/P19-1125.pdf, it copies the source embeddings
@@ -158,7 +158,7 @@ class TransformerNATCore(TransformerCore):
         self,
         e_output: torch.Tensor,
         n_lengths: int = 1,
-        e_mask: torch.Tensor = None
+        e_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         """
         Computes the target sentence possible lengths given the encoder's output.
@@ -182,7 +182,7 @@ class TransformerNATCore(TransformerCore):
         logits: torch.Tensor,
         labels: torch.Tensor,
         lengths_logits: torch.Tensor,
-        target_lengths: torch.Tensor
+        target_lengths: torch.Tensor,
     ) -> Tuple[torch.Tensor, float, float]:
         # Logits loss
         logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)

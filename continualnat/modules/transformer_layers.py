@@ -36,7 +36,7 @@ class MultiHeadAttention(nn.Module):
         query: torch.Tensor,
         key: torch.Tensor,
         value: torch.Tensor,
-        mask: torch.Tensor = None
+        mask: torch.Tensor = None,
     ) -> torch.Tensor:
         attn_scores = torch.matmul(query, key.transpose(-2, -1))
         attn_scores /= self.d_model ** 0.5
@@ -113,7 +113,7 @@ class TransformerEncoderLayer(nn.Module):
         dropout_mha: float = 0.0,
         dropout_ff: float = 0.0,
         activation_ff: str = "relu",
-        layer_norm_eps: float = 1e-6
+        layer_norm_eps: float = 1e-6,
     ) -> None:
         """
         The transformer encoder layer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). The layer
@@ -192,7 +192,7 @@ class TransformerDecoderLayer(nn.Module):
         dropout_ff: float = 0.0,
         activation_ff: str = "relu",
         layer_norm_eps: float = 1e-6,
-        use_pos_att: bool = False
+        use_pos_att: bool = False,
     ) -> None:
         """
         The transformer decoder layer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). The layer
@@ -287,7 +287,7 @@ class TransformerDecoder(nn.Module):
         tgt_embeddings: torch.Tensor,
         e_output: torch.Tensor,
         d_mask: torch.Tensor = None,
-        e_mask: torch.Tensor = None
+        e_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         output = tgt_embeddings
         for decoder_layer in self.layers:
