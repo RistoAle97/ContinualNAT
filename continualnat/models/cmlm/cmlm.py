@@ -42,11 +42,13 @@ class CMLM(TransformerNATCore):
         self._training_loss = "glat_loss" if self.glat_training else "mlm_loss"
         self.train_metrics[self._training_loss] = MeanMetric()
 
-    def forward(self,
-                src_input: torch.Tensor,
-                tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
-                d_mask: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        src_input: torch.Tensor,
+        tgt_input: torch.Tensor,
+        e_mask: torch.Tensor = None,
+        d_mask: torch.Tensor = None
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
         """
@@ -79,11 +81,13 @@ class CMLM(TransformerNATCore):
         if self.glat_training:
             self.lambda_scheduler = LambdaScheduler(steps=self.trainer.estimated_stepping_batches)
 
-    def __glancing_strategy(self,
-                            labels: torch.Tensor,
-                            labels_non_special_mask: torch.tensor,
-                            decoder_input_ids: torch.Tensor,
-                            logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __glancing_strategy(
+        self,
+        labels: torch.Tensor,
+        labels_non_special_mask: torch.tensor,
+        decoder_input_ids: torch.Tensor,
+        logits: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Compute the glancing ratio
         glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
 
@@ -150,11 +154,13 @@ class CMLM(TransformerNATCore):
         # Update the BLEU metric internal parameters
         self.val_metrics[f"BLEU_{lang_pair}"].update(predictions, references)
 
-    def __mask_predict(self,
-                       encodings: torch.Tensor,
-                       e_mask: torch.Tensor,
-                       tgt_input: torch.Tensor,
-                       iterations: int = 10) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __mask_predict(
+        self,
+        encodings: torch.Tensor,
+        e_mask: torch.Tensor,
+        tgt_input: torch.Tensor,
+        iterations: int = 10
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             # Parameters
             bsz, seq_len = tgt_input.size()
@@ -218,11 +224,13 @@ class CMLM(TransformerNATCore):
             output_at_each_step = output_at_each_step.view(bsz, iterations + 1, seq_len)
             return tokens, log_p_tokens, output_at_each_step
 
-    def generate(self,
-                 input_ids: torch.Tensor,
-                 tgt_lang_token_id: int,
-                 iterations: int = None,
-                 length_beam_size: int = 5) -> Tuple[torch.Tensor, torch.Tensor]:
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        tgt_lang_token_id: int,
+        iterations: int = None,
+        length_beam_size: int = 5
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.

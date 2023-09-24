@@ -33,13 +33,15 @@ class GLAT(TransformerNATCore):
         # Train and validation losses
         self.train_metrics["glat_loss"] = MeanMetric()
 
-    def forward(self,
-                src_input: torch.Tensor,
-                tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
-                d_mask: torch.Tensor = None,
-                src_lengths: torch.Tensor = None,
-                tgt_lengths: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        src_input: torch.Tensor,
+        tgt_input: torch.Tensor,
+        e_mask: torch.Tensor = None,
+        d_mask: torch.Tensor = None,
+        src_lengths: torch.Tensor = None,
+        tgt_lengths: torch.Tensor = None
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
         """
@@ -55,8 +57,6 @@ class GLAT(TransformerNATCore):
             src_lengths = e_mask.sum(dim=-1)
             src_lengths -= 2 if self.length_token_id is None else 3
             tgt_lengths = d_mask.sum(dim=-1)[:, 0].unsqueeze(-1) - 2
-
-        # src_lengths += 1  # consider the eos token too
 
         # Embeddings and positional encoding
         src_embeddings_no_pos_encoding = self.embedding(src_input)  # (bsz, src_len, d_model)
@@ -91,11 +91,13 @@ class GLAT(TransformerNATCore):
         self.lambda_scheduler = LambdaScheduler(steps=self.trainer.estimated_stepping_batches)
         # self.lambda_scheduler.anneal_steps = self.trainer.estimated_stepping_batches
 
-    def __glancing_strategy(self,
-                            labels: torch.Tensor,
-                            labels_mask: torch.tensor,
-                            tgt_embeddings: torch.Tensor,
-                            logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __glancing_strategy(
+        self,
+        labels: torch.Tensor,
+        labels_mask: torch.tensor,
+        tgt_embeddings: torch.Tensor,
+        logits: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Compute the glancing ratio
         glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
 
@@ -171,10 +173,12 @@ class GLAT(TransformerNATCore):
         # Update the BLEU metric internal parameters
         self.val_metrics[f"BLEU_{lang_pair}"].update(predictions, references)
 
-    def generate(self,
-                 input_ids: torch.Tensor,
-                 tgt_lang_token_id: int,
-                 length_beam_size: int = 5) -> torch.Tensor:
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        tgt_lang_token_id: int,
+        length_beam_size: int = 5
+    ) -> torch.Tensor:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.

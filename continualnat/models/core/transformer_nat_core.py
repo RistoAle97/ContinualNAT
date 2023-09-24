@@ -41,11 +41,13 @@ class TransformerNATCore(TransformerCore):
         e_output = super().encode(e_input, e_mask)
         return e_output
 
-    def decode(self,
-               tgt_input: torch.Tensor,
-               e_output: torch.Tensor,
-               d_mask: torch.Tensor = None,
-               e_mask: torch.Tensor = None) -> torch.Tensor:
+    def decode(
+        self,
+        tgt_input: torch.Tensor,
+        e_output: torch.Tensor,
+        d_mask: torch.Tensor = None,
+        e_mask: torch.Tensor = None
+    ) -> torch.Tensor:
         if self.length_token_id is not None:
             # Do not use the encodings of the <length> token inside the decoder
             e_output = e_output[:, 1:]
@@ -54,9 +56,11 @@ class TransformerNATCore(TransformerCore):
         d_output = super().decode(tgt_input, e_output, d_mask, e_mask)
         return d_output
 
-    def _define_pooler_inputs(self,
-                              e_output: torch.Tensor,
-                              e_mask: torch.Tensor) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
+    def _define_pooler_inputs(
+        self,
+        e_output: torch.Tensor,
+        e_mask: torch.Tensor
+    ) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
         pooler_inputs = {"e_output": e_output}
         if self.length_token_id is not None:
             # Do not use the encodings of the <length> token inside the decoder
@@ -68,10 +72,12 @@ class TransformerNATCore(TransformerCore):
 
         return pooler_inputs, e_output, e_mask
 
-    def __uniform_copy(self,
-                       tensor_to_copy: torch.Tensor,
-                       src_lengths: torch.Tensor,
-                       tgt_lengths: torch.tensor) -> torch.Tensor:
+    def __uniform_copy(
+        self,
+        tensor_to_copy: torch.Tensor,
+        src_lengths: torch.Tensor,
+        tgt_lengths: torch.Tensor
+    ) -> torch.Tensor:
         """
         The uniform copy mechanism from Gu et al. https://arxiv.org/pdf/1711.02281.pdf, it copies the source embeddings
         or encoder output as the decoder input based on the source and target lengths.
@@ -91,17 +97,19 @@ class TransformerNATCore(TransformerCore):
         index_t = torch.arange(max_tgt_len, device=tgt_lengths.device).float()  # indexes of shape (max_tgt_len)
         index_t = steps[:, None] * index_t[None, :]  # (bsz, max_tgt_len)
         index_t = torch.round(index_t.squeeze(1)).long().detach()
-        # mapped_inputs = index_t.masked_fill(~d_mask[:, 0, :max_tgt_len], 0).to(tgt_lengths.device)
         mapped_inputs = index_t.masked_fill(~mask, 0).to(tgt_lengths.device)
         mapped_inputs = mapped_inputs.unsqueeze(-1)
-        embeddings_copy = torch.gather(tensor_to_copy, 1,
-                                       mapped_inputs.expand(*mapped_inputs.size()[:-1], self.d_model))
+        embeddings_copy = torch.gather(
+            tensor_to_copy, 1, mapped_inputs.expand(*mapped_inputs.size()[:-1], self.d_model)
+        )
         return embeddings_copy
 
-    def __soft_copy(self,
-                    tensor_to_copy: torch.Tensor,
-                    src_lengths: torch.tensor,
-                    tgt_lengths: torch.Tensor) -> torch.Tensor:
+    def __soft_copy(
+        self,
+        tensor_to_copy: torch.Tensor,
+        src_lengths: torch.tensor,
+        tgt_lengths: torch.Tensor
+    ) -> torch.Tensor:
         """
         The soft copy mechanism from Wei et al. https://aclanthology.org/P19-1125.pdf, it copies the source embeddings
         or encoder output on an attention-based mechanism. Based on
@@ -125,10 +133,12 @@ class TransformerNATCore(TransformerCore):
         embeddings_copy = torch.bmm(probs, tensor_to_copy)  # (bsz, max_tgt_length, d_model)
         return embeddings_copy
 
-    def _copy_embeddings(self,
-                         tensor_to_copy: torch.Tensor,
-                         src_lengths: torch.Tensor,
-                         tgt_lengths: torch.Tensor) -> torch.Tensor:
+    def _copy_embeddings(
+        self,
+        tensor_to_copy: torch.Tensor,
+        src_lengths: torch.Tensor,
+        tgt_lengths: torch.Tensor
+    ) -> torch.Tensor:
         if self.map_copy == "uniform":
             copied_tensor = self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths)
         else:
@@ -144,10 +154,12 @@ class TransformerNATCore(TransformerCore):
         is_using_length_token = (input_ids[:, 0] == self.length_token_id)
         return is_using_length_token.all()
 
-    def predict_target_length(self,
-                              e_output: torch.Tensor,
-                              n_lengths: int = 1,
-                              e_mask: torch.Tensor = None) -> torch.Tensor:
+    def predict_target_length(
+        self,
+        e_output: torch.Tensor,
+        n_lengths: int = 1,
+        e_mask: torch.Tensor = None
+    ) -> torch.Tensor:
         """
         Computes the target sentence possible lengths given the encoder's output.
         :param e_output: the encoder's output of shape (bsz, seq_len, d_model).
@@ -165,11 +177,13 @@ class TransformerNATCore(TransformerCore):
         lengths = lengths_logits.topk(n_lengths, dim=-1)[1]  # (bsz, n_lengths)
         return lengths
 
-    def compute_loss(self,
-                     logits: torch.Tensor,
-                     labels: torch.Tensor,
-                     lengths_logits: torch.Tensor,
-                     target_lengths: torch.Tensor) -> Tuple[torch.Tensor, float, float]:
+    def compute_loss(
+        self,
+        logits: torch.Tensor,
+        labels: torch.Tensor,
+        lengths_logits: torch.Tensor,
+        target_lengths: torch.Tensor
+    ) -> Tuple[torch.Tensor, float, float]:
         # Logits loss
         logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)
         labels = labels.contiguous().view(-1)  # (bsz * seq_len)

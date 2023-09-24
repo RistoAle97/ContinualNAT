@@ -81,9 +81,7 @@ class TransformerCore(LightningModule):
         self.train_metrics = {"train_loss": MeanMetric()}
         self.val_metrics = {"mean_BLEU": MeanMetric()}
 
-    def encode(self,
-               e_input: torch.Tensor,
-               e_mask: torch.Tensor = None) -> torch.Tensor:
+    def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Encodes the masked source sentence.
         :param e_input: torch tensor of shape (bsz, seq_len).
@@ -95,11 +93,13 @@ class TransformerCore(LightningModule):
         e_output = self.encoder(src_embeddings, e_mask)
         return e_output
 
-    def decode(self,
-               tgt_input: torch.Tensor,
-               e_output: torch.Tensor,
-               d_mask: torch.Tensor = None,
-               e_mask: torch.Tensor = None) -> torch.Tensor:
+    def decode(
+        self,
+        tgt_input: torch.Tensor,
+        e_output: torch.Tensor,
+        d_mask: torch.Tensor = None,
+        e_mask: torch.Tensor = None
+    ) -> torch.Tensor:
         """
         Decodes the masked target sentence given the encodings of the source sentence.
         :param e_output: encodings coming from the encoder of shape (bsz, seq_len, d_model).
@@ -197,8 +197,9 @@ class TransformerCore(LightningModule):
             self.lr_scheduler["num_warmup_steps"] = warmup_steps
 
     def configure_optimizers(self):
-        lr_scheduler = get_scheduler(**self.lr_scheduler, optimizer=self.optimizer,
-                                     num_training_steps=self.trainer.estimated_stepping_batches)
+        lr_scheduler = get_scheduler(
+            **self.lr_scheduler, optimizer=self.optimizer, num_training_steps=self.trainer.estimated_stepping_batches
+        )
         return [self.optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
 
     def generate(self, *kwargs):
