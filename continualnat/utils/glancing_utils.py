@@ -42,12 +42,14 @@ class GlancingSampler:
 
         self.strategy = strategy
 
-    def __call__(self,
-                 labels: torch.Tensor,
-                 labels_mask: torch.Tensor,
-                 logits: torch.Tensor,
-                 predictions: torch.Tensor,
-                 ratio: float = 0.5) -> torch.Tensor:
+    def __call__(
+        self,
+        labels: torch.Tensor,
+        labels_mask: torch.Tensor,
+        logits: torch.Tensor,
+        predictions: torch.Tensor,
+        ratio: float = 0.5
+    ) -> torch.Tensor:
         """
         Sampler for the glancing strategy employed by the GLAT training.
         :param labels: the tokenized ground-truth target sentences.

@@ -79,10 +79,12 @@ def create_padding_mask_from_lengths(lengths: torch.Tensor, is_decoder: bool = F
     return mask
 
 
-def create_masks(input_ids: torch.Tensor,
-                 decoder_input_ids: torch.Tensor,
-                 pad_token_id: int,
-                 decoder_mask: str = None) -> Tuple[torch.Tensor, torch.Tensor]:
+def create_masks(
+    input_ids: torch.Tensor,
+    decoder_input_ids: torch.Tensor,
+    pad_token_id: int,
+    decoder_mask: str = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Create masks for both encoder and decoder. The encoder's mask will prevent the module from attending on padding
     tokens, while the decoder's mask will also prevent the module from attending on user-specificied tokens
