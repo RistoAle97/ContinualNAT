@@ -31,11 +31,13 @@ class MultiHeadAttention(nn.Module):
         self.out_proj = nn.Linear(d_model, d_model)
         self.dropout = nn.Dropout(dropout)
 
-    def __self_attention(self,
-                         query: torch.Tensor,
-                         key: torch.Tensor,
-                         value: torch.Tensor,
-                         mask: torch.Tensor = None) -> torch.Tensor:
+    def __self_attention(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        mask: torch.Tensor = None
+    ) -> torch.Tensor:
         attn_scores = torch.matmul(query, key.transpose(-2, -1))
         attn_scores /= self.d_model ** 0.5
         if mask is not None:
@@ -46,11 +48,13 @@ class MultiHeadAttention(nn.Module):
         p_attn = self.dropout(p_attn)
         return torch.matmul(p_attn, value)
 
-    def forward(self,
-                query: torch.Tensor,
-                key: torch.Tensor,
-                value: torch.Tensor,
-                mask: torch.Tensor = None) -> torch.Tensor:
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        mask: torch.Tensor = None
+    ) -> torch.Tensor:
         batch_size = query.size(0)
 
         # Perform linear operation and split into n_heads heads
@@ -100,15 +104,17 @@ class FeedForwardLayer(nn.Module):
 
 class TransformerEncoderLayer(nn.Module):
 
-    def __init__(self,
-                 d_model: int = 512,
-                 n_heads: int = 8,
-                 dim_ff: int = 2048,
-                 dropout: float = 0.1,
-                 dropout_mha: float = 0.0,
-                 dropout_ff: float = 0.0,
-                 activation_ff: str = "relu",
-                 layer_norm_eps: float = 1e-6) -> None:
+    def __init__(
+        self,
+        d_model: int = 512,
+        n_heads: int = 8,
+        dim_ff: int = 2048,
+        dropout: float = 0.1,
+        dropout_mha: float = 0.0,
+        dropout_ff: float = 0.0,
+        activation_ff: str = "relu",
+        layer_norm_eps: float = 1e-6
+    ) -> None:
         """
         The transformer encoder layer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). The layer
         is made up of one multi-head attention sublayer followed by a feed-forward sublayer. Differently from the paper,
@@ -176,16 +182,18 @@ class TransformerEncoder(nn.Module):
 
 class TransformerDecoderLayer(nn.Module):
 
-    def __init__(self,
-                 d_model: int = 512,
-                 n_heads: int = 8,
-                 dim_ff: int = 2048,
-                 dropout: float = 0.1,
-                 dropout_mha: float = 0.0,
-                 dropout_ff: float = 0.0,
-                 activation_ff: str = "relu",
-                 layer_norm_eps: float = 1e-6,
-                 use_pos_att: bool = False) -> None:
+    def __init__(
+        self,
+        d_model: int = 512,
+        n_heads: int = 8,
+        dim_ff: int = 2048,
+        dropout: float = 0.1,
+        dropout_mha: float = 0.0,
+        dropout_ff: float = 0.0,
+        activation_ff: str = "relu",
+        layer_norm_eps: float = 1e-6,
+        use_pos_att: bool = False
+    ) -> None:
         """
         The transformer decoder layer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). The layer
         is made up of two multi-head attention sublayers (self-attention and encoder-decoder cross-attention) followed
@@ -226,11 +234,13 @@ class TransformerDecoderLayer(nn.Module):
         self.ff = FeedForwardLayer(d_model, dim_ff, dropout_ff, activation_ff)
         self.ff_dropout = nn.Dropout(dropout)
 
-    def forward(self,
-                tgt_embeddings: torch.Tensor,
-                e_output: torch.Tensor,
-                d_mask: torch.Tensor = None,
-                e_mask: torch.Tensor = None) -> torch.Tensor:
+    def forward(
+        self,
+        tgt_embeddings: torch.Tensor,
+        e_output: torch.Tensor,
+        d_mask: torch.Tensor = None,
+        e_mask: torch.Tensor = None
+    ) -> torch.Tensor:
         # Multi-head attention sublayer
         mha_out = self.mha_norm(tgt_embeddings)
         mha_out = self.mha(mha_out, mha_out, mha_out, d_mask)
@@ -272,11 +282,13 @@ class TransformerDecoder(nn.Module):
         self.layers = nn.ModuleList([copy.deepcopy(decoder_layer) for _ in range(num_layers)])
         self.norm = norm
 
-    def forward(self,
-                tgt_embeddings: torch.Tensor,
-                e_output: torch.Tensor,
-                d_mask: torch.Tensor = None,
-                e_mask: torch.Tensor = None) -> torch.Tensor:
+    def forward(
+        self,
+        tgt_embeddings: torch.Tensor,
+        e_output: torch.Tensor,
+        d_mask: torch.Tensor = None,
+        e_mask: torch.Tensor = None
+    ) -> torch.Tensor:
         output = tgt_embeddings
         for decoder_layer in self.layers:
             output = decoder_layer(output, e_output, d_mask, e_mask)
