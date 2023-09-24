@@ -46,7 +46,7 @@ class TransformerNATCore(TransformerCore):
         tgt_input: torch.Tensor,
         e_output: torch.Tensor,
         d_mask: torch.Tensor = None,
-        e_mask: torch.Tensor = Nonem
+        e_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         if self.length_token_id is not None:
             # Do not use the encodings of the <length> token inside the decoder
@@ -76,7 +76,7 @@ class TransformerNATCore(TransformerCore):
         self,
         tensor_to_copy: torch.Tensor,
         src_lengths: torch.Tensor,
-        tgt_lengths: torch.Tensorm
+        tgt_lengths: torch.Tensor,
     ) -> torch.Tensor:
         """
         The uniform copy mechanism from Gu et al. https://arxiv.org/pdf/1711.02281.pdf, it copies the source embeddings

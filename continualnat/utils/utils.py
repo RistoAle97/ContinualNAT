@@ -6,7 +6,7 @@ import numpy as np
 import torch
 from torch.optim.lr_scheduler import LambdaLR
 
-# Maps iso codes into language codes for the Mbart tokenizer
+# Maps ISO 639-1 codes into language codes for the Mbart tokenizer
 MBART_LANG_MAP = {
     "ar": "ar_AR", "cs": "cs_CZ", "de": "de_DE", "en": "en_XX", "es": "es_XX", "et": "et_EE", "fi": "fi_FI",
     "fr": "fr_XX", "gu": "gu_IN", "hi": "hi_IN", "it": "it_IT", "ja": "ja_XX", "kk": "kk_KZ", "ko": "ko_KR",
@@ -14,7 +14,7 @@ MBART_LANG_MAP = {
     "si": "si_LK", "tr": "tr_TR", "vn": "vi_VN", "zh": "zh_CN"
 }
 
-# Maps ISO codes into language codes for the nllb and flores-200 datasets
+# Maps ISO 639-1 codes into language codes for the nllb and flores-200 datasets
 NLLB_FLORES200_LANG_MAP = {"en": "eng_Latn", "fr": "fra_Latn", "es": "spa_Latn", "de": "deu_Latn"}
 
 
