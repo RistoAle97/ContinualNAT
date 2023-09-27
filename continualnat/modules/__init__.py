@@ -16,8 +16,8 @@ __all__ = [
     "MultiHeadAttention",
     "Pooler",
     "PositionalEncoding",
-    "TransformerEncoder",
-    "TransformerEncoderLayer",
     "TransformerDecoder",
     "TransformerDecoderLayer",
+    "TransformerEncoder",
+    "TransformerEncoderLayer",
 ]

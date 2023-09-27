@@ -16,8 +16,8 @@ from continualnat.data.batch_collators import BatchCollator
 from continualnat.data.batch_samplers import BatchSamplerCore, HeterogeneousSampler, HomogeneousSampler
 from continualnat.data.datasets import TranslationDataset
 from continualnat.models.cmlm.cmlm import CMLM
-from continualnat.models.glat.glat import GLAT
 from continualnat.models.core.transformer_core import TransformerCore
+from continualnat.models.glat.glat import GLAT
 from continualnat.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
 
 
