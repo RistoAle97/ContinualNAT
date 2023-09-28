@@ -36,7 +36,6 @@ class GLAT(TransformerNATCore):
     def forward(
         self,
         src_input: torch.Tensor,
-        tgt_input: torch.Tensor,
         e_mask: torch.Tensor = None,
         d_mask: torch.Tensor = None,
         src_lengths: torch.Tensor = None,
@@ -75,8 +74,6 @@ class GLAT(TransformerNATCore):
         new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths)
 
         # Positional encoding for the copied target embeddings
-        # pos_encoded_tgt_input = self.positional_encoder.compute_positions(tgt_input)
-        # tgt_embeddings = self.positional_encoder.dropout(new_tgt_embeddings + pos_encoded_tgt_input)
         tgt_embeddings = self.positional_encoder(new_tgt_embeddings * self.embedding_scale)
 
         # Decoder
@@ -98,6 +95,7 @@ class GLAT(TransformerNATCore):
         tgt_embeddings: torch.Tensor,
         logits: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
+        # with torch.no_grad():
         # Compute the glancing ratio
         glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
 
@@ -107,15 +105,19 @@ class GLAT(TransformerNATCore):
         glanced_tokens = glancing_mask.unsqueeze(-1)
 
         # Compute the embeddings of the predictions
-        pred_embeddings = self.embedding(predictions)  # (bsz, tgt_len, d_model)
-        pred_embeddings = self.positional_encoder(pred_embeddings * self.embedding_scale)
+        labels_embeddings = self.embedding(labels)
+        labels_embeddings = self.positional_encoder(labels_embeddings * self.embedding_scale)
+        # pred_embeddings = self.embedding(predictions)  # (bsz, tgt_len, d_model)
+        # pred_embeddings = self.positional_encoder(pred_embeddings * self.embedding_scale)
 
         # Concatenate the previous target embeddings with the predictions', based on the glanced postions
-        new_tgt_embeddings = glanced_tokens * pred_embeddings + (1 - glanced_tokens) * tgt_embeddings
-
+        new_tgt_embeddings = glanced_tokens * labels_embeddings + (1 - glanced_tokens) * tgt_embeddings
+        # new_tgt_embeddings = glanced_tokens * pred_embeddings + (1 - glanced_tokens) * tgt_embeddings
+        
         # Build the new labels mask that takes into account the glanced positions
-        labels.masked_fill_(glancing_mask.bool() | ~labels_mask, self.pad_token_id)
-        return new_tgt_embeddings, labels
+        new_labels = labels.masked_fill(glancing_mask.bool() | ~labels_mask, self.pad_token_id)
+        # labels.masked_fill_(glancing_mask.bool() | ~labels_mask, self.pad_token_id)
+        return new_tgt_embeddings, new_labels
 
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
@@ -130,9 +132,9 @@ class GLAT(TransformerNATCore):
         e_mask, d_mask = create_masks(input_ids, decoder_input_ids[:, :max_tgt_length], self.pad_token_id, None)
 
         # Compute logits and predicted lengths
-        logits, predicted_lengths, e_output, tgt_embeddings = self(input_ids, decoder_input_ids, e_mask=e_mask,
-                                                                   d_mask=d_mask, src_lengths=src_lengths,
-                                                                   tgt_lengths=tgt_lengths)
+        logits, predicted_lengths, e_output, tgt_embeddings = self(
+            input_ids, e_mask=e_mask, d_mask=d_mask, src_lengths=src_lengths, tgt_lengths=tgt_lengths
+        )
 
         # Glancing strategy
         labels = labels[:, :max_tgt_length]

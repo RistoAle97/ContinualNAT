@@ -97,8 +97,10 @@ class CMLM(TransformerNATCore):
 
         # The non glanced tokens should be masked, except for the eos, pad and language tokens
         glanced_decoder_input_ids = glancing_mask * labels + (1 - glancing_mask) * self.mask_token_id
-        glanced_decoder_input_ids = (labels_non_special_mask * glanced_decoder_input_ids +
-                                     (1 - labels_non_special_mask) * decoder_input_ids)
+        glanced_decoder_input_ids = (
+            labels_non_special_mask * glanced_decoder_input_ids
+            + (1 - labels_non_special_mask) * decoder_input_ids
+        )
 
         # Modify the labels such that they take into account the glanced positions
         labels.masked_fill_(glancing_mask.bool() | ~labels_non_special_mask.bool(), self.pad_token_id)
@@ -119,8 +121,9 @@ class CMLM(TransformerNATCore):
 
         # Employ glancing strategy
         if self.glat_training:
-            glanced_decoder_input_ids, labels = self.__glancing_strategy(labels, 1 - labels_special_mask,
-                                                                         decoder_input_ids, logits)
+            glanced_decoder_input_ids, labels = self.__glancing_strategy(
+                labels, 1 - labels_special_mask, decoder_input_ids, logits
+            )
 
             # Compute the new logits
             logits = self.decode(glanced_decoder_input_ids, e_output, d_mask, e_mask)
