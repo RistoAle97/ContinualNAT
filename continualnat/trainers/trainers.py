@@ -22,7 +22,6 @@ from continualnat.utils.utils import MBART_LANG_MAP, compute_accumulation_steps
 
 
 class TrainerCore:
-
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
@@ -122,7 +121,6 @@ class TrainerCore:
 
 
 class MultilingualTrainer(TrainerCore):
-
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
@@ -151,8 +149,14 @@ class MultilingualTrainer(TrainerCore):
         :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
         """
         super().__init__(
-            tokenizer, train_steps, val_every_n_steps, log_every_n_steps, dataloader_num_workers, log_directory,
-            batch_type, use_wandb
+            tokenizer=tokenizer,
+            train_steps=train_steps,
+            val_every_n_steps=val_every_n_steps,
+            log_every_n_steps=log_every_n_steps,
+            dataloader_num_workers=dataloader_num_workers,
+            log_directory=log_directory,
+            batch_type=batch_type,
+            use_wandb=use_wandb,
         )
 
     @staticmethod
@@ -285,7 +289,7 @@ class MultilingualTrainer(TrainerCore):
         prog_bar = RichProgressBar(theme=prog_bar_theme)
 
         # Learning rate monitor
-        lr_monitor = LearningRateMonitor(logging_interval='step')
+        lr_monitor = LearningRateMonitor(logging_interval="step")
         trainer_callbacks = [checkpoint, lr_monitor, prog_bar]
 
         # Early stopping
@@ -310,7 +314,6 @@ class MultilingualTrainer(TrainerCore):
 
 
 class ContinualTrainer(TrainerCore):
-
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,
@@ -345,8 +348,14 @@ class ContinualTrainer(TrainerCore):
         :param use_wandb: whether to use wandb as a logger, otherwise tensorboard will be used (default=True).
         """
         super().__init__(
-            tokenizer, train_steps, val_every_n_steps, log_every_n_steps, dataloader_num_workers, log_directory,
-            exp_batch_type, use_wandb
+            tokenizer=tokenizer,
+            train_steps=train_steps,
+            val_every_n_steps=val_every_n_steps,
+            log_every_n_steps=log_every_n_steps,
+            dataloader_num_workers=dataloader_num_workers,
+            log_directory=log_directory,
+            batch_type=exp_batch_type,
+            use_wandb=use_wandb,
         )
         self.exp_batch_type = self.batch_type
         del self.batch_type
@@ -467,7 +476,7 @@ class ContinualTrainer(TrainerCore):
             else:
                 logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
 
-            lr_monitor = LearningRateMonitor(logging_interval='step')
+            lr_monitor = LearningRateMonitor(logging_interval="step")
             trainer_callbacks = [checkpoint, lr_monitor, prog_bar]
 
             # Train the model

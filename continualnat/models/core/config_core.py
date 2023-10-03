@@ -1,5 +1,4 @@
 class CoreConfig:
-
     def __init__(
         self,
         vocab_size: int,

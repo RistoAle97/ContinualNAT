@@ -10,7 +10,6 @@ from continualnat.modules.pooling import LengthPooler, MeanPooler
 
 
 class TransformerNATCore(TransformerCore):
-
     def __init__(self, config: NATCoreConfig) -> None:
         """
         This class does not implement the forward method and should be used only as a base for the actual NAT model's
@@ -29,14 +28,16 @@ class TransformerNATCore(TransformerCore):
             self.pooler = LengthPooler(self.d_model, self.pooler_size)
         else:
             self.pooler = MeanPooler(self.d_model, self.pooler_size)
-        
+
         # Length loss
         self.train_metrics["lengths_loss"] = MeanMetric()
 
     def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
         if not self._check_length_token(e_input):
-            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs"
-                             "such token to predict the target lengths.")
+            raise ValueError(
+                "The token <length> is not used by one or more tokenized sentence, the model needs such token to"
+                "predict the target lengths."
+            )
 
         e_output = super().encode(e_input, e_mask)
         return e_output
@@ -57,9 +58,7 @@ class TransformerNATCore(TransformerCore):
         return d_output
 
     def _define_pooler_inputs(
-        self,
-        e_output: torch.Tensor,
-        e_mask: torch.Tensor
+        self, e_output: torch.Tensor, e_mask: torch.Tensor
     ) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
         pooler_inputs = {"e_output": e_output}
         if self.length_token_id is not None:
@@ -121,23 +120,22 @@ class TransformerNATCore(TransformerCore):
         """
         max_src_length = src_lengths.max().unsqueeze(-1)
         max_tgt_length = tgt_lengths.max().unsqueeze(-1)
-        index_s = torch.arange(max_src_length[-1], device=src_lengths.device).expand(
-            *max_src_length).contiguous().float()  # (max_src_length)
-        index_t = torch.arange(max_tgt_length[-1], device=tgt_lengths.device).expand(
-            *max_tgt_length).contiguous().float()  # (max_tgt_length)
+        index_s = (
+            torch.arange(max_src_length[-1], device=src_lengths.device).expand(*max_src_length).contiguous().float()
+        )  # (max_src_length)
+        index_t = (
+            torch.arange(max_tgt_length[-1], device=tgt_lengths.device).expand(*max_tgt_length).contiguous().float()
+        )  # (max_tgt_length)
         diff = -(index_t[:, None] - index_s[None, :]).abs()  # (max_tgt_length, max_src_length)
         diff = diff.unsqueeze(0).expand(tgt_lengths.size(0), *diff.size())  # (bsz, max_tgt_length, max_src_length)
         mask = (src_lengths[:, None] - 1 - index_s[None, :]).lt(0).float().squeeze(1)  # (bsz, max_src_length)
-        logits = (diff / self.tau - 1e9 * mask[:, None, :])
+        logits = diff / self.tau - 1e9 * mask[:, None, :]
         probs = logits.softmax(-1)  # (bsz, max_tgt_length, max_src_length)
         embeddings_copy = torch.bmm(probs, tensor_to_copy)  # (bsz, max_tgt_length, d_model)
         return embeddings_copy
 
     def _copy_embeddings(
-        self,
-        tensor_to_copy: torch.Tensor,
-        src_lengths: torch.Tensor,
-        tgt_lengths: torch.Tensor
+        self, tensor_to_copy: torch.Tensor, src_lengths: torch.Tensor, tgt_lengths: torch.Tensor
     ) -> torch.Tensor:
         if self.map_copy == "uniform":
             copied_tensor = self.__uniform_copy(tensor_to_copy, src_lengths, tgt_lengths)
@@ -151,7 +149,7 @@ class TransformerNATCore(TransformerCore):
             # The model is not using a length token, we do not need to do any check
             return True
 
-        is_using_length_token = (input_ids[:, 0] == self.length_token_id)
+        is_using_length_token = input_ids[:, 0] == self.length_token_id
         return is_using_length_token.all()
 
     def predict_target_length(
@@ -187,8 +185,9 @@ class TransformerNATCore(TransformerCore):
         # Logits loss
         logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)
         labels = labels.contiguous().view(-1)  # (bsz * seq_len)
-        logits_loss = F.cross_entropy(logits, labels, ignore_index=self.pad_token_id,
-                                      label_smoothing=self.label_smoothing)
+        logits_loss = F.cross_entropy(
+            logits, labels, ignore_index=self.pad_token_id, label_smoothing=self.label_smoothing
+        )
 
         # Length loss
         lengths_logits = lengths_logits.contiguous().view(-1, lengths_logits.size(-1))

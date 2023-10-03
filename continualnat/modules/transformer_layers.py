@@ -6,7 +6,6 @@ from torch.functional import F
 
 
 class MultiHeadAttention(nn.Module):
-
     def __init__(self, d_model: int = 512, n_heads: int = 8, dropout: float = 0.0) -> None:
         """
         The multi-head attention sublayer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf).
@@ -39,7 +38,7 @@ class MultiHeadAttention(nn.Module):
         mask: torch.Tensor = None,
     ) -> torch.Tensor:
         attn_scores = torch.matmul(query, key.transpose(-2, -1))
-        attn_scores /= self.d_model ** 0.5
+        attn_scores /= self.d_model**0.5
         if mask is not None:
             mask = mask.unsqueeze(1)
             attn_scores = attn_scores.masked_fill(mask == 0, float("-inf"))
@@ -49,11 +48,7 @@ class MultiHeadAttention(nn.Module):
         return torch.matmul(p_attn, value)
 
     def forward(
-        self,
-        query: torch.Tensor,
-        key: torch.Tensor,
-        value: torch.Tensor,
-        mask: torch.Tensor = None
+        self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: torch.Tensor = None
     ) -> torch.Tensor:
         batch_size = query.size(0)
 
@@ -77,7 +72,6 @@ class MultiHeadAttention(nn.Module):
 
 
 class FeedForwardLayer(nn.Module):
-
     def __init__(self, d_model: int = 512, dim_ff: int = 2048, dropout: float = 0.0, activation: str = "relu") -> None:
         """
         The feed-forward sublayer from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf).
@@ -103,7 +97,6 @@ class FeedForwardLayer(nn.Module):
 
 
 class TransformerEncoderLayer(nn.Module):
-
     def __init__(
         self,
         d_model: int = 512,
@@ -154,7 +147,6 @@ class TransformerEncoderLayer(nn.Module):
 
 
 class TransformerEncoder(nn.Module):
-
     def __init__(self, encoder_layer: TransformerEncoderLayer, num_layers: int = 6, norm: nn.LayerNorm = None) -> None:
         """
         The encoder from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). Following the actual
@@ -181,7 +173,6 @@ class TransformerEncoder(nn.Module):
 
 
 class TransformerDecoderLayer(nn.Module):
-
     def __init__(
         self,
         d_model: int = 512,
@@ -239,7 +230,7 @@ class TransformerDecoderLayer(nn.Module):
         tgt_embeddings: torch.Tensor,
         e_output: torch.Tensor,
         d_mask: torch.Tensor = None,
-        e_mask: torch.Tensor = None
+        e_mask: torch.Tensor = None,
     ) -> torch.Tensor:
         # Multi-head attention sublayer
         mha_out = self.mha_norm(tgt_embeddings)
@@ -267,7 +258,6 @@ class TransformerDecoderLayer(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-
     def __init__(self, decoder_layer: TransformerDecoderLayer, num_layers: int = 6, norm: nn.LayerNorm = None):
         """
         The decoder from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf). Following the actual

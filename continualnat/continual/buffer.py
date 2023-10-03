@@ -7,7 +7,6 @@ from continualnat.data.datasets import TranslationDataset
 
 
 class Buffer(Dataset):
-
     def __init__(self, size: int, keep_prev_examples: bool = True) -> None:
         """
         The experience replay buffer, the fixed-size version. Each experience partition has, more or less, the

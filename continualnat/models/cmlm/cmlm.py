@@ -12,7 +12,6 @@ from continualnat.utils.models import init_bert_weights
 
 
 class CMLM(TransformerNATCore):
-
     def __init__(self, config: CMLMConfig) -> None:
         """
         The Conditional Masked Language Model (CMLM) from Ghazvininejad et al. https://arxiv.org/pdf/1904.09324.pdf, a
@@ -53,8 +52,10 @@ class CMLM(TransformerNATCore):
         Process source and target sequences.
         """
         if not self._check_length_token(src_input):
-            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs"
-                             "such token to predict the target lengths.")
+            raise ValueError(
+                "The token <length> is not used by one or more tokenized sentence, the model needs such token to"
+                "predict the target lengths."
+            )
 
         # Embeddings and positional encoding
         src_embeddings = self.embedding(src_input)  # (bsz, src_len, d_model)
@@ -98,8 +99,7 @@ class CMLM(TransformerNATCore):
         # The non glanced tokens should be masked, except for the eos, pad and language tokens
         glanced_decoder_input_ids = glancing_mask * labels + (1 - glancing_mask) * self.mask_token_id
         glanced_decoder_input_ids = (
-            labels_non_special_mask * glanced_decoder_input_ids
-            + (1 - labels_non_special_mask) * decoder_input_ids
+            labels_non_special_mask * glanced_decoder_input_ids + (1 - labels_non_special_mask) * decoder_input_ids
         )
 
         # Modify the labels such that they take into account the glanced positions
@@ -199,8 +199,10 @@ class CMLM(TransformerNATCore):
                 n_masks = (tgt_lengths * (1.0 - i / iterations)).int()
 
                 # Compute the indexes of the worst tokens in terms of probability
-                masks = [p_tokens[batch, :tgt_lengths[batch]].topk(max(1, n_masks[batch]), largest=False,
-                                                                   sorted=False)[1] for batch in range(bsz)]
+                masks = [
+                    p_tokens[batch, :tgt_lengths[batch]].topk(max(1, n_masks[batch]), largest=False, sorted=False)[1]
+                    for batch in range(bsz)
+                ]
                 masks = [torch.cat([mask, mask.new(seq_len - mask.size(0)).fill_(mask[0])], dim=0) for mask in masks]
                 masks = torch.stack(masks, dim=0)
 
@@ -256,8 +258,10 @@ class CMLM(TransformerNATCore):
             raise ValueError("The number of lengths to consider for each sentence must be at least 1.")
 
         if not self._check_length_token(input_ids):
-            raise ValueError("You are not using the <length> token at the start of the source sentences,"
-                             "the model can not predict the target lengths.")
+            raise ValueError(
+                "You are not using the <length> token at the start of the source sentences, the model can not predict"
+                "the target lengths."
+            )
 
         if tgt_lang_token_id is None:
             raise ValueError("You should define the target language token id.")

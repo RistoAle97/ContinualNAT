@@ -216,7 +216,6 @@ def beam_decoding(
 
 
 class BeamHypotheses:
-
     def __init__(
         self,
         num_beams: int,
@@ -275,8 +274,8 @@ class BeamHypotheses:
             return True
 
         if self.length_penalty > 0.0:
-            highest_possible_score = best_sum_log_p / (self.max_length ** self.length_penalty)
+            highest_possible_score = best_sum_log_p / (self.max_length**self.length_penalty)
         else:
-            highest_possible_score = best_sum_log_p / (cur_len ** self.length_penalty)
+            highest_possible_score = best_sum_log_p / (cur_len**self.length_penalty)
 
         return self.worst_score >= highest_possible_score

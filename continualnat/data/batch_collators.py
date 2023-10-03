@@ -7,7 +7,6 @@ from continualnat.utils.utils import shift_lang_token_right
 
 
 class BatchCollator:
-
     def __init__(
         self,
         is_mlm: bool = False,

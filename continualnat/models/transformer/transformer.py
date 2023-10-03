@@ -9,7 +9,6 @@ from continualnat.utils.models import init_bert_weights
 
 
 class Transformer(TransformerCore):
-
     def __init__(self, config: TransformerConfig) -> None:
         """
         Transformer model whose architecture is based on the paper "Attention is all you need" from Vaswani et al.

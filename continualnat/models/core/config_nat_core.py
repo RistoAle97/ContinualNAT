@@ -2,7 +2,6 @@ from continualnat.models.core.config_core import CoreConfig
 
 
 class NATCoreConfig(CoreConfig):
-
     def __init__(
         self,
         vocab_size: int,
@@ -56,9 +55,22 @@ class NATCoreConfig(CoreConfig):
         :param tau: the tau value for the soft-copy mechanism (default=0.3).
         """
         super().__init__(
-            vocab_size, d_model, n_heads, num_encoder_layers, num_decoder_layers, dim_ff, dropout, dropout_mha,
-            dropout_ff, activation_ff, layer_norm_eps, scale_embeddings, bos_token_id, eos_token_id, pad_token_id,
-            label_smoothing
+            vocab_size=vocab_size,
+            d_model=d_model,
+            n_heads=n_heads,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            dim_ff=dim_ff,
+            dropout=dropout,
+            dropout_mha=dropout_mha,
+            dropout_ff=dropout_ff,
+            activation_ff=activation_ff,
+            layer_norm_eps=layer_norm_eps,
+            scale_embeddings=scale_embeddings,
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            pad_token_id=pad_token_id,
+            label_smoothing=label_smoothing,
         )
         self.length_token_id = length_token_id
         if map_copy not in ["uniform", "soft"]:

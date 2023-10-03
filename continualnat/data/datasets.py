@@ -11,7 +11,6 @@ from continualnat.utils.utils import MBART_LANG_MAP, NLLB_FLORES200_LANG_MAP
 
 
 class TranslationDataset(Dataset):
-
     def __init__(
         self,
         src_lang: str,
@@ -176,7 +175,7 @@ class TranslationDataset(Dataset):
                 [
                     self.tokenizer.eos_token_id,
                     self.tokenizer.lang_code_to_id[self.src_lang_code],
-                    self.tokenizer.lang_code_to_id[self.tgt_lang_code]
+                    self.tokenizer.lang_code_to_id[self.tgt_lang_code],
                 ]
             ).unsqueeze(0)
             tgt_lang_token = torch.tensor([self.tokenizer.eos_token_id]).unsqueeze(0)

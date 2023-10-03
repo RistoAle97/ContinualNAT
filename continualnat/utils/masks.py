@@ -117,9 +117,10 @@ def mask_batch(tokenizer: PreTrainedTokenizerBase, batch: torch.Tensor) -> torch
         raise ValueError("You should use a tokenizer whose mask token is defined.")
 
     # Build the special tokens mask, such tokens must not be masked
-    special_tokens_masks = torch.tensor([tokenizer.get_special_tokens_mask(sentence, already_has_special_tokens=True)
-                                         for sentence in batch])
-    maskable_tokens = (special_tokens_masks.view(-1) == 0)
+    special_tokens_masks = torch.tensor(
+        [tokenizer.get_special_tokens_mask(sentence, already_has_special_tokens=True) for sentence in batch]
+    )
+    maskable_tokens = special_tokens_masks.view(-1) == 0
     masked_batch = batch.detach().clone()
     masked_batch.view(-1)[maskable_tokens] = tokenizer.mask_token_id
     return masked_batch

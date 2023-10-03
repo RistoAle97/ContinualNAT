@@ -144,9 +144,8 @@ def compute_sacrebleu_ct2(
     for batch in dataloader:
         src_sentences = batch["translation"][src_lang]
         src_tokens = [
-            tokenizer.convert_ids_to_tokens(
-                tokenizer.encode(src_sentence, truncation=True, max_length=max_length)
-            ) for src_sentence in src_sentences
+            tokenizer.convert_ids_to_tokens(tokenizer.encode(src_sentence, truncation=True, max_length=max_length))
+            for src_sentence in src_sentences
         ]
         generated_translations = translator.translate_batch(
             src_tokens, beam_size=beam_size, max_decoding_length=max_length

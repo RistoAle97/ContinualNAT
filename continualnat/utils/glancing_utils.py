@@ -2,7 +2,6 @@ import torch
 
 
 class LambdaScheduler:
-
     def __init__(self, start_ratio: float = 0.5, end_ratio: float = 0.2, start: int = 0, steps: int = 300000) -> None:
         """
         Scheduler for the lambda value used in the glancing strategy. Inspired from
@@ -34,7 +33,6 @@ class LambdaScheduler:
 
 
 class GlancingSampler:
-
     def __init__(self, adaptive: bool = True, strategy: str = "uniform") -> None:
         self.adaptive = adaptive
         if strategy not in ["uniform", "schedule", None]:
