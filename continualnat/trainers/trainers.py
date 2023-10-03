@@ -324,7 +324,7 @@ class ContinualTrainer(TrainerCore):
         log_every_n_steps: int = 500,
         dataloader_num_workers: int = 8,
         log_directory: str = "",
-        exp_batch_type: str = None,
+        batch_type: str = None,
         buffer_batch_size: float = None,
         use_wandb: bool = True,
     ) -> None:
@@ -338,7 +338,7 @@ class ContinualTrainer(TrainerCore):
             (default=8).
         :param log_directory: the log directory in which to save the logs, "" corresponds to the current working
             directory (default="").
-        :param exp_batch_type: the type of batch sampler used by the experiences. It can be None (the training datasets
+        :param batch_type: the type of batch sampler used by the experiences. It can be None (the training datasets
             will be simply concatenated into one and shuffled), "heterogeneous" (each batch will have one single
             translation direction) or "homogeneous" (each batch will contain more than one translation direction). The
             None value is useful in a scenario where all the datasets have the same size (default=None).
@@ -354,12 +354,9 @@ class ContinualTrainer(TrainerCore):
             log_every_n_steps=log_every_n_steps,
             dataloader_num_workers=dataloader_num_workers,
             log_directory=log_directory,
-            batch_type=exp_batch_type,
+            batch_type=batch_type,
             use_wandb=use_wandb,
         )
-        self.exp_batch_type = self.batch_type
-        del self.batch_type
-
         # Buffer
         self.buffer = Buffer(buffer_size, keep_previous_examples)
         if buffer_batch_size is not None and not 0.0 < buffer_batch_size <= 1.0:
@@ -382,9 +379,9 @@ class ContinualTrainer(TrainerCore):
             mem_batch_examples = train_bsz - exp_batch_examples
 
             # Experience batch sampler
-            if self.exp_batch_type == "heterogeneous":
+            if self.batch_type == "heterogeneous":
                 exp_sampler = HeterogeneousSampler(train_dataset, exp_batch_examples, True)
-            elif self.exp_batch_type == "homogeneous":
+            elif self.batch_type == "homogeneous":
                 exp_sampler = HomogeneousSampler(train_dataset, exp_batch_examples, True)
             else:
                 exp_sampler = RandomSampler(train_dataset)

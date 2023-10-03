@@ -208,7 +208,7 @@ def beam_decoding(
 
         # Put the eos token at the end of each sequence
         for i, hyp in enumerate(best):
-            decoded[i, :sentence_lengths[i]] = hyp
+            decoded[i, : sentence_lengths[i]] = hyp
             # if sentence_lengths[i] < max_sentence_length:
             decoded[i, sentence_lengths[i]] = model.eos_token_id
 

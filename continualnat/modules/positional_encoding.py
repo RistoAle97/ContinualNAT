@@ -24,8 +24,8 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def compute_positions(self, x: torch.Tensor) -> torch.Tensor:
-        return self.pe[:, :x.size(1), :]
+        return self.pe[:, : x.size(1), :]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.pe[:, :x.size(1), :]
+        x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)

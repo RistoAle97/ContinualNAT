@@ -200,7 +200,7 @@ class CMLM(TransformerNATCore):
 
                 # Compute the indexes of the worst tokens in terms of probability
                 masks = [
-                    p_tokens[batch, :tgt_lengths[batch]].topk(max(1, n_masks[batch]), largest=False, sorted=False)[1]
+                    p_tokens[batch, : tgt_lengths[batch]].topk(max(1, n_masks[batch]), largest=False, sorted=False)[1]
                     for batch in range(bsz)
                 ]
                 masks = [torch.cat([mask, mask.new(seq_len - mask.size(0)).fill_(mask[0])], dim=0) for mask in masks]
