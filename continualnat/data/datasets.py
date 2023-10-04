@@ -5,7 +5,7 @@ import datasets
 import numpy as np
 import torch
 from transformers import MBartTokenizer, MBartTokenizerFast
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 
 from continualnat.utils.utils import MBART_LANG_MAP, NLLB_FLORES200_LANG_MAP
 
@@ -15,7 +15,7 @@ class TranslationDataset(Dataset):
         self,
         src_lang: str,
         tgt_lang: str,
-        dataset: datasets.Dataset,
+        dataset: Union[datasets.Dataset, Subset],
         tokenizer: Union[MBartTokenizer, MBartTokenizerFast],
         max_length: Union[int, None] = None,
         use_nllb_lang_map: bool = False,
@@ -130,7 +130,7 @@ class TranslationDataset(Dataset):
             idx = np.random.randint(0, self.__len__())
 
         sentence_pair = self.dataset[idx]
-        if "translation" in self.dataset.features.keys():
+        if "translation" in sentence_pair:
             sentence_pair = sentence_pair["translation"]
 
         # Tokenized sentence pair
