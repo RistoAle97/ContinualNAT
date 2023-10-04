@@ -2,6 +2,7 @@ import os
 from typing import Dict, List, Set, Tuple, Union
 
 import torch
+import wandb
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor, RichProgressBar, EarlyStopping
 from lightning.pytorch.callbacks.progress.rich_progress import RichProgressBarTheme
@@ -451,9 +452,9 @@ class ContinualTrainer(TrainerCore):
 
             # Logger and other train callbacks
             if logger_version is None:
-                logger_version = self.__compute_logger_version(model, i)
+                logger_version_train = self.__compute_logger_version(model, i)
             else:
-                logger_version = f"{logger_version}_exp{i}"
+                logger_version_train = f"{logger_version}_exp{i}"
 
             checkpoint = ModelCheckpoint(save_top_k=2, monitor="mean_BLEU", mode="max", save_on_train_epoch_end=False)
             prog_bar_theme = RichProgressBarTheme(
@@ -465,13 +466,13 @@ class ContinualTrainer(TrainerCore):
             prog_bar = RichProgressBar(theme=prog_bar_theme)
             if self.use_wandb:
                 logger = WandbLogger(
-                    name=logger_version,
+                    name=logger_version_train,
                     save_dir=self.log_directory + "/logs",
                     project="ContinualNAT",
-                    version=logger_version,
+                    version=logger_version_train,
                 )
             else:
-                logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version)
+                logger = TensorBoardLogger(self.log_directory, name="logs", version=logger_version_train)
 
             lr_monitor = LearningRateMonitor(logging_interval="step")
             trainer_callbacks = [checkpoint, lr_monitor, prog_bar]
@@ -491,8 +492,14 @@ class ContinualTrainer(TrainerCore):
             )
             trainer.fit(model, train_dataloader, val_dataloaders)
 
-            # Add experience to the buffer
-            self.buffer.add_experience(exp)
+            # Add experience to the buffer if it is not the last one
+            if i != len(exps) - 1:
+                self.buffer.add_experience(exp)
 
+            # Close the wandb logger
+            if isinstance(logger, WandbLogger):
+                wandb.finish()
+
+            # Save the model after each experience if the user wishes so
             if save_model_each_exp:
-                torch.save(model.state_dict(), f"/disk1/a.ristori/models/{logger_version}")
+                torch.save(model.state_dict(), f"/disk1/a.ristori/models/{logger_version_train}")
