@@ -116,10 +116,10 @@ The NAT models' names are taken from the following [survey](https://arxiv.org/pd
 
 ### NAR (non-autoregressive) models
 
-###### Semi-NAT
+###### Iterative NAT models
 - [CMLM](https://arxiv.org/abs/1904.09324)
 
-###### Fully-NAT
+###### Fully NAT models
 - [GLAT](https://arxiv.org/abs/2008.07905)
 - CMLM with glancing
 
