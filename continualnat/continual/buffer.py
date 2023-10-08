@@ -1,3 +1,4 @@
+import copy
 from typing import Dict, List, Tuple, Union
 
 import numpy as np
@@ -7,7 +8,6 @@ from continualnat.data.datasets import TranslationDataset
 
 
 class Buffer(Dataset):
-
     def __init__(self, size: int, keep_prev_examples: bool = True) -> None:
         """
         The experience replay buffer, the fixed-size version. Each experience partition has, more or less, the
@@ -50,8 +50,9 @@ class Buffer(Dataset):
         :param new_exp: the experience from which to draw the new examples.
         """
         # Put all the previous and current experiences together
-        current_exp: List[TranslationDataset] = [new_exp] if isinstance(new_exp, TranslationDataset) else new_exp
-        exps: List[List[TranslationDataset]] = self._exps + [current_exp]
+        curr_exp = copy.deepcopy(new_exp)
+        curr_exp: List[TranslationDataset] = [curr_exp] if isinstance(curr_exp, TranslationDataset) else curr_exp
+        exps: List[List[TranslationDataset]] = self._exps + [curr_exp]
 
         # Compute the new partition size and the exceeding number of examples
         self._partition_size = self.size // len(exps)

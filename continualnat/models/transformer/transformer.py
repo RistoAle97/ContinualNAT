@@ -9,7 +9,6 @@ from continualnat.utils.models import init_bert_weights
 
 
 class Transformer(TransformerCore):
-
     def __init__(self, config: TransformerConfig) -> None:
         """
         Transformer model whose architecture is based on the paper "Attention is all you need" from Vaswani et al.
@@ -21,11 +20,13 @@ class Transformer(TransformerCore):
         # Initialize weights
         self.apply(init_bert_weights)
 
-    def forward(self,
-                src_input: torch.Tensor,
-                tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
-                d_mask: torch.Tensor = None) -> torch.Tensor:
+    def forward(
+        self,
+        src_input: torch.Tensor,
+        tgt_input: torch.Tensor,
+        e_mask: torch.Tensor = None,
+        d_mask: torch.Tensor = None,
+    ) -> torch.Tensor:
         """
         Process masked source and target sequences.
         """
@@ -77,11 +78,13 @@ class Transformer(TransformerCore):
         # Update the BLEU metric internal parameters
         self.val_metrics[f"BLEU_{lang_pair}"].update(predictions, references)
 
-    def generate(self,
-                 input_ids: torch.Tensor,
-                 decoder_start_token_id: int,
-                 max_new_tokens: int = 10,
-                 num_beams: int = 5) -> torch.Tensor:
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        decoder_start_token_id: int,
+        max_new_tokens: int = 10,
+        num_beams: int = 5,
+    ) -> torch.Tensor:
         """
         Generate tokens at inference time using greedy or beam search decoding.
         :param input_ids: tokenized source sentence.

@@ -12,7 +12,6 @@ from continualnat.utils.models import init_bert_weights
 
 
 class GLAT(TransformerNATCore):
-
     def __init__(self, config: GLATConfig) -> None:
         """
         The Glancing Transformer (GLAT) from Qian et al. https://arxiv.org/pdf/2008.07905.pdf, a
@@ -33,19 +32,24 @@ class GLAT(TransformerNATCore):
         # Train and validation losses
         self.train_metrics["glat_loss"] = MeanMetric()
 
-    def forward(self,
-                src_input: torch.Tensor,
-                tgt_input: torch.Tensor,
-                e_mask: torch.Tensor = None,
-                d_mask: torch.Tensor = None,
-                src_lengths: torch.Tensor = None,
-                tgt_lengths: torch.Tensor = None) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def forward(
+        self,
+        src_input: torch.Tensor,
+        tgt_input: torch.Tensor,
+        e_mask: torch.Tensor = None,
+        d_mask: torch.Tensor = None,
+        src_lengths: torch.Tensor = None,
+        tgt_lengths: torch.Tensor = None,
+        no_glanced_input: bool = True,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
         """
         if not self._check_length_token(src_input):
-            raise ValueError("The token <length> is not used by one or more tokenized sentence, the model needs such"
-                             "token to predict the target lengths.")
+            raise ValueError(
+                "The token <length> is not used by one or more tokenized sentence, the model needs such token to"
+                "predict the target lengths."
+            )
 
         # Compute the source and target lengths if both are not passed
         if (src_lengths is None) ^ (tgt_lengths is None):
@@ -54,9 +58,7 @@ class GLAT(TransformerNATCore):
         if src_lengths is None:
             src_lengths = e_mask.sum(dim=-1)
             src_lengths -= 2 if self.length_token_id is None else 3
-            tgt_lengths = d_mask.sum(dim=-1)[:, 0].unsqueeze(-1) - 2
-
-        # src_lengths += 1  # consider the eos token too
+            tgt_lengths = d_mask.sum(dim=-1)[:, 0].unsqueeze(-1) - 1
 
         # Embeddings and positional encoding
         src_embeddings_no_pos_encoding = self.embedding(src_input)  # (bsz, src_len, d_model)
@@ -71,31 +73,39 @@ class GLAT(TransformerNATCore):
 
         # Copy the source embeddings or the encoder ouptut
         tensor_to_copy = torch.clone(e_output if self.tensor_to_copy == "e_output" else src_embeddings_no_pos_encoding)
-        tensor_to_copy = tensor_to_copy[:, :src_lengths.max(), :]
-        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths)
+        tensor_to_copy = tensor_to_copy[:, : src_lengths.max(), :]
+        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths + 1)
 
         # Positional encoding for the copied target embeddings
-        # pos_encoded_tgt_input = self.positional_encoder.compute_positions(tgt_input)
-        # tgt_embeddings = self.positional_encoder.dropout(new_tgt_embeddings + pos_encoded_tgt_input)
         tgt_embeddings = self.positional_encoder(new_tgt_embeddings * self.embedding_scale)
+
+        # Put the eos token embeddings inside the copied embeddings
+        bsz, tgt_seq_len = tgt_input.size()
+        eos_token = torch.tensor(self.eos_token_id, device=self.device).unsqueeze(0)
+        eos_embeddings = self.embedding(eos_token).repeat_interleave(tgt_seq_len, dim=0).unsqueeze(0)
+        eos_embeddings = self.positional_encoder(eos_embeddings * self.embedding_scale).squeeze(0)
+        for i, tgt_length in enumerate(tgt_lengths):
+            tgt_embeddings[i, tgt_length] = eos_embeddings[tgt_length]
 
         # Decoder
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)  # (bsz, tgt_len, d_model)
 
         # Linear output
         output = self.linear_output(d_output)  # (bsz, tgt_len, vocab_size)
+
         return output, predicted_lengths, e_output, tgt_embeddings  # new_tgt_embeddings
 
     def on_train_start(self) -> None:
         super().on_train_start()
         self.lambda_scheduler = LambdaScheduler(steps=self.trainer.estimated_stepping_batches)
-        # self.lambda_scheduler.anneal_steps = self.trainer.estimated_stepping_batches
 
-    def __glancing_strategy(self,
-                            labels: torch.Tensor,
-                            labels_mask: torch.tensor,
-                            tgt_embeddings: torch.Tensor,
-                            logits: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __glancing_strategy(
+        self,
+        labels: torch.Tensor,
+        labels_mask: torch.tensor,
+        tgt_embeddings: torch.Tensor,
+        logits: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Compute the glancing ratio
         glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
 
@@ -105,15 +115,16 @@ class GLAT(TransformerNATCore):
         glanced_tokens = glancing_mask.unsqueeze(-1)
 
         # Compute the embeddings of the predictions
-        pred_embeddings = self.embedding(predictions)  # (bsz, tgt_len, d_model)
-        pred_embeddings = self.positional_encoder(pred_embeddings * self.embedding_scale)
+        labels_embeddings = self.embedding(labels)  # (bsz, tgt_len, d_model)
+        labels_embeddings = self.positional_encoder(labels_embeddings * self.embedding_scale)
 
         # Concatenate the previous target embeddings with the predictions', based on the glanced postions
-        new_tgt_embeddings = glanced_tokens * pred_embeddings + (1 - glanced_tokens) * tgt_embeddings
+        new_tgt_embeddings = glanced_tokens * labels_embeddings + (1 - glanced_tokens) * tgt_embeddings
 
         # Build the new labels mask that takes into account the glanced positions
-        labels.masked_fill_(glancing_mask.bool() | ~labels_mask, self.pad_token_id)
-        return new_tgt_embeddings, labels
+        new_labels = labels.masked_fill(glancing_mask.bool() | ~labels_mask, self.pad_token_id)
+
+        return new_tgt_embeddings, new_labels
 
     def training_step(self, batch, batch_idx):
         input_ids = batch["input_ids"]
@@ -125,20 +136,19 @@ class GLAT(TransformerNATCore):
         max_tgt_length = tgt_lengths.max()
 
         # Create masks
-        e_mask, d_mask = create_masks(input_ids, decoder_input_ids[:, :max_tgt_length], self.pad_token_id, None)
+        e_mask, d_mask = create_masks(input_ids, decoder_input_ids[:, : max_tgt_length + 1], self.pad_token_id, None)
 
         # Compute logits and predicted lengths
-        logits, predicted_lengths, e_output, tgt_embeddings = self(input_ids, decoder_input_ids, e_mask=e_mask,
-                                                                   d_mask=d_mask, src_lengths=src_lengths,
-                                                                   tgt_lengths=tgt_lengths)
+        logits, predicted_lengths, e_output, tgt_embeddings = self(
+            input_ids, decoder_input_ids, e_mask=e_mask, d_mask=d_mask, src_lengths=src_lengths, tgt_lengths=tgt_lengths
+        )
 
         # Glancing strategy
-        labels = labels[:, :max_tgt_length]
-        labels_special_mask = labels_special_mask[:, :max_tgt_length]
+        labels = labels[:, : max_tgt_length + 1]
+        labels_special_mask = labels_special_mask[:, : max_tgt_length + 1]
         tgt_embeddings, labels = self.__glancing_strategy(labels, ~labels_special_mask.bool(), tgt_embeddings, logits)
 
         # Compute the new logits
-        # tgt_embeddings = self.positional_encoder(tgt_embeddings * self.embedding_scale)
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)  # (bsz, tgt_len, d_model)
         logits = self.linear_output(d_output)  # (bsz, tgt_len, vocab_size)
 
@@ -171,10 +181,12 @@ class GLAT(TransformerNATCore):
         # Update the BLEU metric internal parameters
         self.val_metrics[f"BLEU_{lang_pair}"].update(predictions, references)
 
-    def generate(self,
-                 input_ids: torch.Tensor,
-                 tgt_lang_token_id: int,
-                 length_beam_size: int = 5) -> torch.Tensor:
+    def generate(
+        self,
+        input_ids: torch.Tensor,
+        tgt_lang_token_id: int,
+        length_beam_size: int = 5,
+    ) -> torch.Tensor:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.
@@ -189,8 +201,10 @@ class GLAT(TransformerNATCore):
             raise ValueError("The number of lengths to consider for each sentence must be at least 1.")
 
         if not self._check_length_token(input_ids):
-            raise ValueError("You are not using the <length> token at the start of the source sentences,"
-                             "the model can not predict the target lengths.")
+            raise ValueError(
+                "You are not using the <length> token at the start of the source sentences, the model can not predict"
+                "the target lengths."
+            )
 
         if tgt_lang_token_id is None:
             raise ValueError("You should define the target language token id.")
@@ -206,14 +220,14 @@ class GLAT(TransformerNATCore):
             new_input_ids = []
             tgt_lang_token = torch.tensor(tgt_lang_token_id).unsqueeze(0).to(device)
             for i, tokenized_sentence in enumerate(input_ids):
-                new_tokenized_sentence = torch.cat([tokenized_sentence[:src_lengths[i]], tgt_lang_token,
-                                                    tokenized_sentence[src_lengths[i]:]], dim=0)
+                new_tokenized_sentence = torch.cat(
+                    [tokenized_sentence[: src_lengths[i]], tgt_lang_token, tokenized_sentence[src_lengths[i] :]], dim=0
+                )
                 new_input_ids.append(new_tokenized_sentence)
 
             input_ids = torch.stack(new_input_ids)
 
         src_lengths = src_lengths.unsqueeze(-1) - 2  # (bsz, 1)
-        # src_lengths = src_lengths.unsqueeze(-1) - 1
 
         # Compute encodings
         e_mask = create_encoder_mask(input_ids, self.pad_token_id)
@@ -234,18 +248,26 @@ class GLAT(TransformerNATCore):
 
         # Decide which tensor to copy between the source embeddings and the encodings
         tensor_to_copy = torch.clone(encodings if self.tensor_to_copy == "e_output" else src_embeddings_no_pos_encoding)
-        tensor_to_copy = tensor_to_copy[:, :src_lengths.max(), :]
+        tensor_to_copy = tensor_to_copy[:, : src_lengths.max(), :]
         tensor_to_copy = tensor_to_copy.repeat_interleave(length_beam_size, dim=0)
 
         # Create the decoder mask
-        d_mask = create_padding_mask_from_lengths(tgt_lengths, True)
+        d_mask = create_padding_mask_from_lengths(tgt_lengths + 1, True)
 
         # Copy the source embeddings or encodings
         src_lengths = src_lengths.repeat_interleave(length_beam_size, dim=0)
-        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths)
+        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths + 1)
 
         # Positional encoding for the new target embeddings
         tgt_embeddings = self.positional_encoder(new_tgt_embeddings * self.embedding_scale)
+
+        # Put the eos token in the copied embeddings
+        max_tgt_length_with_eos = tgt_lengths.max() + 1  # this also considers the eos token
+        eos_token = torch.tensor(self.eos_token_id, device=device).unsqueeze(0)
+        eos_embeddings = self.embedding(eos_token).repeat_interleave(max_tgt_length_with_eos, dim=0).unsqueeze(0)
+        eos_embeddings = self.positional_encoder(eos_embeddings * self.embedding_scale).squeeze(0)
+        for i, tgt_length in enumerate(tgt_lengths):
+            tgt_embeddings[i, tgt_length] = eos_embeddings[tgt_length]
 
         # Compute the translation tokens and their probabilities
         d_output = self.decoder(tgt_embeddings, duplicated_encodings, d_mask=d_mask, e_mask=duplicated_e_mask)
@@ -255,11 +277,14 @@ class GLAT(TransformerNATCore):
 
         # Insert pad tokens to the masked positions and insert zeros to the respective log probabilities
         d_pad_mask = torch.clone(~d_mask[:, 0, :])
+        tgt_bsz, tgt_seq_len = translation_tokens.size()
+        eos_token_idxs = torch.arange(0, tgt_bsz * tgt_seq_len, tgt_seq_len, device=device).view(tgt_bsz, 1)
+        eos_token_idxs += tgt_lengths
+        d_pad_mask.view(-1)[eos_token_idxs] = True
 
         translation_tokens.masked_fill_(d_pad_mask, self.pad_token_id)
         log_probabilities.masked_fill_(d_pad_mask, 0.0)
 
-        # Reshape hypotheses and their log probabilities
         hyps = translation_tokens.view(bsz, length_beam_size, translation_tokens.size(-1))
         log_probabilities = log_probabilities.sum(dim=-1).view(bsz, length_beam_size)
 

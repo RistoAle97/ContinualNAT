@@ -1,33 +1,38 @@
+import warnings
 from typing import Dict, Set, Union
 
 import datasets
 import numpy as np
 import torch
 from transformers import MBartTokenizer, MBartTokenizerFast
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 
-from continualnat.utils.utils import MBART_LANG_MAP
+from continualnat.utils.utils import MBART_LANG_MAP, NLLB_FLORES200_LANG_MAP
 
 
 class TranslationDataset(Dataset):
-
-    def __init__(self,
-                 src_lang: str,
-                 tgt_lang: str,
-                 dataset: datasets.Dataset,
-                 tokenizer: Union[MBartTokenizer, MBartTokenizerFast],
-                 max_length: Union[int, None] = None,
-                 use_cls_token: bool = False,
-                 skip_idxs: Set[int] = None,
-                 fill_to_max_length: bool = False,
-                 lang_tokens_only_encoder: bool = False) -> None:
+    def __init__(
+        self,
+        src_lang: str,
+        tgt_lang: str,
+        dataset: Union[datasets.Dataset, Subset],
+        tokenizer: Union[MBartTokenizer, MBartTokenizerFast],
+        max_length: Union[int, None] = None,
+        use_nllb_lang_map: bool = False,
+        use_cls_token: bool = False,
+        skip_idxs: Set[int] = None,
+        fill_to_max_length: bool = False,
+        lang_tokens_only_encoder: bool = False,
+    ) -> None:
         """
         Translation dataset defined by source and target languages.
-        :param src_lang: the source language.
-        :param tgt_lang: the target language.
+        :param src_lang: the source language in ISO 639-1 format (e.g., de for german).
+        :param tgt_lang: the target language in ISO 639-1 format (e.g., de for german).
         :param dataset: the Huggingface dataset to wrap.
         :param tokenizer: the tokenizer used by the collator when called.
-        :param max_length: maximum allowed length fot the tokenized sentences (default=None)
+        :param max_length: maximum allowed length fot the tokenized sentences (default=None).
+        :param use_nllb_lang_map: whether to use the nllb lang map (e.g., de -> deu_Latn) for extracting the source and
+            target sentences from the dataset (default=False).
         :param use_cls_token: whether to add the cls token at the beginnning of the source sentences (default=False).
         :param skip_idxs: the indices to skip (default=None).
         :param fill_to_max_length: whether to fill a tensor with multiple sentences until the max_length is reached
@@ -38,15 +43,17 @@ class TranslationDataset(Dataset):
         Dataset.__init__(self)
 
         # Checks before initializing everything
-        if "translation" not in dataset.features.keys():
-            raise ValueError("You should use a dataset suitable for the translation task.")
-
         if not hasattr(tokenizer, "src_lang") or not hasattr(tokenizer, "tgt_lang"):
             raise ValueError("You should use a tokenizer that has \"source_lang\" and \"tgt_lang\" defined.")
 
         # Source and target languages
         self.src_lang = src_lang
         self.tgt_lang = tgt_lang
+        self.use_nllb_lang_map = use_nllb_lang_map
+        if self.use_nllb_lang_map:
+            self.src_lang = NLLB_FLORES200_LANG_MAP[src_lang]
+            self.tgt_lang = NLLB_FLORES200_LANG_MAP[tgt_lang]
+
         self.src_lang_code = MBART_LANG_MAP[src_lang]
         self.tgt_lang_code = MBART_LANG_MAP[tgt_lang]
 
@@ -55,8 +62,13 @@ class TranslationDataset(Dataset):
 
         # Tokenizer
         self.tokenizer = tokenizer
-        self.tokenizer_state_src = {"truncation": True, "add_special_tokens": True, "padding": "longest",
-                                    "max_length": max_length, "return_tensors": "pt"}
+        self.tokenizer_state_src = {
+            "truncation": True,
+            "add_special_tokens": True,
+            "padding": "longest",
+            "max_length": max_length,
+            "return_tensors": "pt",
+        }
         self.tokenizer_state_tgt = self.tokenizer_state_src.copy()
         self.max_tokens = max_length
         self.use_cls_token = use_cls_token
@@ -64,6 +76,8 @@ class TranslationDataset(Dataset):
 
         # Dataset's indexes that should be skipped (duplicated, corrupted or unwanted sentences)
         self.skip_idxs = set() if skip_idxs is None else skip_idxs
+        if "id" not in dataset.features.keys() and skip_idxs:
+            warnings.warn("You have passed some indices to skip but the dataset to wrap has no such feature.")
 
         # Update the tokenizer states if filling to max length
         self.fill_to_max_length = fill_to_max_length
@@ -89,10 +103,17 @@ class TranslationDataset(Dataset):
         return len(self.dataset)
 
     def __tokenize_pair(self, sentence_pair: Dict[str, str]) -> Dict[str, Union[torch.Tensor, str]]:
+        if self.use_nllb_lang_map:
+            src_lang_feature = f"sentence_{self.src_lang}"
+            tgt_lang_feature = f"sentence_{self.tgt_lang}"
+        else:
+            src_lang_feature = self.src_lang
+            tgt_lang_feature = self.tgt_lang
+
         # Split the sentence pair into source and target sentences
-        src_sentence = sentence_pair[self.src_lang].strip()
+        src_sentence = sentence_pair[src_lang_feature].strip()
         src_sentence = self.tokenizer.cls_token + src_sentence if self.use_cls_token else src_sentence
-        tgt_sentence = sentence_pair[self.tgt_lang].strip()
+        tgt_sentence = sentence_pair[tgt_lang_feature].strip()
 
         # Define the source and target language for the tokenizer
         self.tokenizer.src_lang = self.src_lang_code
@@ -108,7 +129,9 @@ class TranslationDataset(Dataset):
         while idx in self.skip_idxs:
             idx = np.random.randint(0, self.__len__())
 
-        sentence_pair = self.dataset[idx]["translation"]
+        sentence_pair = self.dataset[idx]
+        if "translation" in sentence_pair:
+            sentence_pair = sentence_pair["translation"]
 
         # Tokenized sentence pair
         tokenized_sentence_pair = self.__tokenize_pair(sentence_pair)
@@ -138,17 +161,23 @@ class TranslationDataset(Dataset):
                     tgt_seq_len = concat_tgt_seq_len
 
             # Concat the input ids and labels to their respective language token
-            src_lang_token = torch.tensor([self.tokenizer.eos_token_id,
-                                           self.tokenizer.lang_code_to_id[self.src_lang_code]]).unsqueeze(0)
-            tgt_lang_token = torch.tensor([self.tokenizer.eos_token_id,
-                                           self.tokenizer.lang_code_to_id[self.tgt_lang_code]]).unsqueeze(0)
+            src_lang_token = torch.tensor(
+                [self.tokenizer.eos_token_id, self.tokenizer.lang_code_to_id[self.src_lang_code]]
+            ).unsqueeze(0)
+            tgt_lang_token = torch.tensor(
+                [self.tokenizer.eos_token_id, self.tokenizer.lang_code_to_id[self.tgt_lang_code]]
+            ).unsqueeze(0)
             input_ids = torch.cat([input_ids, src_lang_token], dim=-1)
             labels = torch.cat([labels, tgt_lang_token], dim=-1)
 
         if self.lang_tokens_only_encoder:
-            src_lang_token = torch.tensor([self.tokenizer.eos_token_id,
-                                           self.tokenizer.lang_code_to_id[self.src_lang_code],
-                                           self.tokenizer.lang_code_to_id[self.tgt_lang_code]]).unsqueeze(0)
+            src_lang_token = torch.tensor(
+                [
+                    self.tokenizer.eos_token_id,
+                    self.tokenizer.lang_code_to_id[self.src_lang_code],
+                    self.tokenizer.lang_code_to_id[self.tgt_lang_code],
+                ]
+            ).unsqueeze(0)
             tgt_lang_token = torch.tensor([self.tokenizer.eos_token_id]).unsqueeze(0)
             input_ids = torch.cat([input_ids, src_lang_token], dim=-1)
             labels = torch.cat([labels, tgt_lang_token], dim=-1)
@@ -157,7 +186,12 @@ class TranslationDataset(Dataset):
         input_ids_special_mask = self.tokenizer.get_special_tokens_mask(input_ids[0], already_has_special_tokens=True)
         input_ids_special_mask = torch.tensor(input_ids_special_mask).unsqueeze(0)
         labels_special_mask = self.tokenizer.get_special_tokens_mask(labels[0], already_has_special_tokens=True)
-
         labels_special_mask = torch.tensor(labels_special_mask).unsqueeze(0)
-        return {"input_ids": input_ids, "labels": labels, "reference": reference,
-                "input_ids_special_mask": input_ids_special_mask, "labels_special_mask": labels_special_mask}
+
+        return {
+            "input_ids": input_ids,
+            "labels": labels,
+            "reference": reference,
+            "input_ids_special_mask": input_ids_special_mask,
+            "labels_special_mask": labels_special_mask,
+        }
