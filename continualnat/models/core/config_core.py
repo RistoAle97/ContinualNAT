@@ -1,22 +1,23 @@
 class CoreConfig:
-
-    def __init__(self,
-                 vocab_size: int,
-                 d_model: int = 512,
-                 n_heads: int = 8,
-                 num_encoder_layers: int = 6,
-                 num_decoder_layers: int = 6,
-                 dim_ff: int = 2048,
-                 dropout: float = 0.1,
-                 dropout_mha: float = 0.0,
-                 dropout_ff: float = 0.0,
-                 activation_ff: str = "relu",
-                 layer_norm_eps: float = 1e-6,
-                 scale_embeddings: bool = False,
-                 bos_token_id: int = 0,
-                 eos_token_id: int = 2,
-                 pad_token_id: int = 1,
-                 label_smoothing: float = 0.0) -> None:
+    def __init__(
+        self,
+        vocab_size: int,
+        d_model: int = 512,
+        n_heads: int = 8,
+        num_encoder_layers: int = 6,
+        num_decoder_layers: int = 6,
+        dim_ff: int = 2048,
+        dropout: float = 0.1,
+        dropout_mha: float = 0.0,
+        dropout_ff: float = 0.0,
+        activation_ff: str = "relu",
+        layer_norm_eps: float = 1e-6,
+        scale_embeddings: bool = False,
+        bos_token_id: int = 0,
+        eos_token_id: int = 2,
+        pad_token_id: int = 1,
+        label_smoothing: float = 0.0,
+    ) -> None:
         """
         Base class for the models' configurations.
         :param vocab_size: shared vocabulary size.

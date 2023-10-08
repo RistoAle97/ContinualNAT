@@ -7,12 +7,13 @@ from continualnat.data.datasets import TranslationDataset
 
 
 class BatchSamplerCore(Sampler[List[int]]):
-
-    def __init__(self,
-                 datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
-                 bsz: int,
-                 drop_last: bool = False,
-                 sampling_strategy: str = "random") -> None:
+    def __init__(
+        self,
+        datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
+        bsz: int,
+        drop_last: bool = False,
+        sampling_strategy: str = "random",
+    ) -> None:
         """
         Base class for all the batch samplers.
         :param datasets: a list of TranslationDataset or a ConcatDataset.
@@ -49,13 +50,14 @@ class BatchSamplerCore(Sampler[List[int]]):
 
 
 class HeterogeneousSampler(BatchSamplerCore):
-
-    def __init__(self,
-                 datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
-                 bsz: int,
-                 drop_last: bool = False,
-                 sampling_strategy: str = "random",
-                 weights: List[int] = None) -> None:
+    def __init__(
+        self,
+        datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
+        bsz: int,
+        drop_last: bool = False,
+        sampling_strategy: str = "random",
+        weights: List[int] = None,
+    ) -> None:
         """
         Samples indices in a way that there will be different translation directions in the same batch.
         :param datasets: a list of TranslationDataset or a ConcatDataset.
@@ -105,12 +107,13 @@ class HeterogeneousSampler(BatchSamplerCore):
 
 
 class HomogeneousSampler(BatchSamplerCore):
-
-    def __init__(self,
-                 datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
-                 bsz: int,
-                 drop_last: bool = False,
-                 sampling_strategy: str = "random") -> None:
+    def __init__(
+        self,
+        datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
+        bsz: int,
+        drop_last: bool = False,
+        sampling_strategy: str = "random",
+    ) -> None:
         """
         Sample indices in a way that there will only a single translation direction in a batch.
         :param datasets: a list of TranslationDataset or a ConcatDataset.

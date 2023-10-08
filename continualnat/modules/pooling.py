@@ -3,7 +3,6 @@ from torch import nn
 
 
 class Pooler(nn.Module):
-
     def __init__(self, d_model: int = 512, pooler_size: int = 256) -> None:
         """
         Simple base class for all the pooler layers.
@@ -18,7 +17,6 @@ class Pooler(nn.Module):
 
 
 class LengthPooler(Pooler):
-
     def __init__(self, d_model: int = 512, pooler_size: int = 256) -> None:
         """
         Pooler layer similar to the one from BERT by Devlin et al. https://arxiv.org/pdf/1810.04805.pdf. While its main
@@ -36,7 +34,6 @@ class LengthPooler(Pooler):
 
 
 class MeanPooler(Pooler):
-
     def __init__(self, d_model: int = 512, pooler_size: int = 256) -> None:
         """
         Mean pooler that works on the entire encoder's output.
@@ -51,7 +48,7 @@ class MeanPooler(Pooler):
             out = e_output.mean(1)  # (bsz, d_model)
         else:
             src_mask = e_mask.squeeze(1)  # (bsz, seq_len)
-            out = (e_output / src_mask.sum(1)[:, None, None])  # (bsz, seq_len, d_model)
+            out = e_output / src_mask.sum(1)[:, None, None]  # (bsz, seq_len, d_model)
             out = (out * src_mask[:, :, None]).sum(1)  # (bsz, d_model)
 
         out = self.linear(out)  # (bsz, pooler_size)

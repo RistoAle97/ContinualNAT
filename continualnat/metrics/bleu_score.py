@@ -18,13 +18,15 @@ from continualnat.models.glat.glat import GLAT
 TOKENIZERS = set(tokenizer for tokenizer in sacrebleu.BLEU.TOKENIZERS)
 
 
-def compute_sacrebleu(model: TransformerCore,
-                      dataset: TranslationDataset,
-                      tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast] = None,
-                      bsz: int = 32,
-                      iterations: int = None,
-                      prog_bar: bool = True,
-                      metric_tokenize: Set[str] = None) -> Dict[str, float]:
+def compute_sacrebleu(
+    model: TransformerCore,
+    dataset: TranslationDataset,
+    tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast] = None,
+    bsz: int = 32,
+    iterations: int = None,
+    prog_bar: bool = True,
+    metric_tokenize: Set[str] = None,
+) -> Dict[str, float]:
     """
     Computes the SacreBLEU score of a model built with the continualnat package for a given dataset.
     :param model: the model built with this library.
@@ -41,42 +43,44 @@ def compute_sacrebleu(model: TransformerCore,
         metric_tokenize = {"none"}
 
     if metric_tokenize.intersection(TOKENIZERS) != metric_tokenize:
-        raise ValueError("Wrong tokenizer passed for the SacreBLEU metric, use one or more of the following: \"none\","
-                         "\"zh\", \"13a\", \"char\", \"ja-mecab\".")
+        raise ValueError(
+            "Wrong tokenizer passed for the SacreBLEU metric, use one or more of the following: \"none\", \"zh\","
+            "\"13a\", \"char\", \"ja-mecab\"."
+        )
 
     if tokenizer is None:
         tokenizer = dataset.tokenizer
 
     scb = evaluate.load("sacrebleu")
     device = model.device
+    batch_collator_args = {
+        "is_mlm": False,
+        "shift_lang_token": isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast)),
+        "return_lengths": False,
+        "pad_token_id": model.pad_token_id,
+        "mask_token_id": model.mask_token_id if hasattr(model, "mask_token_id") else tokenizer.mask_token_id,
+        "p_masking": 0.0,
+    }
+    generation_kwargs = {}
     if isinstance(model, (CMLM, GLAT)):
-        is_mlm = True
-        shift_lang_token = False
-        return_lengths = True
+        batch_collator_args["is_mlm"] = True
+        batch_collator_args["shift_lang_token"] = False
+        batch_collator_args["return_lengths"] = True
         if isinstance(model, CMLM):
-            p_masking = 1.0
+            batch_collator_args["p_masking"] = 1.0
             generation_kwargs = {"iterations": iterations}
         else:
-            p_masking = 0.0
-            generation_kwargs = {}
-    else:
-        is_mlm = False
-        shift_lang_token = isinstance(tokenizer, (MBartTokenizer, MBartTokenizerFast))
-        return_lengths = False
-        p_masking = 0.0
-        generation_kwargs = {}
+            batch_collator_args["p_masking"] = 0.0
 
-    mask_token_id = model.mask_token_id if hasattr(model, "mask_token_id") else 5
-    batch_collator = BatchCollator(is_mlm=is_mlm, shift_lang_token=shift_lang_token, return_lengths=return_lengths,
-                                   pad_token_id=model.pad_token_id, mask_token_id=mask_token_id,
-                                   p_masking=p_masking)
+    batch_collator = BatchCollator(**batch_collator_args)
     dataloader = DataLoader(dataset, batch_size=bsz, collate_fn=batch_collator)
     translations = []
     targets = []
     dataloader = tqdm(dataloader) if prog_bar else dataloader
     for batch in dataloader:
-        translation = model.generate(batch["input_ids"].to(device), tokenizer.lang_code_to_id[dataset.tgt_lang_code],
-                                     **generation_kwargs)
+        input_ids = batch["input_ids"]
+        tgt_lang_code_id = tokenizer.lang_code_to_id[dataset.tgt_lang_code]
+        translation = model.generate(input_ids.to(device), tgt_lang_code_id, **generation_kwargs)
         if isinstance(model, CMLM):
             translation, _ = translation
 
@@ -92,16 +96,18 @@ def compute_sacrebleu(model: TransformerCore,
     return bleu_scores
 
 
-def compute_sacrebleu_ct2(model: str,
-                          dataset: datasets.Dataset,
-                          src_lang: str,
-                          tgt_lang: str,
-                          tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
-                          beam_size: int,
-                          device: torch.device,
-                          bsz: int = 512,
-                          prog_bar: bool = True,
-                          metric_tokenize: Set[str] = None) -> Dict[str, float]:
+def compute_sacrebleu_ct2(
+    model: str,
+    dataset: datasets.Dataset,
+    src_lang: str,
+    tgt_lang: str,
+    tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
+    beam_size: int,
+    device: torch.device,
+    bsz: int = 512,
+    prog_bar: bool = True,
+    metric_tokenize: Set[str] = None,
+) -> Dict[str, float]:
     """
     Computes the SacreBLEU score of a CTranslate2 model (only for the ones converted from a Hugginface's Transformers
     model) for a given dataset.
@@ -123,8 +129,10 @@ def compute_sacrebleu_ct2(model: str,
         metric_tokenize = {"none"}
 
     if metric_tokenize.intersection(TOKENIZERS) != metric_tokenize:
-        raise ValueError("Wrong tokenizer passed for the SacreBLEU metric, use one or more of the following: \"none\","
-                         "\"zh\", \"13a\", \"char\", \"ja-mecab\".")
+        raise ValueError(
+            "Wrong tokenizer passed for the SacreBLEU metric, use one or more of the following: \"none\", \"zh\","
+            "\"13a\", \"char\", \"ja-mecab\"."
+        )
 
     scb = evaluate.load("sacrebleu")
     max_length = tokenizer.model_max_length
@@ -135,11 +143,13 @@ def compute_sacrebleu_ct2(model: str,
     dataloader = tqdm(dataloader) if prog_bar else dataloader
     for batch in dataloader:
         src_sentences = batch["translation"][src_lang]
-        src_tokens = [tokenizer.convert_ids_to_tokens(tokenizer.encode(src_sentence, truncation=True,
-                                                                       max_length=max_length))
-                      for src_sentence in src_sentences]
-        generated_translations = translator.translate_batch(src_tokens, beam_size=beam_size,
-                                                            max_decoding_length=max_length)
+        src_tokens = [
+            tokenizer.convert_ids_to_tokens(tokenizer.encode(src_sentence, truncation=True, max_length=max_length))
+            for src_sentence in src_sentences
+        ]
+        generated_translations = translator.translate_batch(
+            src_tokens, beam_size=beam_size, max_decoding_length=max_length
+        )
         translations_tokens = [translation.hypotheses[0] for translation in generated_translations]
         translations_ids = [tokenizer.convert_tokens_to_ids(tgt_tokens) for tgt_tokens in translations_tokens]
         decoded_translation = tokenizer.batch_decode(translations_ids, skip_special_tokens=True)

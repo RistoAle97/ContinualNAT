@@ -5,10 +5,12 @@ from continualnat.models.core.transformer_core import TransformerCore
 from continualnat.utils.masks import create_encoder_mask, create_decoder_mask
 
 
-def greedy_decoding(model: TransformerCore,
-                    input_ids: torch.Tensor,
-                    decoder_start_token_id: int,
-                    max_new_tokens: int = 10) -> torch.Tensor:
+def greedy_decoding(
+    model: TransformerCore,
+    input_ids: torch.Tensor,
+    decoder_start_token_id: int,
+    max_new_tokens: int = 10,
+) -> torch.Tensor:
     """
     Performs greedy search for translating tokenized input sentence, this should be used only by autoregressive
     transformers. This method is heavily inspired by the greedy_search method from Huggingface.
@@ -60,12 +62,14 @@ def greedy_decoding(model: TransformerCore,
         return output
 
 
-def beam_decoding(model: TransformerCore,
-                  input_ids: torch.Tensor,
-                  decoder_start_token_id: int,
-                  max_new_tokens: int = 10,
-                  num_beams: int = 5,
-                  beams_to_keep: int = 1) -> torch.Tensor:
+def beam_decoding(
+    model: TransformerCore,
+    input_ids: torch.Tensor,
+    decoder_start_token_id: int,
+    max_new_tokens: int = 10,
+    num_beams: int = 5,
+    beams_to_keep: int = 1,
+) -> torch.Tensor:
     """
     Performs beams search for translating tokenized input sentence, this should be used only by autoregressive
     transformers. This method is heavily inspired by the beam_search method from Huggingface.
@@ -204,7 +208,7 @@ def beam_decoding(model: TransformerCore,
 
         # Put the eos token at the end of each sequence
         for i, hyp in enumerate(best):
-            decoded[i, :sentence_lengths[i]] = hyp
+            decoded[i, : sentence_lengths[i]] = hyp
             # if sentence_lengths[i] < max_sentence_length:
             decoded[i, sentence_lengths[i]] = model.eos_token_id
 
@@ -212,12 +216,13 @@ def beam_decoding(model: TransformerCore,
 
 
 class BeamHypotheses:
-
-    def __init__(self,
-                 num_beams: int,
-                 length_penalty: float = 1.0,
-                 max_length: int = None,
-                 early_stopping: bool = False) -> None:
+    def __init__(
+        self,
+        num_beams: int,
+        length_penalty: float = 1.0,
+        max_length: int = None,
+        early_stopping: bool = False,
+    ) -> None:
         """
         Beam hypotheses for a single sentence, see the implementation from Huggingface for a better understanding.
         :param num_beams: the number of beams.
@@ -269,8 +274,8 @@ class BeamHypotheses:
             return True
 
         if self.length_penalty > 0.0:
-            highest_possible_score = best_sum_log_p / (self.max_length ** self.length_penalty)
+            highest_possible_score = best_sum_log_p / (self.max_length**self.length_penalty)
         else:
-            highest_possible_score = best_sum_log_p / (cur_len ** self.length_penalty)
+            highest_possible_score = best_sum_log_p / (cur_len**self.length_penalty)
 
         return self.worst_score >= highest_possible_score

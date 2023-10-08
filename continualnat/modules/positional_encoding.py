@@ -5,7 +5,6 @@ from torch import nn
 
 
 class PositionalEncoding(nn.Module):
-
     def __init__(self, d_model: int = 512, max_len: int = 5000, dropout: float = 0.1) -> None:
         """
         The positional encoding from "Attention is all you need" (https://arxiv.org/pdf/1706.03762.pdf).
@@ -25,8 +24,8 @@ class PositionalEncoding(nn.Module):
         self.register_buffer("pe", pe)
 
     def compute_positions(self, x: torch.Tensor) -> torch.Tensor:
-        return self.pe[:, :x.size(1), :]
+        return self.pe[:, : x.size(1), :]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.pe[:, :x.size(1), :]
+        x = x + self.pe[:, : x.size(1), :]
         return self.dropout(x)

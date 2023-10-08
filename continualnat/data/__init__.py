@@ -6,5 +6,18 @@ from .distillation import (
     DistilledDatasetConfig,
     compress_datasets,
     distill_dataset,
-    push_distilled_dataset_to_hub
+    push_distilled_dataset_to_hub,
 )
+
+__all__ = [
+    "compress_datasets",
+    "distill_dataset",
+    "push_distilled_dataset_to_hub",
+    "BatchCollator",
+    "BatchSamplerCore",
+    "DistilledDataset",
+    "DistilledDatasetConfig",
+    "HeterogeneousSampler",
+    "HomogeneousSampler",
+    "TranslationDataset",
+]

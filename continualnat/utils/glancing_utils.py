@@ -2,7 +2,6 @@ import torch
 
 
 class LambdaScheduler:
-
     def __init__(self, start_ratio: float = 0.5, end_ratio: float = 0.2, start: int = 0, steps: int = 300000) -> None:
         """
         Scheduler for the lambda value used in the glancing strategy. Inspired from
@@ -34,7 +33,6 @@ class LambdaScheduler:
 
 
 class GlancingSampler:
-
     def __init__(self, adaptive: bool = True, strategy: str = "uniform") -> None:
         self.adaptive = adaptive
         if strategy not in ["uniform", "schedule", None]:
@@ -42,12 +40,14 @@ class GlancingSampler:
 
         self.strategy = strategy
 
-    def __call__(self,
-                 labels: torch.Tensor,
-                 labels_mask: torch.Tensor,
-                 logits: torch.Tensor,
-                 predictions: torch.Tensor,
-                 ratio: float = 0.5) -> torch.Tensor:
+    def __call__(
+        self,
+        labels: torch.Tensor,
+        labels_mask: torch.Tensor,
+        logits: torch.Tensor,
+        predictions: torch.Tensor,
+        ratio: float = 0.5,
+    ) -> torch.Tensor:
         """
         Sampler for the glancing strategy employed by the GLAT training.
         :param labels: the tokenized ground-truth target sentences.

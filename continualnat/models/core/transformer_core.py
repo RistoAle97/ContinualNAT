@@ -15,12 +15,11 @@ from continualnat.modules.transformer_layers import (
     TransformerEncoderLayer,
     TransformerEncoder,
     TransformerDecoderLayer,
-    TransformerDecoder
+    TransformerDecoder,
 )
 
 
 class TransformerCore(LightningModule):
-
     def __init__(self, config: CoreConfig) -> None:
         """
         This class does not implement the forward method and should be used only as a base for the actual model's
@@ -48,18 +47,34 @@ class TransformerCore(LightningModule):
         # Embeddings and positional encoder
         self.embedding = nn.Embedding(self.vocab_size, self.d_model, padding_idx=self.pad_token_id)
         self.positional_encoder = PositionalEncoding(self.d_model, dropout=self.dropout)
-        self.embedding_scale = 1.0 if not config.scale_embeddings else self.d_model ** 0.5
+        self.embedding_scale = 1.0 if not config.scale_embeddings else self.d_model**0.5
 
         # Encoder
         encoder_norm = nn.LayerNorm(self.d_model, self.layer_norm_eps)
-        encoder_layer = TransformerEncoderLayer(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.dropout_mha,
-                                                self.dropout_ff, self.activation_ff, self.layer_norm_eps)
+        encoder_layer = TransformerEncoderLayer(
+            d_model=self.d_model,
+            n_heads=self.n_heads,
+            dim_ff=self.dim_ff,
+            dropout=self.dropout,
+            dropout_mha=self.dropout_mha,
+            dropout_ff=self.dropout_ff,
+            activation_ff=self.activation_ff,
+            layer_norm_eps=self.layer_norm_eps,
+        )
         self.encoder = TransformerEncoder(encoder_layer, self.num_encoder_layers, norm=encoder_norm)
 
         # Decoder
         decoder_norm = nn.LayerNorm(self.d_model, self.layer_norm_eps)
-        decoder_layer = TransformerDecoderLayer(self.d_model, self.n_heads, self.dim_ff, self.dropout, self.dropout_mha,
-                                                self.dropout_ff, self.activation_ff, self.layer_norm_eps)
+        decoder_layer = TransformerDecoderLayer(
+            d_model=self.d_model,
+            n_heads=self.n_heads,
+            dim_ff=self.dim_ff,
+            dropout=self.dropout,
+            dropout_mha=self.dropout_mha,
+            dropout_ff=self.dropout_ff,
+            activation_ff=self.activation_ff,
+            layer_norm_eps=self.layer_norm_eps,
+        )
         self.decoder = TransformerDecoder(decoder_layer, self.num_decoder_layers, norm=decoder_norm)
 
         # Linear output
@@ -81,9 +96,7 @@ class TransformerCore(LightningModule):
         self.train_metrics = {"train_loss": MeanMetric()}
         self.val_metrics = {"mean_BLEU": MeanMetric()}
 
-    def encode(self,
-               e_input: torch.Tensor,
-               e_mask: torch.Tensor = None) -> torch.Tensor:
+    def encode(self, e_input: torch.Tensor, e_mask: torch.Tensor = None) -> torch.Tensor:
         """
         Encodes the masked source sentence.
         :param e_input: torch tensor of shape (bsz, seq_len).
@@ -95,11 +108,13 @@ class TransformerCore(LightningModule):
         e_output = self.encoder(src_embeddings, e_mask)
         return e_output
 
-    def decode(self,
-               tgt_input: torch.Tensor,
-               e_output: torch.Tensor,
-               d_mask: torch.Tensor = None,
-               e_mask: torch.Tensor = None) -> torch.Tensor:
+    def decode(
+        self,
+        tgt_input: torch.Tensor,
+        e_output: torch.Tensor,
+        d_mask: torch.Tensor = None,
+        e_mask: torch.Tensor = None,
+    ) -> torch.Tensor:
         """
         Decodes the masked target sentence given the encodings of the source sentence.
         :param e_output: encodings coming from the encoder of shape (bsz, seq_len, d_model).
@@ -168,11 +183,22 @@ class TransformerCore(LightningModule):
             bleu_score = self.val_metrics[metric_name].compute() * 100
             self.val_metrics["mean_BLEU"].update(bleu_score)
             if dataloader_idx == len(self.trainer.val_dataloaders) - 1:
-                self.log("mean_BLEU", self.val_metrics["mean_BLEU"].compute(), prog_bar=True, add_dataloader_idx=False,
-                         batch_size=dataloader.batch_size)
+                self.log(
+                    name="mean_BLEU",
+                    value=self.val_metrics["mean_BLEU"].compute(),
+                    prog_bar=True,
+                    add_dataloader_idx=False,
+                    batch_size=dataloader.batch_size,
+                )
                 self.val_metrics["mean_BLEU"].reset()
 
-            self.log(metric_name, bleu_score, prog_bar=True, add_dataloader_idx=False, batch_size=dataloader.batch_size)
+            self.log(
+                name=metric_name,
+                value=bleu_score,
+                prog_bar=True,
+                add_dataloader_idx=False,
+                batch_size=dataloader.batch_size,
+            )
             self.val_metrics[metric_name].reset()
 
     def change_optimizer(self, optimizer: Optimizer) -> None:
@@ -197,8 +223,9 @@ class TransformerCore(LightningModule):
             self.lr_scheduler["num_warmup_steps"] = warmup_steps
 
     def configure_optimizers(self):
-        lr_scheduler = get_scheduler(**self.lr_scheduler, optimizer=self.optimizer,
-                                     num_training_steps=self.trainer.estimated_stepping_batches)
+        lr_scheduler = get_scheduler(
+            **self.lr_scheduler, optimizer=self.optimizer, num_training_steps=self.trainer.estimated_stepping_batches
+        )
         return [self.optimizer], [{"scheduler": lr_scheduler, "interval": "step"}]
 
     def generate(self, *kwargs):

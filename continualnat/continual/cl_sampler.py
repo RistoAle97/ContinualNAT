@@ -6,7 +6,6 @@ from continualnat.data.batch_samplers import BatchSamplerCore
 
 
 class ExperienceReplaySampler(Iterable):
-
     def __init__(self, exp_batch_sampler: BatchSamplerCore, mem_batch_sampler: BatchSampler) -> None:
         """
         The experience replay sampler that samples
