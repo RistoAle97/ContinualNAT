@@ -234,6 +234,7 @@ class MultilingualTrainer(TrainerCore):
         logger_version: str = None,
         early_stopping: bool = False,
         patience: int = 5,
+        wandb_project: str = None,
     ) -> None:
         """
         Trains and validates the model given a list of training and validation datasets.
@@ -249,6 +250,8 @@ class MultilingualTrainer(TrainerCore):
         :param early_stopping: whether to use early stopping if the mean BLEU does not improve for a fixed number
             of validation epochs (default=False).
         :param patience: the patience parameter used by the early stopping callback (default=5).
+        :param wandb_project: the wandb project to which the run will belong to. If None, then "lightning_logs"
+            will be used (default=None).
         """
         # Build translation directions and unique lang pairs
         nmt_directions, lang_pairs = self.__build_nmt_directions(train_datasets)
@@ -268,10 +271,11 @@ class MultilingualTrainer(TrainerCore):
             logger_version = self.__compute_logger_version(model, nmt_directions, lang_pairs)
 
         if self.use_wandb:
+            wandb_project = "wandb_logs" if wandb_project is None else wandb_project
             logger = WandbLogger(
                 name=logger_version,
                 save_dir=self.log_directory + "/logs",
-                project="ContinualNAT",
+                project=wandb_project,
                 version=logger_version,
             )
         else:
@@ -423,6 +427,7 @@ class ContinualTrainer(TrainerCore):
         tokens_per_batch: int | None = None,
         logger_version: str | None = None,
         save_model_each_exp: bool = False,
+        wandb_project: str = None,
     ) -> None:
         """
         Trains the models given a list of training datasets while validating its performances.
@@ -436,6 +441,8 @@ class ContinualTrainer(TrainerCore):
         :param logger_version: the version used by the logger. If None, then its value will be modelclass_seq
             (default=None).
         :param save_model_each_exp: whether to save the model at the end of each experience (default=False).
+        :param wandb_project: the wandb project to which the run will belong to. If None, then "lightning_logs"
+            will be used (default=None).
         """
         for i, exp in enumerate(exps):
             current_exp = [exp] if isinstance(exp, TranslationDataset) else exp
@@ -465,10 +472,11 @@ class ContinualTrainer(TrainerCore):
             )
             prog_bar = RichProgressBar(theme=prog_bar_theme)
             if self.use_wandb:
+                wandb_project = "wandb_logs" if wandb_project is None else wandb_project
                 logger = WandbLogger(
                     name=logger_version_train,
                     save_dir=self.log_directory + "/logs",
-                    project="ContinualNAT",
+                    project=wandb_project,
                     version=logger_version_train,
                 )
             else:
