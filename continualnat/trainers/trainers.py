@@ -417,7 +417,7 @@ class ContinualTrainer(TrainerCore):
         self,
         model: TransformerCore,
         exps: List[Union[TranslationDataset, List[TranslationDataset]]],
-        val_datasets: list[TranslationDataset],
+        val_datasets: List[TranslationDataset],
         train_bsz: int = 128,
         val_bsz: int = 128,
         tokens_per_batch: int | None = None,

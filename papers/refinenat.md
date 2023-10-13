@@ -1,4 +1,4 @@
-   # FT-NAT (Fertility NAT)
+# Refine-NAT
 Paper: [Deterministic Non-Autoregressive Neural Sequence Modeling
 by Iterative Refinement](https://arxiv.org/abs/1802.06901)
 
