@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 
 
@@ -30,6 +32,21 @@ class LambdaScheduler:
 
         self.last_ratio = ratio
         return ratio
+
+    def plot(self) -> None:
+        """
+        Plot the value that Lambda value used by the glancing strategy will assume at each training step.
+        """
+        steps_ratio = [self(step) for step in range(self._anneal_end)]
+        plt.rcParams.update(plt.rcParamsDefault)
+        scheduler_steps = np.arange(len(steps_ratio))
+        plt.plot(scheduler_steps, steps_ratio, linewidth=2)
+        plt.xlabel("Step", fontsize=14)
+        plt.ylabel("Lambda", fontsize=14)
+        plt.title("Lambda schedule", fontsize=19)
+        plt.legend(["Lambda"], fontsize=14)
+        plt.grid()
+        plt.show()
 
 
 class GlancingSampler:
