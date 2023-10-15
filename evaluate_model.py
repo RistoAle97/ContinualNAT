@@ -129,7 +129,7 @@ if __name__ == "__main__":
         )
         test_datasets.append({"wmt": wmt_test_second_first, "flores200": flores200_devtest_second_first})
         test_datasets.append({"wmt": wmt_test_first_second, "flores200": flores200_devtest_first_second})
-    
+
     # Compute the BLEU scores
     generation_parameters = {
         "tokenizer": tokenizer,
@@ -156,8 +156,8 @@ if __name__ == "__main__":
             )
             print(
                 f"BLEU scores on the Flores200 {src_lang}-{tgt_lang} devtest\n"
-                f"13a: {bleu_score_flores200['13a']}\n"
-                f"intl: {bleu_score_flores200['intl']}\n"
+                f"13a: {flores200_13a}\n"
+                f"intl: {flores200_intl}\n"
             )
 
         bleu_scores_wmt_df[f"{src_lang}->{tgt_lang}"] = [wmt_13a, wmt_intl]
