@@ -60,10 +60,7 @@ if __name__ == "__main__":
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Tokenizer and some useful tokens
-    tokenizer = MBartTokenizerFast(
-        tokenizer_file="tokenizers/sp_32k.json", model_max_length=1024,
-        cls_token="<length>"
-    )
+    tokenizer = MBartTokenizerFast(tokenizer_file="tokenizers/sp_32k.json", model_max_length=1024, cls_token="<length>")
     bos_token_id = tokenizer.bos_token_id
     eos_token_id = tokenizer.eos_token_id
     pad_token_id = tokenizer.pad_token_id
@@ -149,11 +146,7 @@ if __name__ == "__main__":
         flores200_13a = np.round(bleu_score_flores200["13a"], 2)
         flores200_intl = np.round(bleu_score_flores200["intl"], 2)
         if verbose:
-            print(
-                f"BLEU scores on the WMT14 {src_lang}-{tgt_lang} test\n"
-                f"13a: {wmt_13a}\n"
-                f"intl: {wmt_intl}\n"
-            )
+            print(f"BLEU scores on the WMT14 {src_lang}-{tgt_lang} test\n13a: {wmt_13a}\nintl: {wmt_intl}\n")
             print(
                 f"BLEU scores on the Flores200 {src_lang}-{tgt_lang} devtest\n"
                 f"13a: {flores200_13a}\n"
