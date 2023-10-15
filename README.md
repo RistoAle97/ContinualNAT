@@ -31,7 +31,6 @@ First, clone this repository
 git clone https://github.com/RistoAle97/ContinualNAT
 cd ContinualNAT
 ```
-
 It is highly advised to create a new python virtual environment
 ```bash
 pip install venv
@@ -43,17 +42,18 @@ or a conda environment before proceeding
 conda create --name ContinualNAT
 conda activate ContinualNAT
 ```
-
-Then, install all the requirements
+Then, install the requirements
 ```bash
 pip install -r requirements.txt
 ```
-
 You can take a look at `train.py` to get an understanding of how to work with this repository, modify what you need and use
 ```bash
 python train.py
 ```
-to train one of the available models.
+to train one of the available models. Or you can start the gradio app to use the models trained for the thesis work.
+```bash
+python gradio_app.py
+```
 
 ---
 
