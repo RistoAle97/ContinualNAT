@@ -18,6 +18,9 @@ class Buffer(Dataset):
         """
         super().__init__()
         self.size = size
+        if size < 0:
+            raise ValueError("You can not pass a negative size for the buffer.")
+
         self.keep_prev_examples = keep_prev_examples
         self._exps: List[List[TranslationDataset]] = []
         self._partition_size = 0

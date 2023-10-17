@@ -336,6 +336,9 @@ class ContinualTrainer(TrainerCore):
         """
         A custom trainer that wraps the pytorch lightning's trainer.
         :param tokenizer: the tokenizer that will be used by the translation datasets.
+        :param buffer_size: the buffer size, if 0 the training will be incremental.
+        :param keep_previous_examples: whether to keep the previos examples of the buffer for future experiences
+            (default=True).
         :param train_steps: the number of training updates that the trainer will perform (default=100000).
         :param val_every_n_steps: how often to check the validation set (default=10000).
         :param log_every_n_steps: how often to log the metrics (default=500).
@@ -363,9 +366,9 @@ class ContinualTrainer(TrainerCore):
             use_wandb=use_wandb,
         )
         # Buffer
-        self.buffer = Buffer(buffer_size, keep_previous_examples)
-        if buffer_batch_size is not None and not 0.0 < buffer_batch_size <= 1.0:
-            raise ValueError("The percentage of examples coming from the buffer should be in (0.0, 1.0].")
+        self.buffer = Buffer(buffer_size, keep_previous_examples) if buffer_size > 0 else None
+        if buffer_batch_size is not None and not 0.0 <= buffer_batch_size <= 1.0:
+            raise ValueError("The percentage of examples coming from the buffer should be in [0.0, 1.0].")
 
         self.buffer_batch_size = buffer_batch_size
 
@@ -378,7 +381,7 @@ class ContinualTrainer(TrainerCore):
         train_bsz: int = 128,
         val_bsz: int = 128,
     ) -> Tuple[DataLoader, Dict[str, DataLoader]]:
-        if self.buffer_batch_size is not None:
+        if self.buffer is not None and self.buffer_batch_size is not None:
             train_dataset = ConcatDataset(exp_datasets)
             exp_batch_examples = train_bsz * (1.0 - self.buffer_batch_size)
             mem_batch_examples = train_bsz - exp_batch_examples
@@ -403,10 +406,12 @@ class ContinualTrainer(TrainerCore):
             # with the current experience and no batch sampler will be employed, doesn't matter which batch type
             # is used.
             batch_sampler = None
-            exp_datasets.extend(self.buffer.list_datasets())
+            if self.buffer is not None:
+                exp_datasets.extend(self.buffer.list_datasets())
+
             train_dataset = ConcatDataset(exp_datasets)
 
-        return super()._build_dataloaders_base(model, train_dataset, batch_sampler, val_datasets, val_bsz)
+        return super()._build_dataloaders_base(model, train_dataset, batch_sampler, val_datasets, train_bsz, val_bsz)
 
     def __compute_logger_version(self, model, exp_idx) -> str:
         logger_version = f"{model.__class__.__name__}"
@@ -421,7 +426,7 @@ class ContinualTrainer(TrainerCore):
         self,
         model: TransformerCore,
         exps: List[Union[TranslationDataset, List[TranslationDataset]]],
-        val_datasets: List[TranslationDataset],
+        val_datasets: List[Union[TranslationDataset, List[TranslationDataset]]],
         train_bsz: int = 128,
         val_bsz: int = 128,
         tokens_per_batch: int | None = None,
@@ -433,7 +438,7 @@ class ContinualTrainer(TrainerCore):
         Trains the models given a list of training datasets while validating its performances.
         :param model: the model to train.
         :param exps: a list containing all the experiences used during training.
-        :param val_datasets: a list containing all the datasets used during validation.
+        :param val_datasets: a list containing all the datasets used during validation divided by experience.
         :param train_bsz: the train batch size (default=128).
         :param val_bsz: the validation batch size (default=128).
         :param tokens_per_batch: the approximated number of tokens that each batch should contain. If None, then no
@@ -446,10 +451,12 @@ class ContinualTrainer(TrainerCore):
         """
         for i, exp in enumerate(exps):
             current_exp = [exp] if isinstance(exp, TranslationDataset) else exp
+            val_exp = val_datasets[i]
+            val_exp = [val_exp] if isinstance(val_exp, TranslationDataset) else val_exp
 
             # Dataloaders
             train_dataloader, val_dataloaders = self.__build_dataloaders(
-                model, i, current_exp, val_datasets, train_bsz, val_bsz
+                model, i, current_exp, val_exp, train_bsz, val_bsz
             )
 
             # Accumulation steps
@@ -501,7 +508,7 @@ class ContinualTrainer(TrainerCore):
             trainer.fit(model, train_dataloader, val_dataloaders)
 
             # Add experience to the buffer if it is not the last one
-            if i != len(exps) - 1:
+            if self.buffer is not None and i != len(exps) - 1:
                 self.buffer.add_experience(exp)
 
             # Close the wandb logger
