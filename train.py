@@ -42,9 +42,16 @@ if __name__ == "__main__":
     wmt_datasets = {"en-de": wmt_en_de, "en-fr": wmt_en_fr, "en-es": wmt_en_es}
 
     # Build the model
-    '''model_config = CMLMConfig(len(tokenizer), bos_token_id=bos_token_id, eos_token_id=eos_token_id,
-                              pad_token_id=pad_token_id, mask_token_id=mask_token_id, length_token_id=None,
-                              pooler_size=256, glat_training=False)
+    '''model_config = CMLMConfig(
+        vocab_size=len(tokenizer),
+        bos_token_id=bos_token_id,
+        eos_token_id=eos_token_id,
+        pad_token_id=pad_token_id,
+        mask_token_id=mask_token_id,
+        length_token_id=None,
+        pooler_size=256,
+        glat_training=False,
+    )
     model = CMLM(model_config)
     model_config = TransformerConfig(
         vocab_size=len(tokenizer),
@@ -73,12 +80,14 @@ if __name__ == "__main__":
     train_datasets = []
     val_datasets = []
     test_datasets = []
-    # exps_lang_pairs = [["en-de", "de-en"], ["en-fr", "fr-en"], ["en-es", "es-en"]]
-    exps_lang_pairs = [["en-de"]]
-    exps = []
+    exps_lang_pairs = [["en-de", "de-en"], ["en-fr", "fr-en"], ["en-es", "es-en"]]
+    # exps_lang_pairs = [["en-de"]]
+    train_exps = []
+    val_exps = []
     lang_tokens_only_encoder = True if isinstance(model, GLAT) else False
     for exp_lang_pair in exps_lang_pairs:
-        current_exp = []
+        train_current_exp = []
+        val_current_exp = []
         for lang_pair in exp_lang_pair:
             src_lang, tgt_lang = lang_pair.split("-")
             lang_pair_key = lang_pair if src_lang == "en" else f"{tgt_lang}-{src_lang}"
@@ -121,9 +130,11 @@ if __name__ == "__main__":
             train_datasets.append(train_dataset)
             val_datasets.append(val_dataset)
             test_datasets.append(test_dataset)
-            current_exp.append(train_dataset)
+            train_current_exp.append(train_dataset)
+            val_current_exp.append(val_dataset)
 
-        exps.append(current_exp)
+        train_exps.append(train_current_exp)
+        val_exps.append(val_current_exp)
 
     # Set up the trainer
     trainer = MultilingualTrainer(
@@ -138,7 +149,7 @@ if __name__ == "__main__":
     '''buffer_size = sum([len(train_dataset) for train_dataset in train_datasets]) * 5 // 100
     trainer = ContinualTrainer(
         tokenizer=tokenizer,
-        buffer_size=buffer_size,
+        buffer_size=0,
         train_steps=40000,
         val_every_n_steps=10000,
         log_every_n_steps=500,
@@ -148,7 +159,7 @@ if __name__ == "__main__":
     )'''
 
     # Train the model
-    version = "GLAT_eos"
+    version = "GLAT_joint"
     trainer.train(
         model=model,
         train_datasets=train_datasets,
@@ -157,11 +168,12 @@ if __name__ == "__main__":
         val_bsz=32,
         tokens_per_batch=128000,
         logger_version=version,
+        wandb_project="Thesis",
     )
     '''trainer.train(
         model=model,
-        exps=exps,
-        val_datasets=val_datasets,
+        exps=train_exps,
+        val_datasets=val_exps,
         train_bsz=512,
         val_bsz=32,
         tokens_per_batch=128000,
