@@ -68,13 +68,40 @@ if __name__ == "__main__":
 
     # Load the model
     model_state_dict = torch.load(model_to_load)
-    model_config = TransformerConfig(
-        vocab_size=len(tokenizer),
-        bos_token_id=bos_token_id,
-        eos_token_id=eos_token_id,
-        pad_token_id=pad_token_id,
-    )
-    model = Transformer(model_config)
+    if "Transformer" in model_to_load:
+        model_config = TransformerConfig(
+            vocab_size=len(tokenizer),
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            pad_token_id=pad_token_id,
+        )
+        model = Transformer(model_config)
+    elif "CMLM" in model_to_load:
+        model_config = CMLMConfig(
+            vocab_size=len(tokenizer),
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            pad_token_id=pad_token_id,
+            mask_token_id=mask_token_id,
+            length_token_id=None,
+            pooler_size=256,
+            glat_training=False,
+        )
+        model = CMLM(model_config)
+    elif "GLAT" in model_to_load:
+        model_config = GLATConfig(
+            vocab_size=len(tokenizer),
+            bos_token_id=bos_token_id,
+            eos_token_id=eos_token_id,
+            pad_token_id=pad_token_id,
+            length_token_id=None,
+            map_copy="soft",
+            pooler_size=256,
+        )
+        model = GLAT(model_config)
+    else:
+        raise ValueError("You model state dict should have the model name in it.")
+
     model.load_state_dict(model_state_dict)
     model.to(device)
 
