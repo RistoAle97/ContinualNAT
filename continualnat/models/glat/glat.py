@@ -144,7 +144,7 @@ class GLAT(TransformerNATCore):
         )
 
         # Glancing strategy
-        labels = labels[:, : max_tgt_length + 1]
+        labels = labels[:, : max_tgt_length + 1].long()
         labels_special_mask = labels_special_mask[:, : max_tgt_length + 1]
         tgt_embeddings, labels = self.__glancing_strategy(labels, ~labels_special_mask.bool(), tgt_embeddings, logits)
 
