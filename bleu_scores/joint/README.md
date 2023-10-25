@@ -1,6 +1,8 @@
 # Joint Training
 The following BLEU scores were obtained by the models using joint training (all the datasets are concatenated and shuffled).
 
+---
+
 ## WMT14 test scores
 Note that the scores were computed on the _newstest2014_ for all the translation directions except for $en\Leftrightarrow es$ for which the _newstest2013_ was used instead.
 
@@ -17,6 +19,8 @@ Note that the scores were computed on the _newstest2014_ for all the translation
 | Transformer |        25.6        |       31.31        |       39.99        |       36.19        |       32.87        |       33.18        |
 |    CMLM     |       18.97        |       26.37        |       32.91        |        31.7        |       27.29        |       28.98        |
 |    GLAT     |       18.31        |       24.98        |       31.85        |       30.66        |       27.04        |       28.47        |
+
+---
 
 ## Flores200 devtest scores
 ### Tokenizer 13a
