@@ -3,7 +3,7 @@
 # ContinualNAT
 <img src="assets/unipiLogo.png" alt="Unipi Logo" width="230"/><br>
 
-**M.Sc. thesis on Continual Learning for multilingual non-autoregressive Neural Machine Translation (NAT).**
+**M.Sc. thesis on Continual Learning for Non-Autoregressive Neural Machine Translation.**
 
 ---
 
