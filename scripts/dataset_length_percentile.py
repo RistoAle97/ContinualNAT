@@ -22,12 +22,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--src", type=str, help="source language code")
     parser.add_argument("--tgt", type=str, help="target language code")
-    parser.add_argument("--size", type=int, help="size of the dataset, if no value is passed, then the full dataset"
-                                                 "will be loaded")
-    parser.add_argument("--p", nargs="+", type=float, default=[0.9, 0.95, 0.98, 0.99],
-                        help="the length percentiles")
-    parser.add_argument("--tokenize", action="store_true", help="whether to compute the length percentile of the"
-                                                                "tokenized sentences or not")
+    parser.add_argument(
+        "--size", type=int, help="size of the dataset, if no value is passed, then the full dataset will be loaded"
+    )
+    parser.add_argument("--p", nargs="+", type=float, default=[0.9, 0.95, 0.98, 0.99], help="the length percentiles")
+    parser.add_argument(
+        "--tokenize",
+        action="store_true",
+        help="whether to compute the length percentile of the tokenized sentences or not",
+    )
     parser.add_argument("--path", type=str, default="", help="where to save the csv file")
     args = parser.parse_args()
     src_lang = args.src
@@ -46,12 +49,18 @@ if __name__ == "__main__":
         raise ValueError("The path in which you want to save the results does not exist.")
 
     # Load dataset
-    dataset = load_dataset("yhavinga/ccmatrix", f"{src_lang}-{tgt_lang}", split=dataset_size,
-                           cache_dir="/disk1/a.ristori/datasets/ccmatrix", verification_mode="no_checks")
+    dataset = load_dataset(
+        path="yhavinga/ccmatrix",
+        name=f"{src_lang}-{tgt_lang}",
+        split=dataset_size,
+        cache_dir="/disk1/a.ristori/datasets/ccmatrix",
+        verification_mode="no_checks",
+    )
 
     # Tokenizer
-    tokenizer = MBartTokenizerFast.from_pretrained("nikodallanoce/mbart-cc4-full", src_lang=src_lang, tgt_lang=tgt_lang,
-                                                   cache_dir="tokenizers/mbart_cc100_full")
+    tokenizer = MBartTokenizerFast.from_pretrained(
+        "nikodallanoce/mbart-cc4-full", src_lang=src_lang, tgt_lang=tgt_lang, cache_dir="tokenizers/mbart_cc100_full"
+    )
 
     # Build length bins
     src_bins: Dict[int, int] = {}
@@ -60,8 +69,9 @@ if __name__ == "__main__":
         src_sentence = sentence_pair["translation"][src_lang]
         tgt_sentence = sentence_pair["translation"][tgt_lang]
         if tokenize:
-            tokenized_sentences = tokenizer(src_sentence, text_target=tgt_sentence, truncation=True,
-                                            padding="longest", return_tensors="pt")
+            tokenized_sentences = tokenizer(
+                src_sentence, text_target=tgt_sentence, truncation=True, padding="longest", return_tensors="pt"
+            )
             src_length = tokenized_sentences["input_ids"].size(-1)
             tgt_length = tokenized_sentences["labels"].size(-1)
         else:

@@ -7,10 +7,12 @@ from tqdm.auto import tqdm
 from typing import Dict, List
 
 
-def _compute_collisions(dataset: Dict[str, List[Dict[str, str]]],
-                        lang: str,
-                        idx_start: int,
-                        pbar_tqdm: tqdm) -> List[int]:
+def _compute_collisions(
+    dataset: Dict[str, List[Dict[str, str]]],
+    lang: str,
+    idx_start: int,
+    pbar_tqdm: tqdm,
+) -> List[int]:
     collision_indexes: List[int] = []
     sentence_pairs = dataset["translation"]
     for i, translation in enumerate(sentence_pairs):
@@ -58,8 +60,9 @@ if __name__ == "__main__":
     with tqdm(total=len(dataset_to_clean)) as pbar:
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
             for thr in range(num_threads):
-                futures.append(executor.submit(_compute_collisions, dataset_to_clean[i_start:i_end], lang_to_check,
-                                               i_start, pbar))
+                futures.append(
+                    executor.submit(_compute_collisions, dataset_to_clean[i_start:i_end], lang_to_check, i_start, pbar)
+                )
 
                 # Update indexes
                 i_start = i_end

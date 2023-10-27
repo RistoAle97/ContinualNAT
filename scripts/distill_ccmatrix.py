@@ -28,18 +28,39 @@ if __name__ == "__main__":
     lang_pair = f"{src_lang}-{tgt_lang}" if tgt_lang == "en" else f"{tgt_lang}-{src_lang}"
 
     # Load the CCMatrix dataset from the Huggingface hub
-    ccmatrix_to_distill = load_dataset("yhavinga/ccmatrix", lang_pair, split="train[:30000000]",
-                                       cache_dir=f"{datasets_dir}ccmatrix", verification_mode="no_checks")
+    ccmatrix_to_distill = load_dataset(
+        path="yhavinga/ccmatrix",
+        name=lang_pair,
+        split="train[:30000000]",
+        cache_dir=f"{datasets_dir}ccmatrix",
+        verification_mode="no_checks",
+    )
 
     # Load the Marian-MT tokenizer
     marian_tokenizer: MarianTokenizer = AutoTokenizer.from_pretrained(f"Helsinki-NLP/opus-mt-{src_lang}-{tgt_lang}")
 
     # Distill the dataset and push it to the Huggingface hub
-    distill_dataset(f"ct2-opus-mt-{src_lang}-{tgt_lang}", marian_tokenizer, ccmatrix_to_distill, "ccmatrix", src_lang,
-                    tgt_lang, device, 4, 4096, save_dir=f"{datasets_dir}distillation")
-    push_distilled_dataset_to_hub(f"{datasets_dir}distilled_ccmatrix_to_push", repo_id, src_lang, tgt_lang,
-                                  f"{datasets_dir}distillation/distilled_ccmatrix.{src_lang}_{tgt_lang}")
+    distill_dataset(
+        teacher=f"ct2-opus-mt-{src_lang}-{tgt_lang}",
+        tokenizer=marian_tokenizer,
+        dataset=ccmatrix_to_distill,
+        dataset_name="ccmatrix",
+        src_lang=src_lang,
+        tgt_lang=tgt_lang,
+        device=device,
+        beam_size=4,
+        bsz=4096,
+        save_dir=f"{datasets_dir}distillation",
+    )
+    push_distilled_dataset_to_hub(
+        cache_dir=f"{datasets_dir}distilled_ccmatrix_to_push",
+        repo_id=repo_id,
+        src_lang=src_lang,
+        tgt_lang=tgt_lang,
+        path_name=f"{datasets_dir}distillation/distilled_ccmatrix.{src_lang}_{tgt_lang}",
+    )
 
     # Load the previously pushed dataset in order to test it
-    distilled_ccmatrix = load_dataset(repo_id, cache_dir=f"{datasets_dir}distilled_ccmatrix",
-                                      verification_mode="no_checks")
+    distilled_ccmatrix = load_dataset(
+        repo_id, cache_dir=f"{datasets_dir}distilled_ccmatrix", verification_mode="no_checks"
+    )
