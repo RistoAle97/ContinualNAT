@@ -234,6 +234,7 @@ class MultilingualTrainer(TrainerCore):
         logger_version: str = None,
         early_stopping: bool = False,
         patience: int = 5,
+        model_directory: str = "",
         wandb_project: str = None,
     ) -> None:
         """
@@ -250,6 +251,7 @@ class MultilingualTrainer(TrainerCore):
         :param early_stopping: whether to use early stopping if the mean BLEU does not improve for a fixed number
             of validation epochs (default=False).
         :param patience: the patience parameter used by the early stopping callback (default=5).
+        :param model_directory: directory path in which the model will be saved at the end of the training (deafult="").
         :param wandb_project: the wandb project to which the run will belong to. If None, then "lightning_logs"
             will be used (default=None).
         """
@@ -316,6 +318,10 @@ class MultilingualTrainer(TrainerCore):
             callbacks=trainer_callbacks,
         )
         trainer.fit(model, train_dataloader, val_dataloaders)
+
+        # Save the model state dict
+        model_directory = os.path.join(model_directory, logger_version) if model_directory != "" else logger_version
+        torch.save(model.state_dict(), f"{model_directory}")
 
 
 class ContinualTrainer(TrainerCore):
@@ -432,6 +438,7 @@ class ContinualTrainer(TrainerCore):
         tokens_per_batch: int | None = None,
         logger_version: str | None = None,
         save_model_each_exp: bool = False,
+        model_directory: str = "",
         wandb_project: str = None,
     ) -> None:
         """
@@ -446,6 +453,7 @@ class ContinualTrainer(TrainerCore):
         :param logger_version: the version used by the logger. If None, then its value will be modelclass_seq
             (default=None).
         :param save_model_each_exp: whether to save the model at the end of each experience (default=False).
+        :param model_directory: directory path in which the model will be saved after each experience (default="").
         :param wandb_project: the wandb project to which the run will belong to. If None, then "lightning_logs"
             will be used (default=None).
         """
@@ -517,4 +525,9 @@ class ContinualTrainer(TrainerCore):
 
             # Save the model after each experience if the user wishes so
             if save_model_each_exp:
-                torch.save(model.state_dict(), f"/disk1/a.ristori/models/{logger_version_train}")
+                if model_directory != "":
+                    model_directory = os.path.join(model_directory, logger_version_train)
+                else:
+                    model_directory = logger_version_train
+
+                torch.save(model.state_dict(), f"{model_directory}")
