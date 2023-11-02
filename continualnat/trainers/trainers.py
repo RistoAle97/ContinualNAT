@@ -1,5 +1,4 @@
 import os
-from typing import Dict, List, Set, Tuple, Union
 
 import torch
 import wandb
@@ -66,11 +65,11 @@ class TrainerCore:
         self,
         model: TransformerCore,
         train_dataset: ConcatDataset[TranslationDataset],
-        train_batch_sampler: Union[BatchSamplerCore, ExperienceReplaySampler],
-        val_datasets: List[TranslationDataset],
+        train_batch_sampler: BatchSamplerCore | ExperienceReplaySampler,
+        val_datasets: list[TranslationDataset],
         train_bsz: int = 128,
         val_bsz: int = 128,
-    ) -> Tuple[DataLoader, Dict[str, DataLoader]]:
+    ) -> tuple[DataLoader, dict[str, DataLoader]]:
         # Define the batch collator parameters
         batch_collator_args = {
             "is_mlm": False,
@@ -111,7 +110,7 @@ class TrainerCore:
 
         return train_dataloader, val_dataloaders
 
-    def __build_dataloaders(self, *kwargs) -> Tuple[DataLoader, Dict[str, DataLoader]]:
+    def __build_dataloaders(self, *kwargs) -> tuple[DataLoader, dict[str, DataLoader]]:
         raise NotImplementedError
 
     def __compute_logger_version(self, *kwargs) -> str:
@@ -161,7 +160,7 @@ class MultilingualTrainer(TrainerCore):
         )
 
     @staticmethod
-    def __build_nmt_directions(train_datasets: List[TranslationDataset]) -> Tuple[Set[str], Set[Tuple[str, str]]]:
+    def __build_nmt_directions(train_datasets: list[TranslationDataset]) -> tuple[set[str], set[tuple[str, str]]]:
         lang_pairs = set()  # unique language pairs (e.g.: en-es and es-en is considered as a single pair)
         train_directions = set([f"{dataset.src_lang}-{dataset.tgt_lang}" for dataset in train_datasets])
         for direction in train_directions:
@@ -180,11 +179,11 @@ class MultilingualTrainer(TrainerCore):
     def __build_dataloaders(
         self,
         model: TransformerCore,
-        train_datasets: List[TranslationDataset],
-        val_datasets: List[TranslationDataset],
+        train_datasets: list[TranslationDataset],
+        val_datasets: list[TranslationDataset],
         train_bsz: int = 128,
         val_bsz: int = 128,
-    ) -> Tuple[DataLoader, Dict[str, DataLoader]]:
+    ) -> tuple[DataLoader, dict[str, DataLoader]]:
         # Train dataloader
         train_dataset = ConcatDataset(train_datasets)
         if self.batch_type == "heterogeneous":
@@ -199,8 +198,8 @@ class MultilingualTrainer(TrainerCore):
     @staticmethod
     def __compute_logger_version(
         model: TransformerCore,
-        nmt_directions: Set[str],
-        lang_pairs: Set[Tuple[str, str]],
+        nmt_directions: set[str],
+        lang_pairs: set[tuple[str, str]],
     ) -> str:
         # First, take the model class as start point
         logger_version = f"{model.__class__.__name__}"
@@ -226,8 +225,8 @@ class MultilingualTrainer(TrainerCore):
     def train(
         self,
         model: TransformerCore,
-        train_datasets: List[TranslationDataset],
-        val_datasets: List[TranslationDataset],
+        train_datasets: list[TranslationDataset],
+        val_datasets: list[TranslationDataset],
         train_bsz: int = 128,
         val_bsz: int = 128,
         tokens_per_batch: int = None,
@@ -382,11 +381,11 @@ class ContinualTrainer(TrainerCore):
         self,
         model: TransformerCore,
         exp_idx: int,
-        exp_datasets: List[TranslationDataset],
-        val_datasets: List[TranslationDataset],
+        exp_datasets: list[TranslationDataset],
+        val_datasets: list[TranslationDataset],
         train_bsz: int = 128,
         val_bsz: int = 128,
-    ) -> Tuple[DataLoader, Dict[str, DataLoader]]:
+    ) -> tuple[DataLoader, dict[str, DataLoader]]:
         if self.buffer is not None and self.buffer_batch_size is not None:
             train_dataset = ConcatDataset(exp_datasets)
             exp_batch_examples = train_bsz * (1.0 - self.buffer_batch_size)
@@ -431,8 +430,8 @@ class ContinualTrainer(TrainerCore):
     def train(
         self,
         model: TransformerCore,
-        exps: List[Union[TranslationDataset, List[TranslationDataset]]],
-        val_datasets: List[Union[TranslationDataset, List[TranslationDataset]]],
+        exps: list[TranslationDataset | list[TranslationDataset]],
+        val_datasets: list[TranslationDataset | list[TranslationDataset]],
         train_bsz: int = 128,
         val_bsz: int = 128,
         tokens_per_batch: int | None = None,

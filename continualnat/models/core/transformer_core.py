@@ -1,5 +1,3 @@
-from typing import Tuple, Union
-
 import torch
 from lightning import LightningModule
 from torch import nn
@@ -134,7 +132,7 @@ class TransformerCore(LightningModule):
         """
         raise NotImplementedError
 
-    def _val_tokenizer_tgtlang(self, dataloader_idx) -> Tuple[Union[MBartTokenizer, MBartTokenizerFast], str, str]:
+    def _val_tokenizer_tgtlang(self, dataloader_idx) -> tuple[MBartTokenizer | MBartTokenizerFast, str, str]:
         # Use the tokenizer from the dataloader's dataset
         langs_dataloader = list(self.trainer.val_dataloaders.items())[dataloader_idx]
         lang_pair, dataloader = langs_dataloader

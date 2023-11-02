@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
@@ -47,7 +45,7 @@ class CMLM(TransformerNATCore):
         tgt_input: torch.Tensor,
         e_mask: torch.Tensor = None,
         d_mask: torch.Tensor = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
         """
@@ -88,7 +86,7 @@ class CMLM(TransformerNATCore):
         labels_non_special_mask: torch.tensor,
         decoder_input_ids: torch.Tensor,
         logits: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         # Compute the glancing ratio
         glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
 
@@ -163,7 +161,7 @@ class CMLM(TransformerNATCore):
         e_mask: torch.Tensor,
         tgt_input: torch.Tensor,
         iterations: int = 10,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         with torch.no_grad():
             # Parameters
             bsz, seq_len = tgt_input.size()
@@ -235,7 +233,7 @@ class CMLM(TransformerNATCore):
         tgt_lang_token_id: int,
         iterations: int = None,
         length_beam_size: int = 5,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Generate tokens during inference by using the mask-predict algorithm by Ghazvininejad et al.
         https://arxiv.org/pdf/1904.09324.pdf.

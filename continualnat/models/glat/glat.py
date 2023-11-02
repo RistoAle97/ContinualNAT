@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
@@ -41,7 +39,7 @@ class GLAT(TransformerNATCore):
         src_lengths: torch.Tensor = None,
         tgt_lengths: torch.Tensor = None,
         no_glanced_input: bool = True,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
         """
@@ -105,7 +103,7 @@ class GLAT(TransformerNATCore):
         labels_mask: torch.tensor,
         tgt_embeddings: torch.Tensor,
         logits: torch.Tensor,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         # Compute the glancing ratio
         glancing_ratio = self.lambda_scheduler(self.trainer.global_step)
 

@@ -1,5 +1,3 @@
-from typing import Dict, Tuple
-
 import torch
 from torch.functional import F
 from torchmetrics import MeanMetric
@@ -59,7 +57,7 @@ class TransformerNATCore(TransformerCore):
 
     def _define_pooler_inputs(
         self, e_output: torch.Tensor, e_mask: torch.Tensor
-    ) -> Tuple[Dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
+    ) -> tuple[dict[str, torch.Tensor], torch.Tensor, torch.Tensor]:
         pooler_inputs = {"e_output": e_output}
         if self.length_token_id is not None:
             # Do not use the encodings of the <length> token inside the decoder
@@ -181,7 +179,7 @@ class TransformerNATCore(TransformerCore):
         labels: torch.Tensor,
         lengths_logits: torch.Tensor,
         target_lengths: torch.Tensor,
-    ) -> Tuple[torch.Tensor, float, float]:
+    ) -> tuple[torch.Tensor, float, float]:
         # Logits loss
         logits = logits.contiguous().view(-1, logits.size(-1))  # (bsz * seq_len, d_model)
         labels = labels.contiguous().view(-1)  # (bsz * seq_len)

@@ -1,5 +1,3 @@
-import os
-
 import torch
 import yaml
 from datasets import load_dataset
@@ -11,9 +9,6 @@ from continualnat.metrics import compute_sacrebleu
 from continualnat.trainers import *
 
 if __name__ == "__main__":
-    logger_version_train = "Model_continual_exp0"
-    save_model_directory_empty = os.path.join("/disk1/a.ristori/models/", logger_version_train)
-    save_model_directory = logger_version_train
     # Set-up
     torch.set_float32_matmul_precision("medium")
 

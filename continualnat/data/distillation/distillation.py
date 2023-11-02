@@ -1,6 +1,5 @@
 import os
 import tarfile
-from typing import Union
 
 import datasets
 import torch
@@ -14,7 +13,7 @@ from continualnat.models.core.transformer_core import TransformerCore
 
 
 def distill_dataset(
-    teacher: Union[PreTrainedModel, TransformerCore, str],
+    teacher: PreTrainedModel | TransformerCore | str,
     tokenizer: PreTrainedTokenizer,
     dataset: datasets.Dataset,
     dataset_name: str,

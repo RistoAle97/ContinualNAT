@@ -1,4 +1,4 @@
-from typing import Iterator, List, Union
+from collections.abc import Iterator
 
 import numpy as np
 from torch.utils.data import ConcatDataset, RandomSampler, SequentialSampler, Sampler
@@ -6,10 +6,10 @@ from torch.utils.data import ConcatDataset, RandomSampler, SequentialSampler, Sa
 from continualnat.data.datasets import TranslationDataset
 
 
-class BatchSamplerCore(Sampler[List[int]]):
+class BatchSamplerCore(Sampler[list[int]]):
     def __init__(
         self,
-        datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
+        datasets: ConcatDataset[TranslationDataset] | list[TranslationDataset],
         bsz: int,
         drop_last: bool = False,
         sampling_strategy: str = "random",
@@ -45,18 +45,18 @@ class BatchSamplerCore(Sampler[List[int]]):
 
         return n_batches
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         raise NotImplementedError
 
 
 class HeterogeneousSampler(BatchSamplerCore):
     def __init__(
         self,
-        datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
+        datasets: ConcatDataset[TranslationDataset] | list[TranslationDataset],
         bsz: int,
         drop_last: bool = False,
         sampling_strategy: str = "random",
-        weights: List[int] = None,
+        weights: list[int] = None,
     ) -> None:
         """
         Samples indices in a way that there will be different translation directions in the same batch.
@@ -73,7 +73,7 @@ class HeterogeneousSampler(BatchSamplerCore):
         if sum(self.weights) != 1.0:
             raise ValueError("The weights must sum to 1.")
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         batch = []
         np_generator = np.random.default_rng()
         # Even though it is not entirely correct, we decided to leave the same number of iterations as the homogeneous
@@ -109,7 +109,7 @@ class HeterogeneousSampler(BatchSamplerCore):
 class HomogeneousSampler(BatchSamplerCore):
     def __init__(
         self,
-        datasets: Union[ConcatDataset[TranslationDataset], List[TranslationDataset]],
+        datasets: ConcatDataset[TranslationDataset] | list[TranslationDataset],
         bsz: int,
         drop_last: bool = False,
         sampling_strategy: str = "random",
@@ -125,7 +125,7 @@ class HomogeneousSampler(BatchSamplerCore):
         super().__init__(datasets, bsz, drop_last, sampling_strategy)
         self._current_sampler_idx = 0
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         batch = []
         for _ in range(len(self) * self.bsz):
             try:

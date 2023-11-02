@@ -1,5 +1,3 @@
-from typing import Tuple
-
 import torch
 from transformers import PreTrainedTokenizerBase
 
@@ -84,7 +82,7 @@ def create_masks(
     decoder_input_ids: torch.Tensor,
     pad_token_id: int,
     decoder_mask: str = None,
-) -> Tuple[torch.Tensor, torch.Tensor]:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Create masks for both encoder and decoder. The encoder's mask will prevent the module from attending on padding
     tokens, while the decoder's mask will also prevent the module from attending on user-specificied tokens

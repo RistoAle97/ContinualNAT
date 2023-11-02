@@ -1,11 +1,9 @@
-from typing import Dict, List, Union
-
 import torch
 
-ExpBLEU = Dict[int, List[List[float]]]
+ExpBLEU = dict[int, list[list[float]]]
 
 
-def build_acc_matrix(bleu_scores: Union[ExpBLEU, torch.Tensor]) -> torch.Tensor:
+def build_acc_matrix(bleu_scores: ExpBLEU | torch.Tensor) -> torch.Tensor:
     """
     Builds the accuracy matrix by computing the mean BLEU score for each task.
     :param bleu_scores: a dict containing an int as key indicating the experience and a list of task scores (which are
@@ -42,7 +40,7 @@ def build_acc_matrix(bleu_scores: Union[ExpBLEU, torch.Tensor]) -> torch.Tensor:
     return acc_matrix
 
 
-def compute_acc(bleu_scores: Union[ExpBLEU, torch.Tensor], avg: bool = False) -> torch.Tensor:
+def compute_acc(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch.Tensor:
     """
     Compute the accuracy (mean BLEU scores) given a dict of experiences and their computed BLEU scores or an accuracy
     matrix.
@@ -69,7 +67,7 @@ def compute_acc(bleu_scores: Union[ExpBLEU, torch.Tensor], avg: bool = False) ->
     return acc
 
 
-def compute_bwt(bleu_scores: Union[ExpBLEU, torch.Tensor], avg: bool = False) -> torch.Tensor:
+def compute_bwt(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch.Tensor:
     """
     Compute the backward transfer given a dict of experiences and their computed BLEU scores or an accuracy matrix.
     :param bleu_scores: a dict containing an int as key indicating the experience and a list of task scores (which are
@@ -101,7 +99,7 @@ def compute_bwt(bleu_scores: Union[ExpBLEU, torch.Tensor], avg: bool = False) ->
     return bwt
 
 
-def compute_fwt(bleu_scores: Union[ExpBLEU, torch.Tensor], avg: bool = False) -> torch.Tensor:
+def compute_fwt(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch.Tensor:
     """
     Compute the forward transfer given a dict of experiences and their computed BLEU scores or an accuracy matrix.
     :param bleu_scores: a dict containing an int as key indicating the experience and a list of task scores (which are

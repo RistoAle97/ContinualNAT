@@ -1,5 +1,3 @@
-from typing import Dict, Set, Union
-
 import datasets
 import evaluate
 import sacrebleu
@@ -21,12 +19,12 @@ TOKENIZERS = set(tokenizer for tokenizer in sacrebleu.BLEU.TOKENIZERS)
 def compute_sacrebleu(
     model: TransformerCore,
     dataset: TranslationDataset,
-    tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast] = None,
+    tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast = None,
     bsz: int = 32,
     iterations: int = None,
     prog_bar: bool = True,
-    metric_tokenize: Set[str] = None,
-) -> Dict[str, float]:
+    metric_tokenize: set[str] = None,
+) -> dict[str, float]:
     """
     Computes the SacreBLEU score of a model built with the continualnat package for a given dataset.
     :param model: the model built with this library.
@@ -101,13 +99,13 @@ def compute_sacrebleu_ct2(
     dataset: datasets.Dataset,
     src_lang: str,
     tgt_lang: str,
-    tokenizer: Union[PreTrainedTokenizer, PreTrainedTokenizerFast],
+    tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
     beam_size: int,
     device: torch.device,
     bsz: int = 512,
     prog_bar: bool = True,
-    metric_tokenize: Set[str] = None,
-) -> Dict[str, float]:
+    metric_tokenize: set[str] = None,
+) -> dict[str, float]:
     """
     Computes the SacreBLEU score of a CTranslate2 model (only for the ones converted from a Hugginface's Transformers
     model) for a given dataset.

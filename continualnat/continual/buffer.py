@@ -1,5 +1,4 @@
 import copy
-from typing import Dict, List, Tuple, Union
 
 import numpy as np
 from torch.utils.data import Dataset, Subset
@@ -22,7 +21,7 @@ class Buffer(Dataset):
             raise ValueError("You can not pass a negative size for the buffer.")
 
         self.keep_prev_examples = keep_prev_examples
-        self._exps: List[List[TranslationDataset]] = []
+        self._exps: list[list[TranslationDataset]] = []
         self._partition_size = 0
 
     def __len__(self) -> int:
@@ -45,7 +44,7 @@ class Buffer(Dataset):
         idx_dataset = idx % len(chosen_dataset)
         return chosen_dataset.__getitem__(idx_dataset)
 
-    def add_experience(self, new_exp: Union[TranslationDataset, List[TranslationDataset]]) -> None:
+    def add_experience(self, new_exp: TranslationDataset | list[TranslationDataset]) -> None:
         """
         Add an experience to the buffer by adding a new partition inside of it. Keep in mind that the examples entering
         the byffer are random and that a resizing of all the previous partitions will be applied so that they will have
@@ -54,8 +53,8 @@ class Buffer(Dataset):
         """
         # Put all the previous and current experiences together
         curr_exp = copy.deepcopy(new_exp)
-        curr_exp: List[TranslationDataset] = [curr_exp] if isinstance(curr_exp, TranslationDataset) else curr_exp
-        exps: List[List[TranslationDataset]] = self._exps + [curr_exp]
+        curr_exp: list[TranslationDataset] = [curr_exp] if isinstance(curr_exp, TranslationDataset) else curr_exp
+        exps: list[list[TranslationDataset]] = self._exps + [curr_exp]
 
         # Compute the new partition size and the exceeding number of examples
         self._partition_size = self.size // len(exps)
@@ -104,7 +103,7 @@ class Buffer(Dataset):
         self._exps = []
         self._partition_size = 0
 
-    def partition_sizes(self) -> Tuple[Dict[int, int], Dict[str, int]]:
+    def partition_sizes(self) -> tuple[dict[int, int], dict[str, int]]:
         """
         Computes the partition sizes.
         :return: a tuple containing the partition sizes and the size of each partion's datasets.
@@ -120,7 +119,7 @@ class Buffer(Dataset):
 
         return partition_sizes, datasets_size
 
-    def list_datasets(self) -> List[TranslationDataset]:
+    def list_datasets(self) -> list[TranslationDataset]:
         """
         List all the datasets coming from the buffer's experiences.
         :return: a list containing all the datasets used by the buffer's experiences.

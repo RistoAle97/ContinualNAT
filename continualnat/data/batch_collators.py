@@ -1,5 +1,3 @@
-from typing import Dict, List, Union
-
 import numpy as np
 import torch
 
@@ -15,7 +13,7 @@ class BatchCollator:
         return_lengths: bool = False,
         pad_token_id: int = 1,
         mask_token_id: int = 5,
-        p_masking: Union[float, str] = 0.0,
+        p_masking: float | str = 0.0,
     ) -> None:
         """
         Standard collator, its work consists in batching the source and target sentences and creating
@@ -64,7 +62,7 @@ class BatchCollator:
         labels: torch.Tensor,
         decoder_input_ids: torch.Tensor,
         labels_special_mask: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+    ) -> dict[str, torch.Tensor]:
         batch_size, seq_len = labels.size()
 
         # Compute the number of special tokens for each sentence
@@ -106,7 +104,7 @@ class BatchCollator:
 
         return {"labels": labels, "decoder_input_ids": decoder_input_ids}
 
-    def __call__(self, batch) -> Dict[str, Union[torch.Tensor, List[List[str]]]]:
+    def __call__(self, batch) -> dict[str, torch.Tensor | list[list[str]]]:
         # Put all the tokenized source and target sentences together
         src_max_length = 0
         tgt_max_length = 0
@@ -114,7 +112,7 @@ class BatchCollator:
         tgt_tokenized_sentences = []
         input_ids_special_masks = []
         labels_special_masks = []
-        references: List[List[str]] = []
+        references: list[list[str]] = []
         for sentence_pair in batch:
             tokenized_src = sentence_pair["input_ids"]
             tokenized_tgt = sentence_pair["labels"]

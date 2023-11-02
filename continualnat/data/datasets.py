@@ -1,5 +1,4 @@
 import warnings
-from typing import Dict, Set, Union
 
 import datasets
 import numpy as np
@@ -15,12 +14,12 @@ class TranslationDataset(Dataset):
         self,
         src_lang: str,
         tgt_lang: str,
-        dataset: Union[datasets.Dataset, Subset],
-        tokenizer: Union[MBartTokenizer, MBartTokenizerFast],
-        max_length: Union[int, None] = None,
+        dataset: datasets.Dataset | Subset,
+        tokenizer: MBartTokenizer | MBartTokenizerFast,
+        max_length: int | None = None,
         use_nllb_lang_map: bool = False,
         use_cls_token: bool = False,
-        skip_idxs: Set[int] = None,
+        skip_idxs: set[int] = None,
         fill_to_max_length: bool = False,
         lang_tokens_only_encoder: bool = False,
     ) -> None:
@@ -102,7 +101,7 @@ class TranslationDataset(Dataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def __tokenize_pair(self, sentence_pair: Dict[str, str]) -> Dict[str, Union[torch.Tensor, str]]:
+    def __tokenize_pair(self, sentence_pair: dict[str, str]) -> dict[str, torch.Tensor | str]:
         if self.use_nllb_lang_map:
             src_lang_feature = f"sentence_{self.src_lang}"
             tgt_lang_feature = f"sentence_{self.tgt_lang}"
@@ -125,7 +124,7 @@ class TranslationDataset(Dataset):
 
         return {"input_ids": input_ids["input_ids"], "labels": labels["input_ids"], "reference": tgt_sentence}
 
-    def __getitem__(self, idx) -> Dict[str, torch.Tensor]:
+    def __getitem__(self, idx) -> dict[str, torch.Tensor]:
         while idx in self.skip_idxs:
             idx = np.random.randint(0, self.__len__())
 

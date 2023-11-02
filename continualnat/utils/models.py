@@ -1,5 +1,3 @@
-from typing import Tuple
-
 from torch import nn
 
 
@@ -25,7 +23,7 @@ def init_bert_weights(module: nn.Module) -> None:
         module.weight.data.fill_(1.0)
 
 
-def model_n_parameters(model: nn.Module) -> Tuple[int, int]:
+def model_n_parameters(model: nn.Module) -> tuple[int, int]:
     """
     Computes the number of parameters, and the trainable ones, of a pytorch model.
     :param: model: a pytorch nn.Module.

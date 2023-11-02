@@ -1,4 +1,4 @@
-from typing import Iterable, Iterator, List
+from collections.abc import Iterable, Iterator
 
 from torch.utils.data import BatchSampler
 
@@ -23,7 +23,7 @@ class ExperienceReplaySampler(Iterable):
         mem_batches = len(self.mem_batch_sampler)
         return max([exp_batches, mem_batches])
 
-    def __iter__(self) -> Iterator[List[int]]:
+    def __iter__(self) -> Iterator[list[int]]:
         for _ in range(len(self)):
             try:
                 exp_batch = next(self._exp_batch_sampler)
