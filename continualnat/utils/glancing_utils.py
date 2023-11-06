@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
+from continualnat.utils.utils import plt_format_func
+
 
 class LambdaScheduler:
     def __init__(self, start_ratio: float = 0.5, end_ratio: float = 0.2, start: int = 0, steps: int = 300000) -> None:
@@ -40,6 +42,8 @@ class LambdaScheduler:
         steps_ratio = [self(step) for step in range(self._anneal_end)]
         plt.rcParams.update(plt.rcParamsDefault)
         scheduler_steps = np.arange(len(steps_ratio))
+        _, ax = plt.subplots()
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(plt_format_func))
         plt.plot(scheduler_steps, steps_ratio, linewidth=2)
         plt.xlabel("Step", fontsize=14)
         plt.ylabel("Lambda", fontsize=14)

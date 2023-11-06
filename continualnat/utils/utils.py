@@ -120,7 +120,6 @@ def plot_lr_scheduler(
         scheduler_steps = np.arange(len(lrs))
         _, ax = plt.subplots()
         ax.xaxis.set_major_formatter(plt.FuncFormatter(plt_format_func))
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(plt_format_func))
         plt.plot(scheduler_steps, lrs, linewidth=2)
         plt.xlabel("Step", fontsize=14)
         plt.ylabel("Learning rate", fontsize=14)
