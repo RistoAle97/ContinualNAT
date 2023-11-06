@@ -14,6 +14,7 @@ from .utils import (
     NLLB_FLORES200_LANG_MAP,
     shift_lang_token_right,
     compute_accumulation_steps,
+    plt_format_func,
     plot_lr_scheduler,
 )
 
@@ -32,6 +33,7 @@ __all__ = [
     "model_n_parameters",
     "model_size",
     "plot_lr_scheduler",
+    "plt_format_func",
     "GlancingSampler",
     "LambdaScheduler",
 ]

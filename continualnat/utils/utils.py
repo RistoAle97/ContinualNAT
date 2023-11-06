@@ -1,9 +1,11 @@
 import math
 
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim import Optimizer
+from tqdm import tqdm
+from transformers import get_scheduler
 
 # Maps ISO 639-1 codes into language codes for the Mbart tokenizer
 MBART_LANG_MAP = {
@@ -84,26 +86,50 @@ def compute_accumulation_steps(batch_size: int, max_length: int, tokens_per_batc
     return accumulation_steps
 
 
-def plot_lr_scheduler(lr_scheduler: LambdaLR, num_steps: int = 100000) -> None:
+def plt_format_func(value, tick_number=None):
+    num_thousands = tick_number if abs(value) < 1000 else math.floor(math.log10(abs(value)) / 3)
+    value = round(value / 1000**num_thousands, 2)
+    return f"{value:g}" + " KMGTPEZY"[num_thousands]
+
+
+def plot_lr_scheduler(
+    optimizer: Optimizer,
+    name: str = "linear",
+    num_steps: int = 100000,
+    num_warmup_steps: int = 0,
+    plot_schedule: bool = True,
+) -> list[list[float]] | None:
     """
     Plot the learning reate scheduler steps.
-    :param lr_scheduler: the learning rate scheduler.
+    :param optimizer: the optimizer.
+    :param name: the learning rate scheduler's name, such scheduler should be available in the Transformers
+            library (default="linear").
     :param num_steps: the number of steps to consider (default=100000).
+    :param num_warmup_steps: the number of warmup steps to perform (default=0).
+    :param plot_schedule: whether to plot or not the learning rate schedule. If false the value assumed by the
+        learning rate will be provided as output (default=True).
     """
+    lr_scheduler = get_scheduler(name, optimizer, num_warmup_steps, num_steps)
     lrs = []
-    for _ in range(1, num_steps):
+    for _ in tqdm(range(1, num_steps)):
         lr_scheduler.optimizer.step()
         lr_scheduler.step()
         lrs.append(lr_scheduler.get_last_lr())
 
-    scheduler_steps = np.arange(len(lrs))
-    plt.plot(scheduler_steps, lrs, linewidth=2)
-    plt.xlabel("Step", fontsize=14)
-    plt.ylabel("Learning rate", fontsize=14)
-    plt.title("Learning rate schedule", fontsize=19)
-    plt.legend(["Eta"], fontsize=14)
-    plt.grid()
-    plt.show()
+    if plot_schedule:
+        scheduler_steps = np.arange(len(lrs))
+        _, ax = plt.subplots()
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(plt_format_func))
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(plt_format_func))
+        plt.plot(scheduler_steps, lrs, linewidth=2)
+        plt.xlabel("Step", fontsize=14)
+        plt.ylabel("Learning rate", fontsize=14)
+        plt.title("Learning rate schedule", fontsize=19)
+        plt.legend(["Eta"], fontsize=14)
+        plt.grid()
+        plt.show()
+    else:
+        return lrs
 
 
 def compute_repeated_tokens(translations_tokens: list[str]) -> tuple[int, float]:
