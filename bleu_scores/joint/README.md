@@ -11,7 +11,7 @@ Note that the scores were computed on the _newstest2014_ for all the translation
 |:-----------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|:------------------:|
 | Transformer |       24.96        |       30.88        |       37.03        |       35.49        |        32.8        |       32.74        |
 |    CMLM     |       18.42        |       26.01        |       29.94        |       31.05        |       27.23        |        28.6        |
-|    GLAT     |       17.79        |        24.7        |       28.98        |       30.05        |       27.04        |       28.47        |
+|    GLAT     |       17.79        |        24.7        |       28.98        |       30.05        |       26.99        |        28.1        |
 
 ### Tokenizer intl
 |    Model    | $en\Rightarrow de$ | $de\Rightarrow en$ | $en\Rightarrow fr$ | $fr\Rightarrow en$ | $en\Rightarrow es$ | $es\Rightarrow en$ |
