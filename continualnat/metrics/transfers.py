@@ -40,7 +40,7 @@ def build_acc_matrix(bleu_scores: ExpBLEU | torch.Tensor) -> torch.Tensor:
     return acc_matrix
 
 
-def compute_acc(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch.Tensor:
+def compute_acc(bleu_scores: ExpBLEU | torch.Tensor) -> torch.Tensor:
     """
     Compute the accuracy (mean BLEU scores) given a dict of experiences and their computed BLEU scores or an accuracy
     matrix.
@@ -55,19 +55,14 @@ def compute_acc(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch
                 [28.9500, 32.500]])
         Keep in mind that you can also pass an accuracy matrix built by yourself to this method, and it will only check
         whether the such matrix is square.
-    :param avg: whether to sum the computed accuracies and average the result.
     :return: the accuracy for each experience or the average one
     """
     acc_matrix = build_acc_matrix(bleu_scores)
-    n = acc_matrix.size(0)
     acc = acc_matrix.mean(dim=-1)
-    if avg:
-        acc = acc.sum() / (n * (n + 1) / 2)
-
     return acc
 
 
-def compute_bwt(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch.Tensor:
+def compute_bwt(bleu_scores: ExpBLEU | torch.Tensor) -> torch.Tensor:
     """
     Compute the backward transfer given a dict of experiences and their computed BLEU scores or an accuracy matrix.
     :param bleu_scores: a dict containing an int as key indicating the experience and a list of task scores (which are
@@ -81,25 +76,23 @@ def compute_bwt(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch
                 [28.9500, 32.500]])
         Keep in mind that you can also pass an accuracy matrix built by yourself to this method, and it will only check
         whether the such matrix is square.
-    :param avg: whether to sum the computed backward transfers and average the result.
     :return: the backward transfer for each experience or the average one.
     """
     acc_matrix = build_acc_matrix(bleu_scores)
     n = acc_matrix.size(0)
     bwt = torch.zeros(n)
-    for i in range(1, bwt.size()[-1]):
+    for i in range(1, n):
         diff = 0.0
         for j in range(i):
             diff += acc_matrix[i, j] - acc_matrix[j, j]
 
         bwt[i] = diff
-    if avg:
-        bwt = bwt.sum() / (n * (n - 1) / 2)
+        bwt[i] = bwt[i] / i
 
     return bwt
 
 
-def compute_fwt(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch.Tensor:
+def compute_fwt(bleu_scores: ExpBLEU | torch.Tensor) -> torch.Tensor:
     """
     Compute the forward transfer given a dict of experiences and their computed BLEU scores or an accuracy matrix.
     :param bleu_scores: a dict containing an int as key indicating the experience and a list of task scores (which are
@@ -113,7 +106,6 @@ def compute_fwt(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch
                 [28.9500, 32.500]])
         Keep in mind that you can also pass an accuracy matrix built by yourself to this method, and it will only check
         whether the such matrix is square.
-    :param avg: whether to sum the computed forward transfers and average the result.
     :return: the forward transfer for each experience or the average one.
     """
     acc_matrix = build_acc_matrix(bleu_scores)
@@ -121,8 +113,5 @@ def compute_fwt(bleu_scores: ExpBLEU | torch.Tensor, avg: bool = False) -> torch
     fwt = torch.zeros(n)
     for i in range(n - 1):
         fwt[i] = acc_matrix[i, i + 1 :].sum()
-
-    if avg:
-        fwt = fwt.sum() / (n * (n - 1) / 2)
 
     return fwt
