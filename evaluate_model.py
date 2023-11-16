@@ -17,6 +17,7 @@ def parse_arguments(known=False):
     parser.add_argument("-m", type=str, help="Where the model state dict is saved")
     parser.add_argument("-lp", nargs="+", default=["en-de", "en-fr", "en-es"], type=str, help="Lang pairs to consider")
     parser.add_argument("-bsz", default=32, type=int, help="The batch size used during decoding")
+    parser.add_argument("-i", default=10, type=int, help="The number of iterations used by the CMLM model")
     parser.add_argument("-s", action="store_true", help="Whether to save the scores in a csv file")
     parser.add_argument("-v", action="store_true", help="Whether to print the BLEU scores")
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
@@ -32,6 +33,7 @@ if __name__ == "__main__":
     model_to_load: str = opt_parser.m
     lang_pairs = set(opt_parser.lp)
     bsz: int = opt_parser.bsz
+    mask_predict_iterations: int = opt_parser.i
     save_scores: bool = opt_parser.s
     verbose: bool = opt_parser.v
 
@@ -158,6 +160,7 @@ if __name__ == "__main__":
     generation_parameters = {
         "tokenizer": tokenizer,
         "bsz": bsz,
+        "iterations": mask_predict_iterations,
         "metric_tokenize": {"13a", "intl"},
     }
     metric_tokenize = {"13a", "intl"}

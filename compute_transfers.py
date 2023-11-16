@@ -2,9 +2,8 @@ import argparse
 
 import pandas as pd
 import tabulate
-import torch
 
-from continualnat.metrics import compute_acc, compute_bwt, compute_fwt
+from continualnat.metrics import build_acc_matrix, compute_acc, compute_bwt, compute_fwt
 
 
 def parse_arguments(known=False):
@@ -29,8 +28,9 @@ if __name__ == "__main__":
         bleu_scores_exp = [bleu_scores_exp[:2], bleu_scores_exp[2:4], bleu_scores_exp[4:]]
         bleu_scores_exps[i] = bleu_scores_exp
 
-    bleu_scores_tabulated = tabulate.tabulate(bleu_scores_exps)
-    print(f"BLEU scores:\n{bleu_scores_tabulated}")
+    acc_matrix = build_acc_matrix(bleu_scores_exps)
+    bleu_scores_tabulated = tabulate.tabulate(acc_matrix)
+    print(f"Average BLEU scores:\n{bleu_scores_tabulated}\n")
     acc = compute_acc(bleu_scores_exps)
     bwt = compute_bwt(bleu_scores_exps)
     fwt = compute_fwt(bleu_scores_exps)
