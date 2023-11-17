@@ -38,7 +38,6 @@ class GLAT(TransformerNATCore):
         d_mask: torch.Tensor = None,
         src_lengths: torch.Tensor = None,
         tgt_lengths: torch.Tensor = None,
-        no_glanced_input: bool = True,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Process source and target sequences.
@@ -72,18 +71,24 @@ class GLAT(TransformerNATCore):
         # Copy the source embeddings or the encoder ouptut
         tensor_to_copy = torch.clone(e_output if self.tensor_to_copy == "e_output" else src_embeddings_no_pos_encoding)
         tensor_to_copy = tensor_to_copy[:, : src_lengths.max(), :]
-        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths + 1)
+        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths + 2)
 
         # Positional encoding for the copied target embeddings
         tgt_embeddings = self.positional_encoder(new_tgt_embeddings * self.embedding_scale)
 
-        # Put the eos token embeddings inside the copied embeddings
+        # Put the eos and language tokens embeddings inside the copied embeddings
         bsz, tgt_seq_len = tgt_input.size()
+        # noinspection PyTypeChecker
+        lang_tokens_idxs = (torch.where(tgt_input == self.eos_token_id)[-1] + 1).view(bsz, 1)
+        lang_tokens = tgt_input.gather(-1, lang_tokens_idxs)
+        lang_embeddings = self.embedding(lang_tokens).repeat_interleave(tgt_seq_len, dim=1)
+        lang_embeddings = self.positional_encoder(lang_embeddings * self.embedding_scale)
         eos_token = torch.tensor(self.eos_token_id, device=self.device).unsqueeze(0)
         eos_embeddings = self.embedding(eos_token).repeat_interleave(tgt_seq_len, dim=0).unsqueeze(0)
         eos_embeddings = self.positional_encoder(eos_embeddings * self.embedding_scale).squeeze(0)
         for i, tgt_length in enumerate(tgt_lengths):
             tgt_embeddings[i, tgt_length] = eos_embeddings[tgt_length]
+            tgt_embeddings[i, tgt_length + 1] = lang_embeddings[i, tgt_length + 1]
 
         # Decoder
         d_output = self.decoder(tgt_embeddings, e_output, d_mask, e_mask)  # (bsz, tgt_len, d_model)
@@ -131,10 +136,9 @@ class GLAT(TransformerNATCore):
         labels_special_mask = batch["labels_special_mask"]  # (1 if special token, 0 otherwise)
         src_lengths = batch["src_lengths"]  # (bsz, 1)
         tgt_lengths = batch["tgt_lengths"]  # (bsz, 1)
-        max_tgt_length = tgt_lengths.max()
 
         # Create masks
-        e_mask, d_mask = create_masks(input_ids, decoder_input_ids[:, : max_tgt_length + 1], self.pad_token_id, None)
+        e_mask, d_mask = create_masks(input_ids, decoder_input_ids, self.pad_token_id, None)
 
         # Compute logits and predicted lengths
         logits, predicted_lengths, e_output, tgt_embeddings = self(
@@ -142,8 +146,6 @@ class GLAT(TransformerNATCore):
         )
 
         # Glancing strategy
-        labels = labels[:, : max_tgt_length + 1].long()
-        labels_special_mask = labels_special_mask[:, : max_tgt_length + 1]
         tgt_embeddings, labels = self.__glancing_strategy(labels, ~labels_special_mask.bool(), tgt_embeddings, logits)
 
         # Compute the new logits
@@ -211,20 +213,8 @@ class GLAT(TransformerNATCore):
         bsz = input_ids.shape[0]
         device = input_ids.device
 
-        # Compute lengths of the input ids
+        # Compute lengths of the input ids without considering the special tokens
         src_lengths = torch.sum(input_ids.ne(self.pad_token_id), dim=-1)
-        if tgt_lang_token_id not in input_ids[0]:
-            # Need to put the target language token inside the input ids
-            new_input_ids = []
-            tgt_lang_token = torch.tensor(tgt_lang_token_id).unsqueeze(0).to(device)
-            for i, tokenized_sentence in enumerate(input_ids):
-                new_tokenized_sentence = torch.cat(
-                    [tokenized_sentence[: src_lengths[i]], tgt_lang_token, tokenized_sentence[src_lengths[i] :]], dim=0
-                )
-                new_input_ids.append(new_tokenized_sentence)
-
-            input_ids = torch.stack(new_input_ids)
-
         src_lengths = src_lengths.unsqueeze(-1) - 2  # (bsz, 1)
 
         # Compute encodings
@@ -250,22 +240,26 @@ class GLAT(TransformerNATCore):
         tensor_to_copy = tensor_to_copy.repeat_interleave(length_beam_size, dim=0)
 
         # Create the decoder mask
-        d_mask = create_padding_mask_from_lengths(tgt_lengths + 1, True)
+        d_mask = create_padding_mask_from_lengths(tgt_lengths + 2, True)
 
         # Copy the source embeddings or encodings
         src_lengths = src_lengths.repeat_interleave(length_beam_size, dim=0)
-        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths + 1)
+        new_tgt_embeddings = self._copy_embeddings(tensor_to_copy, src_lengths, tgt_lengths + 2)
 
         # Positional encoding for the new target embeddings
         tgt_embeddings = self.positional_encoder(new_tgt_embeddings * self.embedding_scale)
 
-        # Put the eos token in the copied embeddings
-        max_tgt_length_with_eos = tgt_lengths.max() + 1  # this also considers the eos token
+        # Put the eos and language tokens in the copied embeddings
+        max_tgt_length_eos_lang = tgt_lengths.max() + 2
+        tgt_lang_token = torch.tensor(tgt_lang_token_id).unsqueeze(0).to(device)
+        lang_embeddings = self.embedding(tgt_lang_token).repeat_interleave(max_tgt_length_eos_lang, dim=0).unsqueeze(0)
+        lang_embeddings = self.positional_encoder(lang_embeddings * self.embedding_scale).squeeze(0)
         eos_token = torch.tensor(self.eos_token_id, device=device).unsqueeze(0)
-        eos_embeddings = self.embedding(eos_token).repeat_interleave(max_tgt_length_with_eos, dim=0).unsqueeze(0)
+        eos_embeddings = self.embedding(eos_token).repeat_interleave(max_tgt_length_eos_lang, dim=0).unsqueeze(0)
         eos_embeddings = self.positional_encoder(eos_embeddings * self.embedding_scale).squeeze(0)
         for i, tgt_length in enumerate(tgt_lengths):
             tgt_embeddings[i, tgt_length] = eos_embeddings[tgt_length]
+            tgt_embeddings[i, tgt_length + 1] = lang_embeddings[tgt_length + 1]
 
         # Compute the translation tokens and their probabilities
         d_output = self.decoder(tgt_embeddings, duplicated_encodings, d_mask=d_mask, e_mask=duplicated_e_mask)
@@ -279,6 +273,7 @@ class GLAT(TransformerNATCore):
         eos_token_idxs = torch.arange(0, tgt_bsz * tgt_seq_len, tgt_seq_len, device=device).view(tgt_bsz, 1)
         eos_token_idxs += tgt_lengths
         d_pad_mask.view(-1)[eos_token_idxs] = True
+        d_pad_mask.view(-1)[eos_token_idxs + 1] = True
 
         translation_tokens.masked_fill_(d_pad_mask, self.pad_token_id)
         log_probabilities.masked_fill_(d_pad_mask, 0.0)
