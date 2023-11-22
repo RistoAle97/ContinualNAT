@@ -51,11 +51,10 @@ class GLAT(TransformerNATCore):
         # Compute the source and target lengths if both are not passed
         if (src_lengths is None) ^ (tgt_lengths is None):
             raise ValueError("One between the source and target lengths is None while the other is defined.")
-
-        if src_lengths is None:
+        elif src_lengths is None and tgt_lengths is None:
             src_lengths = e_mask.sum(dim=-1)
             src_lengths -= 2 if self.length_token_id is None else 3
-            tgt_lengths = d_mask.sum(dim=-1)[:, 0].unsqueeze(-1) - 1
+            tgt_lengths = d_mask.sum(dim=-1)[:, 0].unsqueeze(-1) - 2
 
         # Embeddings and positional encoding
         src_embeddings_no_pos_encoding = self.embedding(src_input)  # (bsz, src_len, d_model)
@@ -76,7 +75,7 @@ class GLAT(TransformerNATCore):
         # Positional encoding for the copied target embeddings
         tgt_embeddings = self.positional_encoder(new_tgt_embeddings * self.embedding_scale)
 
-        # Put the eos and language tokens embeddings inside the copied embeddings
+        # Put the eos and language token embeddings inside the copied embeddings
         bsz, tgt_seq_len = tgt_input.size()
         # noinspection PyTypeChecker
         lang_tokens_idxs = (torch.where(tgt_input == self.eos_token_id)[-1] + 1).view(bsz, 1)
@@ -249,7 +248,7 @@ class GLAT(TransformerNATCore):
         # Positional encoding for the new target embeddings
         tgt_embeddings = self.positional_encoder(new_tgt_embeddings * self.embedding_scale)
 
-        # Put the eos and language tokens in the copied embeddings
+        # Put the eos and language token embeddings in the copied embeddings
         max_tgt_length_eos_lang = tgt_lengths.max() + 2
         tgt_lang_token = torch.tensor(tgt_lang_token_id).unsqueeze(0).to(device)
         lang_embeddings = self.embedding(tgt_lang_token).repeat_interleave(max_tgt_length_eos_lang, dim=0).unsqueeze(0)
