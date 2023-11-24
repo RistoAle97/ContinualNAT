@@ -52,15 +52,15 @@ if __name__ == "__main__":
         pooler_size=256,
         glat_training=False,
     )
-    model = CMLM(model_config)'''
+    model = CMLM(model_config)
     model_config = TransformerConfig(
         vocab_size=len(tokenizer),
         bos_token_id=bos_token_id,
         eos_token_id=eos_token_id,
         pad_token_id=pad_token_id,
     )
-    model = Transformer(model_config)
-    '''model_config = GLATConfig(
+    model = Transformer(model_config)'''
+    model_config = GLATConfig(
         vocab_size=len(tokenizer),
         bos_token_id=bos_token_id,
         eos_token_id=eos_token_id,
@@ -69,7 +69,7 @@ if __name__ == "__main__":
         map_copy="soft",
         pooler_size=256,
     )
-    model = GLAT(model_config)'''
+    model = GLAT(model_config)
 
     # Check whether the model is using the length token
     use_cls_token = False
@@ -81,10 +81,9 @@ if __name__ == "__main__":
     val_datasets = []
     test_datasets = []
     exps_lang_pairs = [["en-de", "de-en"], ["en-fr", "fr-en"], ["en-es", "es-en"]]
-    # exps_lang_pairs = [["en-de"]]
     train_exps = []
     val_exps = []
-    lang_tokens_only_encoder = True if isinstance(model, GLAT) else False
+    lang_tokens_only_encoder = False  # True if isinstance(model, GLAT) else False
     for exp_lang_pair in exps_lang_pairs:
         train_current_exp = []
         val_current_exp = []
@@ -137,7 +136,7 @@ if __name__ == "__main__":
         val_exps.append(val_current_exp)
 
     # Set up the trainer
-    '''trainer = MultilingualTrainer(
+    trainer = MultilingualTrainer(
         tokenizer=tokenizer,
         train_steps=300000,
         val_every_n_steps=10000,
@@ -145,22 +144,22 @@ if __name__ == "__main__":
         dataloader_num_workers=8,
         log_directory="/disk1/a.ristori/",
         use_wandb=True,
-    )'''
-    buffer_size = sum([len(train_dataset) for train_dataset in train_datasets]) * 5 // 100
+    )
+    '''buffer_size = sum([len(train_dataset) for train_dataset in train_datasets]) * 5 // 100
     continual_trainer = ContinualTrainer(
         tokenizer=tokenizer,
-        buffer_size=buffer_size,
-        train_steps=200000,
+        buffer_size=0,
+        train_steps=300000,
         val_every_n_steps=10000,
         log_every_n_steps=500,
         dataloader_num_workers=8,
         log_directory="/disk1/a.ristori/",
         use_wandb=True,
-    )
+    )'''
 
     # Train the model
-    version = "Transformer_continual"
-    '''trainer.train(
+    version = "GLAT_joint_v3"
+    trainer.train(
         model=model,
         train_datasets=train_datasets,
         val_datasets=val_datasets,
@@ -169,8 +168,8 @@ if __name__ == "__main__":
         tokens_per_batch=128000,
         logger_version=version,
         wandb_project="Thesis",
-    )'''
-    continual_trainer.train(
+    )
+    '''continual_trainer.train(
         model=model,
         exps=train_exps,
         val_datasets=val_exps,
@@ -180,7 +179,7 @@ if __name__ == "__main__":
         logger_version=version,
         save_model_each_exp=True,
         wandb_project="Thesis",
-    )
+    )'''
 
     # Save the model
     torch.save(model.state_dict(), f"/disk1/a.ristori/models/{version}")
